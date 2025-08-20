@@ -20,6 +20,43 @@ export interface ReportSections {
   emAndamento: Installation[];
 }
 
+export interface PavimentoSummary {
+  pavimento: string;
+  pendentes: number;
+  instalados: number;
+  emRevisao: number;
+  emAndamento: number;
+  total: number;
+}
+
+// Report theme for consistent styling
+export const reportTheme = {
+  colors: {
+    pendentes: '#F59E0B',
+    instalados: '#10B981', 
+    emAndamento: '#6B7280',
+    restante: '#E5E7EB',
+    header: [55, 65, 81] as [number, number, number], // #374151
+    alternateRow: [249, 250, 251] as [number, number, number], // #F9FAFB
+    border: '#E5E7EB',
+    divider: '#E5E7EB',
+    footer: '#6B7280'
+  },
+  fonts: {
+    title: 22,
+    subtitle: 16,
+    text: 10,
+    footer: 8
+  },
+  spacing: {
+    margin: 20,
+    titleBottom: 10,
+    subtitleTop: 12,
+    subtitleBottom: 6,
+    sectionSpacing: 8
+  }
+};
+
 // Calculate report sections based on interlocutor
 export function calculateReportSections(data: ReportData): ReportSections {
   const { installations, versions, interlocutor } = data;
@@ -53,18 +90,56 @@ export function calculateReportSections(data: ReportData): ReportSections {
   return { pendencias, concluidas, emRevisao, emAndamento };
 }
 
-// Generate three doughnut charts side by side
+// Calculate pavimento summary
+export function calculatePavimentoSummary(data: ReportSections): PavimentoSummary[] {
+  const pavimentoMap = new Map<string, PavimentoSummary>();
+  
+  const allItems = [...data.pendencias, ...data.concluidas, ...data.emRevisao, ...data.emAndamento];
+  
+  allItems.forEach(item => {
+    if (!pavimentoMap.has(item.pavimento)) {
+      pavimentoMap.set(item.pavimento, {
+        pavimento: item.pavimento,
+        pendentes: 0,
+        instalados: 0,
+        emRevisao: 0,
+        emAndamento: 0,
+        total: 0
+      });
+    }
+    
+    const summary = pavimentoMap.get(item.pavimento)!;
+    
+    if (data.pendencias.includes(item)) summary.pendentes++;
+    else if (data.concluidas.includes(item)) summary.instalados++;
+    else if (data.emRevisao.includes(item)) summary.emRevisao++;
+    else if (data.emAndamento.includes(item)) summary.emAndamento++;
+    
+    summary.total++;
+  });
+  
+  return Array.from(pavimentoMap.values()).sort((a, b) => 
+    a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true })
+  );
+}
+
+// Generate three enhanced doughnut charts side by side
 export async function generateChartImage(data: ReportSections): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 900; // Wider for 3 charts
-    canvas.height = 400;
+    // Higher resolution for crisp PDF export
+    const scale = 2;
+    canvas.width = 900 * scale;
+    canvas.height = 400 * scale;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
       resolve('');
       return;
     }
+
+    // Scale context for high DPI
+    ctx.scale(scale, scale);
 
     // Calculate totals (excluding Em Revisão from charts)
     const total = data.pendencias.length + data.concluidas.length + data.emAndamento.length;
@@ -75,38 +150,34 @@ export async function generateChartImage(data: ReportSections): Promise<string> 
 
     // Clear canvas with white background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, 900, 400);
 
     // Chart configuration
     const chartWidth = 250;
     const chartSpacing = 50;
-    const centerY = canvas.height / 2;
+    const centerY = 200;
     const radius = 80;
-    const innerRadius = 50; // For doughnut effect
-
-    // Colors - neutral palette
-    const colors = {
-      pendentes: '#f97316', // Orange
-      concluidas: '#22c55e', // Green  
-      andamento: '#6b7280'   // Gray
-    };
+    const innerRadius = 50;
 
     // Chart 1: Pendentes
     const chart1X = chartSpacing + chartWidth / 2;
-    drawDoughnutChart(ctx, chart1X, centerY, radius, innerRadius, data.pendencias.length, total, colors.pendentes, 'Pendentes');
+    drawEnhancedDoughnutChart(ctx, chart1X, centerY, radius, innerRadius, 
+      data.pendencias.length, total, reportTheme.colors.pendentes, 'Pendentes');
 
     // Chart 2: Instalados
     const chart2X = chart1X + chartWidth + chartSpacing;
-    drawDoughnutChart(ctx, chart2X, centerY, radius, innerRadius, data.concluidas.length, total, colors.concluidas, 'Instalados');
+    drawEnhancedDoughnutChart(ctx, chart2X, centerY, radius, innerRadius, 
+      data.concluidas.length, total, reportTheme.colors.instalados, 'Instalados');
 
     // Chart 3: Em Andamento
     const chart3X = chart2X + chartWidth + chartSpacing;
-    drawDoughnutChart(ctx, chart3X, centerY, radius, innerRadius, data.emAndamento.length, total, colors.andamento, 'Em Andamento');
+    drawEnhancedDoughnutChart(ctx, chart3X, centerY, radius, innerRadius, 
+      data.emAndamento.length, total, reportTheme.colors.emAndamento, 'Em Andamento');
 
     resolve(canvas.toDataURL('image/png', 1.0));
   });
 
-  function drawDoughnutChart(
+  function drawEnhancedDoughnutChart(
     ctx: CanvasRenderingContext2D,
     centerX: number,
     centerY: number,
@@ -120,11 +191,11 @@ export async function generateChartImage(data: ReportSections): Promise<string> 
     const percentage = total > 0 ? (value / total) * 100 : 0;
     const angle = (value / total) * 2 * Math.PI;
 
-    // Draw background circle (light gray)
+    // Draw background circle (restante)
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true);
-    ctx.fillStyle = '#f3f4f6';
+    ctx.fillStyle = reportTheme.colors.restante;
     ctx.fill();
 
     // Draw value slice
@@ -136,16 +207,22 @@ export async function generateChartImage(data: ReportSections): Promise<string> 
       ctx.fill();
     }
 
-    // Draw percentage in center
+    // Draw percentage in center (large)
     ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 18px Arial';
+    ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(percentage)}%`, centerX, centerY);
+    ctx.fillText(`${Math.round(percentage)}%`, centerX, centerY - 5);
 
-    // Draw label below
-    ctx.font = '14px Arial';
-    ctx.fillText(label, centerX, centerY + radius + 30);
+    // Draw count below percentage
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#6b7280';
+    ctx.fillText(`(${value} de ${total})`, centerX, centerY + 15);
+
+    // Draw label below chart
+    ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#374151';
+    ctx.fillText(label, centerX, centerY + radius + 35);
   }
 }
 
@@ -159,57 +236,335 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
 // Generate PDF Report
 export async function generatePDFReport(data: ReportData): Promise<Blob> {
   const sections = calculateReportSections(data);
+  const pavimentoSummary = calculatePavimentoSummary(sections);
   const chartImage = await generateChartImage(sections);
   
-  const doc = new jsPDF();
-  let yPosition = 20;
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
 
-  // Header
-  doc.setFontSize(18);
-  doc.text(`Relatório de Instalações | ${data.project.name}`, 20, yPosition);
-  yPosition += 15;
+  // Add footer to all pages
+  const addFooter = () => {
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(reportTheme.fonts.footer);
+    doc.setTextColor(reportTheme.colors.footer);
+    const footerText = `DEA Manager • ${data.project.name} • ${new Date(data.generatedAt).toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
+    doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+  };
+
+  let yPosition = reportTheme.spacing.margin;
+
+  // Enhanced Header
+  doc.setFontSize(reportTheme.fonts.title);
+  doc.setTextColor('#000000');
+  doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin, yPosition);
+  yPosition += reportTheme.spacing.titleBottom;
 
   doc.setFontSize(12);
-  doc.text(`Cliente: ${data.project.client}`, 20, yPosition);
+  doc.text(`Cliente: ${data.project.client}`, reportTheme.spacing.margin, yPosition);
+  yPosition += 7;
+  doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, reportTheme.spacing.margin, yPosition);
   yPosition += 10;
-  doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, 20, yPosition);
-  yPosition += 15;
 
   // Optional responsavel in smaller font
   if (data.generatedBy) {
-    doc.setFontSize(10);
-    doc.text(`Responsável: ${data.generatedBy}`, 20, yPosition);
-    doc.setFontSize(12);
-    yPosition += 15;
-  } else {
-    yPosition += 5;
+    doc.setFontSize(reportTheme.fonts.footer);
+    doc.setTextColor('#6B7280');
+    doc.text(`Responsável: ${data.generatedBy}`, reportTheme.spacing.margin, yPosition);
+    yPosition += 8;
+    doc.setTextColor('#000000');
   }
+
+  // Header divider
+  doc.setDrawColor('#E5E7EB');
+  doc.setLineWidth(0.5);
+  doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
+  yPosition += 10;
 
   // Add chart if available
   if (chartImage) {
-    doc.addImage(chartImage, 'PNG', 20, yPosition, 170, 85);
+    doc.addImage(chartImage, 'PNG', reportTheme.spacing.margin, yPosition, 170, 85);
     yPosition += 95;
+  }
+
+  // Add pavimento summary
+  if (pavimentoSummary.length > 0) {
+    yPosition = addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
   }
 
   // Add sections only if they have items
   if (sections.pendencias.length > 0) {
-    yPosition = addSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias');
+    yPosition = addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias');
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = addSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas');
+    yPosition = addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas');
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = addSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao');
+    yPosition = addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao');
   }
 
   if (sections.emAndamento.length > 0) {
     const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = addSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento');
+    yPosition = addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento');
+  }
+
+  // Add footer to all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    addFooter();
   }
 
   return new Blob([doc.output('blob')], { type: 'application/pdf' });
+}
+
+// Add pavimento summary table to PDF
+function addPavimentoSummaryToPDF(
+  doc: jsPDF, 
+  summary: PavimentoSummary[], 
+  yPosition: number, 
+  interlocutor: 'cliente' | 'fornecedor'
+): number {
+  // Check if new page needed
+  if (yPosition > 200) {
+    doc.addPage();
+    yPosition = reportTheme.spacing.margin;
+  }
+
+  doc.setFontSize(reportTheme.fonts.subtitle);
+  doc.setTextColor('#000000');
+  doc.text('Resumo por Pavimento', reportTheme.spacing.margin, yPosition);
+  yPosition += 15;
+
+  const headers = ['Pavimento', 'Pendentes', 'Instalados', 'Em Revisão', 
+    interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento', 'Total'];
+  
+  const rows = summary.map(item => [
+    item.pavimento,
+    item.pendentes.toString(),
+    item.instalados.toString(), 
+    item.emRevisao.toString(),
+    item.emAndamento.toString(),
+    item.total.toString()
+  ]);
+
+  autoTable(doc, {
+    head: [headers],
+    body: rows,
+    startY: yPosition,
+    styles: { 
+      fontSize: reportTheme.fonts.text,
+      halign: 'center'
+    },
+    headStyles: { 
+      fillColor: reportTheme.colors.header,
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: { fillColor: reportTheme.colors.alternateRow },
+    columnStyles: {
+      0: { halign: 'left' }, // Pavimento aligned left
+      5: { fontStyle: 'bold' } // Total column bold
+    }
+  });
+
+  return (doc as any).lastAutoTable.finalY + reportTheme.spacing.sectionSpacing;
+}
+
+// Enhanced section rendering with pavimento sub-groups
+function addEnhancedSectionToPDF(
+  doc: jsPDF, 
+  title: string, 
+  items: Installation[], 
+  yPosition: number, 
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+): number {
+  // Check if new page needed
+  if (yPosition > 220) {
+    doc.addPage();
+    yPosition = reportTheme.spacing.margin;
+  }
+
+  // Section title
+  doc.setFontSize(reportTheme.fonts.subtitle);
+  doc.setTextColor('#000000');
+  doc.text(title, reportTheme.spacing.margin, yPosition);
+  yPosition += reportTheme.spacing.subtitleBottom;
+
+  // Group items by pavimento
+  const pavimentoGroups = new Map<string, Installation[]>();
+  items.forEach(item => {
+    if (!pavimentoGroups.has(item.pavimento)) {
+      pavimentoGroups.set(item.pavimento, []);
+    }
+    pavimentoGroups.get(item.pavimento)!.push(item);
+  });
+
+  // Sort pavimentos naturally
+  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => 
+    a.localeCompare(b, 'pt-BR', { numeric: true })
+  );
+
+  // Process each pavimento group
+  for (const pavimento of sortedPavimentos) {
+    const pavimentoItems = pavimentoGroups.get(pavimento)!;
+    
+    // Sort items within pavimento: Tipologia → Código
+    const sortedItems = pavimentoItems.sort((a, b) => {
+      if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+      return a.codigo - b.codigo;
+    });
+
+    // Check if new page needed for pavimento group
+    if (yPosition > 230) {
+      doc.addPage();
+      yPosition = reportTheme.spacing.margin;
+    }
+
+    // Pavimento subtitle with chip style
+    doc.setFontSize(12);
+    doc.setTextColor('#374151');
+    doc.text(`${pavimento} — ${sortedItems.length} itens`, reportTheme.spacing.margin, yPosition);
+    yPosition += 8;
+
+    // Thin divider line
+    doc.setDrawColor('#E5E7EB');
+    doc.setLineWidth(0.3);
+    doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
+    yPosition += 5;
+
+    // Prepare table data
+    const { columns, rows } = prepareTableData(sortedItems, interlocutor, sectionType);
+
+    // Define column widths based on section type
+    const columnStyles = getColumnStyles(sectionType, interlocutor);
+
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: yPosition,
+      styles: { 
+        fontSize: reportTheme.fonts.text,
+        cellPadding: 3
+      },
+      headStyles: { 
+        fillColor: reportTheme.colors.header,
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: { fillColor: reportTheme.colors.alternateRow },
+      columnStyles,
+      margin: { left: reportTheme.spacing.margin }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + reportTheme.spacing.sectionSpacing;
+  }
+
+  return yPosition;
+}
+
+// Prepare table data based on section type and interlocutor
+function prepareTableData(
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+): { columns: string[], rows: any[][] } {
+  let columns: string[] = [];
+  let rows: any[][] = [];
+
+  if (sectionType === 'pendencias') {
+    if (interlocutor === 'cliente') {
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
+      rows = items.map(item => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    } else {
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      rows = items.map(item => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    }
+  } else if (sectionType === 'revisao') {
+    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
+    rows = items.map(item => {
+      const versions = storage.getInstallationVersions(item.id);
+      const latestVersion = versions[versions.length - 1];
+      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
+      
+      return [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.revisao.toString(),
+        motivo
+      ];
+    });
+  } else {
+    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
+    rows = items.map(item => [
+      item.pavimento,
+      item.tipologia,
+      item.codigo.toString(),
+      item.descricao
+    ]);
+  }
+
+  return { columns, rows };
+}
+
+// Get column styles based on section type
+function getColumnStyles(
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  interlocutor: 'cliente' | 'fornecedor'
+): any {
+  const baseStyles = {
+    0: { halign: 'left' }, // Pavimento
+    1: { halign: 'left' }, // Tipologia  
+    2: { halign: 'right' }, // Código
+    3: { halign: 'left' }  // Descrição
+  };
+
+  if (sectionType === 'pendencias') {
+    if (interlocutor === 'cliente') {
+      return {
+        ...baseStyles,
+        4: { halign: 'left' }, // Observação
+        5: { halign: 'center' } // Foto
+      };
+    } else {
+      return {
+        ...baseStyles,
+        4: { halign: 'left' }, // Observação
+        5: { halign: 'left' }, // Comentários
+        6: { halign: 'center' } // Foto
+      };
+    }
+  } else if (sectionType === 'revisao') {
+    return {
+      ...baseStyles,
+      4: { halign: 'center' }, // Versão
+      5: { halign: 'left' }    // Motivo
+    };
+  }
+
+  return baseStyles;
 }
 
 function addSectionToPDF(
@@ -315,9 +670,10 @@ function getMotivoPtBr(motivo: string): string {
 // Generate XLSX Report
 export function generateXLSXReport(data: ReportData): Blob {
   const sections = calculateReportSections(data);
+  const pavimentoSummary = calculatePavimentoSummary(sections);
   const workbook = XLSX.utils.book_new();
 
-  // Add summary sheet
+  // Add enhanced summary sheet
   const summaryData = [
     ['Relatório de Instalações', ''],
     ['Projeto', data.project.name],
@@ -325,7 +681,7 @@ export function generateXLSXReport(data: ReportData): Blob {
     ['Data', new Date(data.generatedAt).toLocaleDateString('pt-BR')],
     
     ['', ''],
-    ['Resumo', ''],
+    ['Resumo Geral', ''],
     ['Pendências', sections.pendencias.length],
     ['Concluídas', sections.concluidas.length],
     ['Em Revisão', sections.emRevisao.length],
@@ -336,22 +692,46 @@ export function generateXLSXReport(data: ReportData): Blob {
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
 
-  // Add sections only if they have items
+  // Add pavimento summary sheet
+  if (pavimentoSummary.length > 0) {
+    const pavimentoData = [
+      ['Pavimento', 'Pendentes', 'Instalados', 'Em Revisão', 
+       data.interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento', 'Total'],
+      ...pavimentoSummary.map(item => [
+        item.pavimento,
+        item.pendentes,
+        item.instalados,
+        item.emRevisao,
+        item.emAndamento,
+        item.total
+      ])
+    ];
+    
+    const pavimentoSheet = XLSX.utils.aoa_to_sheet(pavimentoData);
+    // Freeze top row
+    pavimentoSheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+    // Auto filter
+    pavimentoSheet['!autofilter'] = { ref: `A1:F${pavimentoSummary.length + 1}` };
+    
+    XLSX.utils.book_append_sheet(workbook, pavimentoSheet, 'Resumo_Pavimento');
+  }
+
+  // Add sections only if they have items with enhanced formatting
   if (sections.pendencias.length > 0) {
-    addSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
+    addEnhancedSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
   }
 
   if (sections.concluidas.length > 0) {
-    addSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
+    addEnhancedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
   }
 
   if (sections.emRevisao.length > 0) {
-    addSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
+    addEnhancedSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
   }
 
   if (sections.emAndamento.length > 0) {
     const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    addSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
+    addEnhancedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
   }
 
   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -426,5 +806,55 @@ function addSectionToXLSX(
 
   const wsData = [headers, ...data];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+}
+
+// Enhanced XLSX section with pavimento sub-groups
+function addEnhancedSectionToXLSX(
+  workbook: XLSX.WorkBook,
+  sheetName: string,
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+) {
+  // Group by pavimento and prepare data with sub-headers
+  const pavimentoGroups = new Map<string, Installation[]>();
+  items.forEach(item => {
+    if (!pavimentoGroups.has(item.pavimento)) {
+      pavimentoGroups.set(item.pavimento, []);
+    }
+    pavimentoGroups.get(item.pavimento)!.push(item);
+  });
+
+  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => 
+    a.localeCompare(b, 'pt-BR', { numeric: true })
+  );
+
+  const { columns } = prepareTableData([], interlocutor, sectionType);
+  const allData: any[][] = [columns]; // Headers
+
+  // Add data with pavimento separators
+  for (const pavimento of sortedPavimentos) {
+    const pavimentoItems = pavimentoGroups.get(pavimento)!;
+    const sortedItems = pavimentoItems.sort((a, b) => {
+      if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+      return a.codigo - b.codigo;
+    });
+
+    // Add pavimento separator row
+    allData.push([`${pavimento} — ${sortedItems.length} itens`, '', '', '', '', '']);
+    
+    // Add items data
+    const { rows } = prepareTableData(sortedItems, interlocutor, sectionType);
+    allData.push(...rows);
+    
+    // Add empty row between pavimentos
+    allData.push(['', '', '', '', '', '']);
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(allData);
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + columns.length - 1)}1` };
+  
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
