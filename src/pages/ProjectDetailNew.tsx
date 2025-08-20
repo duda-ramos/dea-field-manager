@@ -10,13 +10,14 @@ import { StatsCard } from "@/components/ui/stats-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
-  Settings, Search, FileSpreadsheet, RefreshCw, Plus 
+  Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink 
 } from "lucide-react";
 import { Project, Installation, ProjectReport } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
+import { EditProjectModal } from "@/components/edit-project-modal";
 import { importExcelFile } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
@@ -40,6 +41,7 @@ export default function ProjectDetailNew() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'pendentes' | 'emAndamento' | 'instalados'>('all');
   const [reportPavimentoFilter, setReportPavimentoFilter] = useState<string>('all');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +56,10 @@ export default function ProjectDetailNew() {
     setInstallations(storage.getInstallations(id));
     setReports(storage.getReports(id));
   }, [id, navigate]);
+
+  const handleProjectUpdated = (updatedProject: Project) => {
+    setProject(updatedProject);
+  };
 
   if (!project) return null;
 
@@ -369,7 +375,17 @@ export default function ProjectDetailNew() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Informações Básicas</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Informações Básicas</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -392,6 +408,21 @@ export default function ProjectDetailNew() {
               <Label>Responsável</Label>
               <Input value={project.owner} readOnly />
             </div>
+            {project.project_files_link && (
+              <div>
+                <Label>Link dos Arquivos do Projeto</Label>
+                <div className="flex gap-2">
+                  <Input value={project.project_files_link} readOnly />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(project.project_files_link, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -980,6 +1011,14 @@ export default function ProjectDetailNew() {
           onUpdate={() => setInstallations(storage.getInstallations(project.id))}
         />
       )}
+
+      {/* Edit Project Modal */}
+      <EditProjectModal
+        project={project}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onProjectUpdated={handleProjectUpdated}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
 import { ProjectCard } from "@/components/project-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
@@ -19,6 +20,7 @@ export default function Dashboard() {
     city: "",
     code: "",
     owner: "",
+    project_files_link: "",
     suppliers: [""]
   });
   const {
@@ -50,6 +52,7 @@ export default function Dashboard() {
       city: "",
       code: "",
       owner: "",
+      project_files_link: "",
       suppliers: [""]
     });
     toast({
@@ -130,6 +133,18 @@ export default function Dashboard() {
                     ...prev,
                     owner: e.target.value
                   }))} placeholder="Ex: João Silva" />
+                  </div>
+                  <div>
+                    <Label htmlFor="project_files_link">Link dos Arquivos do Projeto</Label>
+                    <Input 
+                      id="project_files_link" 
+                      value={newProject.project_files_link} 
+                      onChange={e => setNewProject(prev => ({
+                        ...prev,
+                        project_files_link: e.target.value
+                      }))} 
+                      placeholder="Ex: https://drive.google.com/folder/..." 
+                    />
                   </div>
                   <div>
                     <Label>Fornecedores</Label>

@@ -9,6 +9,7 @@ export interface Project {
   inauguration_date?: string;
   owner: string;
   suppliers: string[];
+  project_files_link?: string; // New field for project files link
   created_at: string;
   updated_at: string;
 }
