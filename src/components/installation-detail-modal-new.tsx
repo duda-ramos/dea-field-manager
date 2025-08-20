@@ -11,7 +11,8 @@ import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoGallery } from "@/components/photo-gallery";
-import { History, Edit3, Eye } from "lucide-react";
+import { AddInstallationModal } from "@/components/add-installation-modal";
+import { History, Edit3, Eye, Plus } from "lucide-react";
 
 interface InstallationDetailModalNewProps {
   installation: Installation;
@@ -34,6 +35,7 @@ export function InstallationDetailModalNew({
   const [versions, setVersions] = useState<ItemVersion[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
+  const [showAddRevisionModal, setShowAddRevisionModal] = useState(false);
 
   useEffect(() => {
     setInstalled(installation.installed);
@@ -199,6 +201,10 @@ export function InstallationDetailModalNew({
 
             {/* Revision Actions */}
             <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowAddRevisionModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Revisão
+              </Button>
               {versions.length > 0 && (
                 <Button variant="outline" onClick={() => setShowHistory(!showHistory)}>
                   <History className="h-4 w-4 mr-2" />
@@ -340,6 +346,18 @@ export function InstallationDetailModalNew({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Add Revision Modal */}
+      <AddInstallationModal
+        projectId={installation.project_id}
+        isOpen={showAddRevisionModal}
+        onClose={() => setShowAddRevisionModal(false)}
+        onUpdate={() => {
+          onUpdate();
+          setVersions(storage.getInstallationVersions(installation.id));
+        }}
+        editingInstallation={installation}
+      />
     </>
   );
 }
