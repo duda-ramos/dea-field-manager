@@ -523,11 +523,24 @@ export default function ProjectDetailNew() {
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => {
-                        // Since we can't actually download the file again, we'll show a message
+                        // Regenerate and download the report
+                        const reportData = {
+                          project,
+                          installations,
+                          generatedBy: report.generated_by,
+                          generatedAt: report.generated_at
+                        };
+
+                        const fileType = report.file_path.split('.').pop();
+                        if (fileType === 'pdf') {
+                          generatePDFReport(reportData);
+                        } else if (fileType === 'xlsx') {
+                          generateXLSXReport(reportData);
+                        }
+
                         toast({
-                          title: "Download não disponível",
-                          description: "Este relatório foi gerado anteriormente. Gere um novo relatório para download.",
-                          variant: "destructive"
+                          title: "Relatório baixado",
+                          description: `Relatório ${fileType?.toUpperCase()} foi baixado novamente`,
                         });
                       }}>
                         <Download className="h-4 w-4" />
