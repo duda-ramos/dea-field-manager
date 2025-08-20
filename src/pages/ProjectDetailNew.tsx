@@ -54,6 +54,7 @@ export default function ProjectDetailNew() {
   const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
                         location.pathname.includes('/relatorios') ? 'relatorios' :
                         location.pathname.includes('/orcamentos') ? 'orcamentos' :
+                        location.pathname.includes('/contatos') ? 'contatos' :
                         'info';
 
   // Get unique pavimentos for filter
@@ -509,6 +510,25 @@ export default function ProjectDetailNew() {
     </div>
   );
 
+  const renderContatosSection = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Contatos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12">
+            <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Seção de Contatos</h3>
+            <p className="text-muted-foreground">
+              Esta seção será implementada em versões futuras do sistema.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -564,6 +584,12 @@ export default function ProjectDetailNew() {
             >
               Orçamentos
             </Button>
+            <Button 
+              variant={currentSection === 'contatos' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}/contatos`)}
+            >
+              Contatos
+            </Button>
             
             {/* Import button - only shows import functionality */}
             <Button variant="outline" disabled={isImporting} className="ml-auto">
@@ -572,6 +598,7 @@ export default function ProjectDetailNew() {
                 accept=".xlsx,.xls"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
               />
               <Upload className="h-4 w-4 mr-2" />
               {isImporting ? "Importando..." : "Importar Planilha"}
@@ -592,6 +619,7 @@ export default function ProjectDetailNew() {
         {currentSection === 'pecas' && renderPecasSection()}
         {currentSection === 'relatorios' && renderRelatoriosSection()}
         {currentSection === 'orcamentos' && renderOrcamentosSection()}
+        {currentSection === 'contatos' && renderContatosSection()}
       </div>
 
       {/* Add Installation Modal */}
