@@ -26,6 +26,7 @@ export interface Installation {
   diretriz_altura_cm?: number;
   diretriz_dist_batente_cm?: number;
   observacoes?: string;
+  comentarios_fornecedor?: string;
   // Campos existentes mantidos
   installed: boolean;
   installed_at?: string;

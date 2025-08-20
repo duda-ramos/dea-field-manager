@@ -34,7 +34,8 @@ export function AddInstallationModal({
     pavimento: "",
     diretriz_altura_cm: "",
     diretriz_dist_batente_cm: "",
-    observacoes: ""
+    observacoes: "",
+    comentarios_fornecedor: ""
   });
   
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
@@ -52,7 +53,8 @@ export function AddInstallationModal({
         pavimento: editingInstallation.pavimento,
         diretriz_altura_cm: editingInstallation.diretriz_altura_cm ? String(editingInstallation.diretriz_altura_cm) : "",
         diretriz_dist_batente_cm: editingInstallation.diretriz_dist_batente_cm ? String(editingInstallation.diretriz_dist_batente_cm) : "",
-        observacoes: editingInstallation.observacoes || ""
+        observacoes: editingInstallation.observacoes || "",
+        comentarios_fornecedor: editingInstallation.comentarios_fornecedor || ""
       });
     } else {
       setFormData({
@@ -63,7 +65,8 @@ export function AddInstallationModal({
         pavimento: "",
         diretriz_altura_cm: "",
         diretriz_dist_batente_cm: "",
-        observacoes: ""
+        observacoes: "",
+        comentarios_fornecedor: ""
       });
     }
   }, [editingInstallation]);
@@ -77,7 +80,8 @@ export function AddInstallationModal({
       pavimento: "",
       diretriz_altura_cm: "",
       diretriz_dist_batente_cm: "",
-      observacoes: ""
+      observacoes: "",
+      comentarios_fornecedor: ""
     });
     setShowOverwriteConfirm(false);
     setOverwriteMotivo("");
@@ -153,7 +157,8 @@ export function AddInstallationModal({
       pavimento: formData.pavimento,
       diretriz_altura_cm,
       diretriz_dist_batente_cm,
-      observacoes: formData.observacoes || undefined
+      observacoes: formData.observacoes || undefined,
+      comentarios_fornecedor: formData.comentarios_fornecedor || undefined
     };
 
     let savedInstallation: Installation;
@@ -379,6 +384,16 @@ export function AddInstallationModal({
               value={formData.observacoes}
               onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
               placeholder="Observações adicionais sobre a instalação..."
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <div>
+            <Label>Comentários para o Fornecedor</Label>
+            <Textarea
+              value={formData.comentarios_fornecedor}
+              onChange={(e) => setFormData(prev => ({ ...prev, comentarios_fornecedor: e.target.value }))}
+              placeholder="Comentários específicos para o fornecedor..."
               className="min-h-[80px]"
             />
           </div>

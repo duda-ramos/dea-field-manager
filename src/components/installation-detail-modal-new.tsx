@@ -125,7 +125,8 @@ export function InstallationDetailModalNew({
         pavimento: installation.pavimento,
         diretriz_altura_cm: installation.diretriz_altura_cm,
         diretriz_dist_batente_cm: installation.diretriz_dist_batente_cm,
-        observacoes: installation.observacoes
+        observacoes: installation.observacoes,
+        comentarios_fornecedor: installation.comentarios_fornecedor
       };
 
       const updatedInstallation = storage.overwriteInstallation(
@@ -206,6 +207,18 @@ export function InstallationDetailModalNew({
                 />
               </div>
             </div>
+
+            {/* Comments for supplier */}
+            {installation.comentarios_fornecedor && (
+              <div>
+                <Label>Comentários para o Fornecedor</Label>
+                <Textarea 
+                  value={installation.comentarios_fornecedor} 
+                  readOnly 
+                  className="bg-muted min-h-[80px]" 
+                />
+              </div>
+            )}
 
             {/* Installation Status */}
             <div className="flex items-center space-x-2">
@@ -402,6 +415,13 @@ export function InstallationDetailModalNew({
                 <div>
                   <Label>Observações</Label>
                   <Textarea value={selectedVersion.snapshot.observacoes} readOnly className="bg-muted min-h-[80px]" />
+                </div>
+              )}
+
+              {selectedVersion.snapshot.comentarios_fornecedor && (
+                <div>
+                  <Label>Comentários para o Fornecedor</Label>
+                  <Textarea value={selectedVersion.snapshot.comentarios_fornecedor} readOnly className="bg-muted min-h-[80px]" />
                 </div>
               )}
 
