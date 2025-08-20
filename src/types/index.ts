@@ -16,15 +16,20 @@ export interface Project {
 export interface Installation {
   id: string;
   project_id: string;
-  typology: string;
-  code: string;
-  description: string;
-  height_guideline_cm: number;
-  distance_from_frame_cm: number;
+  // Campos obrigatórios
+  tipologia: string;
+  codigo: number;
+  descricao: string;
+  quantidade: number;
+  pavimento: string;
+  // Campos opcionais
+  diretriz_altura_cm?: number;
+  diretriz_dist_batente_cm?: number;
+  observacoes?: string;
+  // Campos existentes mantidos
   installed: boolean;
   installed_at?: string;
   updated_at: string;
-  observations: string;
   photos: string[];
 }
 

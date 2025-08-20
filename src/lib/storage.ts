@@ -103,29 +103,43 @@ class StorageManager {
     return installations[index];
   }
 
-  // Bulk import installations from Excel data
-  importInstallations(projectId: string, data: any[]): Installation[] {
-    const installations: Installation[] = data.map(row => ({
-      id: this.generateId(),
-      project_id: projectId,
-      typology: row.tipologia || row.typology || '',
-      code: row.codigo || row.code || '',
-      description: row.descricao || row.description || '',
-      height_guideline_cm: Number(row.altura || row.height || 0),
-      distance_from_frame_cm: Number(row.distancia || row.distance || 0),
-      installed: false,
-      observations: '',
-      photos: [],
-      updated_at: new Date().toISOString(),
-    }));
+  // Bulk import installations from Excel data with floor/pavimento support
+  importInstallations(projectId: string, data: { pavimento: string; items: any[] }[]): { summary: Record<string, number>; installations: Installation[] } {
+    const allInstallations: Installation[] = [];
+    const summary: Record<string, number> = {};
 
+    for (const floorData of data) {
+      const { pavimento, items } = floorData;
+      summary[pavimento] = items.length;
+
+      const installations: Installation[] = items.map(row => ({
+        id: this.generateId(),
+        project_id: projectId,
+        tipologia: row.tipologia || '',
+        codigo: Number(row.codigo) || 0,
+        descricao: row.descricao || '',
+        quantidade: Number(row.quantidade) || 0,
+        pavimento: pavimento,
+        diretriz_altura_cm: row.diretriz_altura_cm ? Number(row.diretriz_altura_cm) : undefined,
+        diretriz_dist_batente_cm: row.diretriz_dist_batente_cm ? Number(row.diretriz_dist_batente_cm) : undefined,
+        observacoes: row.observacoes,
+        installed: false,
+        photos: [],
+        updated_at: new Date().toISOString(),
+      }));
+
+      allInstallations.push(...installations);
+    }
+
+    // Save all installations
     const existingInstallations = this.getInstallations();
-    const allInstallations = [...existingInstallations, ...installations];
-    this.setItems('installations', allInstallations);
-    return installations;
+    const updatedInstallations = [...existingInstallations, ...allInstallations];
+    this.setItems('installations', updatedInstallations);
+
+    return { summary, installations: allInstallations };
   }
 
-  // Budgets
+  // ... keep existing code (budget, contact, report methods)
   getBudgets(projectId?: string): ProjectBudget[] {
     const budgets = this.getItems<ProjectBudget>('budgets');
     return projectId ? budgets.filter(b => b.project_id === projectId) : budgets;
