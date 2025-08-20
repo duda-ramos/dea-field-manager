@@ -53,12 +53,12 @@ export function calculateReportSections(data: ReportData): ReportSections {
   return { pendencias, concluidas, emRevisao, emAndamento };
 }
 
-// Generate chart as base64 image
+// Generate three doughnut charts side by side
 export async function generateChartImage(data: ReportSections): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 300;
+    canvas.width = 900; // Wider for 3 charts
+    canvas.height = 400;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
@@ -66,116 +66,94 @@ export async function generateChartImage(data: ReportSections): Promise<string> 
       return;
     }
 
-    // Simple pie chart
-    const total = data.pendencias.length + data.concluidas.length + data.emAndamento.length + data.emRevisao.length;
+    // Calculate totals (excluding Em Revisão from charts)
+    const total = data.pendencias.length + data.concluidas.length + data.emAndamento.length;
     if (total === 0) {
       resolve('');
       return;
     }
 
-    const pendentesPercent = (data.pendencias.length / total) * 2 * Math.PI;
-    const concluidasPercent = (data.concluidas.length / total) * 2 * Math.PI;
-    const andamentoPercent = (data.emAndamento.length / total) * 2 * Math.PI;
-    const revisaoPercent = (data.emRevisao.length / total) * 2 * Math.PI;
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = 100;
-
-    // Clear canvas
+    // Clear canvas with white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    let currentAngle = 0;
+    // Chart configuration
+    const chartWidth = 250;
+    const chartSpacing = 50;
+    const centerY = canvas.height / 2;
+    const radius = 80;
+    const innerRadius = 50; // For doughnut effect
 
-    // Draw pendentes slice
-    if (data.pendencias.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + pendentesPercent);
-      ctx.closePath();
-      ctx.fillStyle = '#ef4444';
-      ctx.fill();
-      currentAngle += pendentesPercent;
-    }
+    // Colors - neutral palette
+    const colors = {
+      pendentes: '#f97316', // Orange
+      concluidas: '#22c55e', // Green  
+      andamento: '#6b7280'   // Gray
+    };
 
-    // Draw concluidas slice
-    if (data.concluidas.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + concluidasPercent);
-      ctx.closePath();
-      ctx.fillStyle = '#22c55e';
-      ctx.fill();
-      currentAngle += concluidasPercent;
-    }
+    // Chart 1: Pendentes
+    const chart1X = chartSpacing + chartWidth / 2;
+    drawDoughnutChart(ctx, chart1X, centerY, radius, innerRadius, data.pendencias.length, total, colors.pendentes, 'Pendentes');
 
-    // Draw andamento slice
-    if (data.emAndamento.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + andamentoPercent);
-      ctx.closePath();
-      ctx.fillStyle = '#f59e0b';
-      ctx.fill();
-      currentAngle += andamentoPercent;
-    }
+    // Chart 2: Instalados
+    const chart2X = chart1X + chartWidth + chartSpacing;
+    drawDoughnutChart(ctx, chart2X, centerY, radius, innerRadius, data.concluidas.length, total, colors.concluidas, 'Instalados');
 
-    // Draw revisao slice
-    if (data.emRevisao.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + revisaoPercent);
-      ctx.closePath();
-      ctx.fillStyle = '#8b5cf6';
-      ctx.fill();
-    }
+    // Chart 3: Em Andamento
+    const chart3X = chart2X + chartWidth + chartSpacing;
+    drawDoughnutChart(ctx, chart3X, centerY, radius, innerRadius, data.emAndamento.length, total, colors.andamento, 'Em Andamento');
 
-    // Add legend
-    ctx.fillStyle = '#000000';
-    ctx.font = '12px Arial';
-    let legendY = 20;
-    
-    if (data.pendencias.length > 0) {
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(20, legendY, 15, 15);
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`Pendências: ${data.pendencias.length}`, 45, legendY + 12);
-      legendY += 25;
-    }
-    
-    if (data.concluidas.length > 0) {
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(20, legendY, 15, 15);
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`Concluídas: ${data.concluidas.length}`, 45, legendY + 12);
-      legendY += 25;
-    }
-    
-    if (data.emAndamento.length > 0) {
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(20, legendY, 15, 15);
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`Em Andamento: ${data.emAndamento.length}`, 45, legendY + 12);
-      legendY += 25;
-    }
-    
-    if (data.emRevisao.length > 0) {
-      ctx.fillStyle = '#8b5cf6';
-      ctx.fillRect(20, legendY, 15, 15);
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`Em Revisão: ${data.emRevisao.length}`, 45, legendY + 12);
-    }
-
-    resolve(canvas.toDataURL('image/png'));
+    resolve(canvas.toDataURL('image/png', 1.0));
   });
+
+  function drawDoughnutChart(
+    ctx: CanvasRenderingContext2D,
+    centerX: number,
+    centerY: number,
+    radius: number,
+    innerRadius: number,
+    value: number,
+    total: number,
+    color: string,
+    label: string
+  ) {
+    const percentage = total > 0 ? (value / total) * 100 : 0;
+    const angle = (value / total) * 2 * Math.PI;
+
+    // Draw background circle (light gray)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true);
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fill();
+
+    // Draw value slice
+    if (value > 0) {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + angle);
+      ctx.arc(centerX, centerY, innerRadius, -Math.PI / 2 + angle, -Math.PI / 2, true);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    // Draw percentage in center
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(percentage)}%`, centerX, centerY);
+
+    // Draw label below
+    ctx.font = '14px Arial';
+    ctx.fillText(label, centerX, centerY + radius + 30);
+  }
 }
 
 // Generate filename
 export function generateFileName(project: Project, interlocutor: 'cliente' | 'fornecedor', extension: 'pdf' | 'xlsx'): string {
   const date = new Date().toISOString().split('T')[0];
   const interlocutorUpper = interlocutor.toUpperCase();
-  return `Relatorio-${project.name}-${date}-${interlocutorUpper}.${extension}`;
+  return `Relatorio_Instalacoes_${project.name}_${date}_${interlocutorUpper}.${extension}`;
 }
 
 // Generate PDF Report
@@ -195,14 +173,22 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
   doc.text(`Cliente: ${data.project.client}`, 20, yPosition);
   yPosition += 10;
   doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, 20, yPosition);
-  yPosition += 10;
-  doc.text(`Interlocutor: ${data.interlocutor.charAt(0).toUpperCase() + data.interlocutor.slice(1)}`, 20, yPosition);
-  yPosition += 20;
+  yPosition += 15;
+
+  // Optional responsavel in smaller font
+  if (data.generatedBy) {
+    doc.setFontSize(10);
+    doc.text(`Responsável: ${data.generatedBy}`, 20, yPosition);
+    doc.setFontSize(12);
+    yPosition += 15;
+  } else {
+    yPosition += 5;
+  }
 
   // Add chart if available
   if (chartImage) {
-    doc.addImage(chartImage, 'PNG', 20, yPosition, 100, 75);
-    yPosition += 85;
+    doc.addImage(chartImage, 'PNG', 20, yPosition, 170, 85);
+    yPosition += 95;
   }
 
   // Add sections only if they have items
@@ -248,30 +234,39 @@ function addSectionToPDF(
   let columns: string[] = [];
   let rows: any[][] = [];
 
+  // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+    if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+    return a.codigo - b.codigo;
+  });
+
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação'];
-      rows = items.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || ''
-      ]);
-    } else {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários'];
-      rows = items.map(item => [
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
+      rows = sortedItems.map(item => [
         item.pavimento,
         item.tipologia,
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
-        item.comentarios_fornecedor || ''
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    } else {
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      rows = sortedItems.map(item => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = items.map(item => {
+    rows = sortedItems.map(item => {
       const versions = storage.getInstallationVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -287,7 +282,7 @@ function addSectionToPDF(
     });
   } else {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
-    rows = items.map(item => [
+    rows = sortedItems.map(item => [
       item.pavimento,
       item.tipologia,
       item.codigo.toString(),
@@ -328,7 +323,7 @@ export function generateXLSXReport(data: ReportData): Blob {
     ['Projeto', data.project.name],
     ['Cliente', data.project.client],
     ['Data', new Date(data.generatedAt).toLocaleDateString('pt-BR')],
-    ['Interlocutor', data.interlocutor.charAt(0).toUpperCase() + data.interlocutor.slice(1)],
+    
     ['', ''],
     ['Resumo', ''],
     ['Pendências', sections.pendencias.length],
@@ -373,30 +368,39 @@ function addSectionToXLSX(
   let headers: string[] = [];
   let data: any[][] = [];
 
+  // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+    if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+    return a.codigo - b.codigo;
+  });
+
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
-      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação'];
-      data = items.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo,
-        item.descricao,
-        item.observacoes || ''
-      ]);
-    } else {
-      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários para Fornecedor'];
-      data = items.map(item => [
+      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
+      data = sortedItems.map(item => [
         item.pavimento,
         item.tipologia,
         item.codigo,
         item.descricao,
         item.observacoes || '',
-        item.comentarios_fornecedor || ''
+        item.photos.length > 0 ? 'Arquivo de foto disponível' : ''
+      ]);
+    } else {
+      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      data = sortedItems.map(item => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo,
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        item.photos.length > 0 ? 'Arquivo de foto disponível' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    data = items.map(item => {
+    data = sortedItems.map(item => {
       const versions = storage.getInstallationVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -412,7 +416,7 @@ function addSectionToXLSX(
     });
   } else {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
-    data = items.map(item => [
+    data = sortedItems.map(item => [
       item.pavimento,
       item.tipologia,
       item.codigo,
