@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Upload, File, X, Download, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Upload, File, X, Download, Trash2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,6 +35,8 @@ export function FileUpload({
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [currentPreviewFile, setCurrentPreviewFile] = useState<UploadedFile | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -185,6 +188,63 @@ export function FileUpload({
     document.body.removeChild(a);
   };
 
+  const openPreview = (file: UploadedFile) => {
+    setCurrentPreviewFile(file);
+    setIsPreviewOpen(true);
+  };
+
+  const getFileExtension = (filename: string) => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+  };
+
+  const isPreviewable = (file: UploadedFile) => {
+    const extension = getFileExtension(file.name);
+    return ['pdf', 'png', 'jpg', 'jpeg'].includes(extension);
+  };
+
+  const renderFilePreview = () => {
+    if (!currentPreviewFile) return null;
+
+    const extension = getFileExtension(currentPreviewFile.name);
+
+    if (extension === 'pdf') {
+      return (
+        <iframe
+          src={currentPreviewFile.url}
+          className="w-full h-[600px] border rounded"
+          title={currentPreviewFile.name}
+        />
+      );
+    }
+
+    if (['png', 'jpg', 'jpeg'].includes(extension)) {
+      return (
+        <img
+          src={currentPreviewFile.url}
+          alt={currentPreviewFile.name}
+          className="max-w-full max-h-[600px] object-contain mx-auto"
+        />
+      );
+    }
+
+    return (
+      <div className="text-center py-12">
+        <File className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Preview não disponível</h3>
+        <p className="text-muted-foreground">
+          Este tipo de arquivo não pode ser visualizado no navegador.
+        </p>
+        <Button 
+          className="mt-4" 
+          onClick={() => downloadFile(currentPreviewFile)}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Baixar arquivo
+        </Button>
+      </div>
+    );
+  };
+
   // Load files from localStorage on component mount
   useState(() => {
     const storageKey = `project_files_${projectId}`;
@@ -285,11 +345,23 @@ export function FileUpload({
                     <Badge variant="secondary" className="text-xs">
                       {file.name.split('.').pop()?.toUpperCase()}
                     </Badge>
+                    {isPreviewable(file) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openPreview(file)}
+                        className="h-8 w-8 p-0"
+                        title="Prévia do arquivo"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => downloadFile(file)}
                       className="h-8 w-8 p-0"
+                      title="Baixar arquivo"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -298,6 +370,7 @@ export function FileUpload({
                       size="sm"
                       onClick={() => removeFile(file.id)}
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      title="Remover arquivo"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -308,6 +381,21 @@ export function FileUpload({
           </CardContent>
         </Card>
       )}
+
+      {/* Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {currentPreviewFile?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {renderFilePreview()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
