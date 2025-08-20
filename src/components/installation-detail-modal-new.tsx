@@ -36,6 +36,9 @@ export function InstallationDetailModalNew({
   const [showHistory, setShowHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
   const [showAddRevisionModal, setShowAddRevisionModal] = useState(false);
+  const [showRevisionMotiveModal, setShowRevisionMotiveModal] = useState(false);
+  const [revisionMotivo, setRevisionMotivo] = useState<string>("");
+  const [revisionDescricao, setRevisionDescricao] = useState("");
 
   useEffect(() => {
     setInstalled(installation.installed);
@@ -81,6 +84,71 @@ export function InstallationDetailModalNew({
     const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
     setObservationHistory([...observationHistory, timestampedObservation]);
     setCurrentObservation("");
+  };
+
+  const handleAddRevision = () => {
+    setShowRevisionMotiveModal(true);
+  };
+
+  const handleRevisionMotiveConfirm = () => {
+    if (!revisionMotivo) {
+      toast({
+        title: "Erro",
+        description: "Selecione um motivo para a revisão",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (revisionMotivo === 'outros' && !revisionDescricao.trim()) {
+      toast({
+        title: "Erro", 
+        description: "Descreva o motivo da revisão",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Close motive modal and proceed with revision
+    setShowRevisionMotiveModal(false);
+    setShowAddRevisionModal(true);
+  };
+
+  const handleRevisionUpdate = () => {
+    // Apply the overwrite with motive
+    if (revisionMotivo && installation) {
+      const currentData = {
+        tipologia: installation.tipologia,
+        codigo: installation.codigo,
+        descricao: installation.descricao,
+        quantidade: installation.quantidade,
+        pavimento: installation.pavimento,
+        diretriz_altura_cm: installation.diretriz_altura_cm,
+        diretriz_dist_batente_cm: installation.diretriz_dist_batente_cm,
+        observacoes: installation.observacoes
+      };
+
+      const updatedInstallation = storage.overwriteInstallation(
+        installation.id,
+        currentData, // Keep same data but create revision
+        revisionMotivo as any,
+        revisionMotivo === 'outros' ? revisionDescricao : undefined
+      );
+
+      setVersions(storage.getInstallationVersions(installation.id));
+      onUpdate();
+      
+      toast({
+        title: "Revisão criada",
+        description: `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`,
+      });
+
+      // Reset revision state
+      setRevisionMotivo("");
+      setRevisionDescricao("");
+    }
+    
+    setShowAddRevisionModal(false);
   };
 
   return (
@@ -201,7 +269,7 @@ export function InstallationDetailModalNew({
 
             {/* Revision Actions */}
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowAddRevisionModal(true)}>
+              <Button variant="outline" onClick={handleAddRevision}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Revisão
               </Button>
@@ -351,13 +419,65 @@ export function InstallationDetailModalNew({
       <AddInstallationModal
         projectId={installation.project_id}
         isOpen={showAddRevisionModal}
-        onClose={() => setShowAddRevisionModal(false)}
-        onUpdate={() => {
-          onUpdate();
-          setVersions(storage.getInstallationVersions(installation.id));
+        onClose={() => {
+          setShowAddRevisionModal(false);
+          setRevisionMotivo("");
+          setRevisionDescricao("");
         }}
+        onUpdate={handleRevisionUpdate}
         editingInstallation={installation}
       />
+
+      {/* Revision Motive Selection Modal */}
+      <Dialog open={showRevisionMotiveModal} onOpenChange={() => setShowRevisionMotiveModal(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Motivo da Revisão</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione o motivo para criar uma nova revisão desta peça:
+            </p>
+
+            <div>
+              <Label>Motivo da revisão *</Label>
+              <select
+                value={revisionMotivo}
+                onChange={(e) => setRevisionMotivo(e.target.value)}
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              >
+                <option value="">Selecione o motivo</option>
+                <option value="problema-instalacao">Problema de instalação</option>
+                <option value="revisao-conteudo">Revisão de conteúdo</option>
+                <option value="desaprovado-cliente">Desaprovado pelo cliente</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+
+            {revisionMotivo === 'outros' && (
+              <div>
+                <Label>Descrição do motivo *</Label>
+                <Textarea
+                  value={revisionDescricao}
+                  onChange={(e) => setRevisionDescricao(e.target.value)}
+                  placeholder="Descreva o motivo da revisão..."
+                  className="min-h-[80px]"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRevisionMotiveModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleRevisionMotiveConfirm}>
+                Continuar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
