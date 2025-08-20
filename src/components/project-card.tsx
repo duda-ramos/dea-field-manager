@@ -25,7 +25,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   const handleViewProject = () => {
-    navigate(`/project/${project.id}`);
+    navigate(`/projeto/${project.id}`);
   };
 
   return (

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import { generatePDFReport, generateXLSXReport } from "@/lib/reports";
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   const [project, setProject] = useState<Project | null>(null);
@@ -46,6 +46,12 @@ export default function ProjectDetailNew() {
   }, [id, navigate]);
 
   if (!project) return null;
+
+  // Determine current section based on route
+  const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
+                        location.pathname.includes('/relatorios') ? 'relatorios' :
+                        location.pathname.includes('/orcamentos') ? 'orcamentos' :
+                        'info';
 
   // Get unique pavimentos for filter
   const pavimentos = Array.from(new Set(installations.map(i => i.pavimento))).sort();
@@ -157,6 +163,284 @@ export default function ProjectDetailNew() {
     });
   };
 
+  const renderPecasSection = () => (
+    <div className="space-y-6">
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard
+          title="Instalações Concluídas"
+          value={completedInstallations}
+          description={`${installations.length} total`}
+          icon={CheckCircle2}
+          variant="success"
+        />
+        <StatsCard
+          title="Pendentes"
+          value={pendingInstallations}
+          icon={Clock}
+          variant="warning"
+        />
+        <StatsCard
+          title="Com Observações"
+          value={installationsWithObservations}
+          icon={AlertTriangle}
+          variant="default"
+        />
+      </div>
+
+      {/* Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Progresso Geral
+            <span className="text-2xl font-bold">{Math.round(progressPercentage)}%</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Progress value={progressPercentage} className="h-3" />
+        </CardContent>
+      </Card>
+
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Buscar por código, tipologia ou descrição..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+          >
+            <option value="all">Todos os Status</option>
+            <option value="installed">Instalados</option>
+            <option value="pending">Pendentes</option>
+          </select>
+          
+          <select
+            value={pavimentoFilter}
+            onChange={(e) => setPavimentoFilter(e.target.value)}
+            className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+          >
+            <option value="all">Todos os Pavimentos</option>
+            {pavimentos.map(pavimento => (
+              <option key={pavimento} value={pavimento}>{pavimento}</option>
+            ))}
+          </select>
+          
+          <Button variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Sincronizar
+          </Button>
+        </div>
+      </div>
+
+      {/* Installations List */}
+      <div className="space-y-4">
+        {filteredInstallations.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
+              <p className="text-muted-foreground text-center mb-4">
+                {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all"
+                  ? "Tente ajustar os filtros de busca"
+                  : "Importe uma planilha Excel para começar"
+                }
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredInstallations.map((installation) => (
+            <Card key={installation.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={installation.installed}
+                        onChange={() => toggleInstallation(installation.id)}
+                        className="h-5 w-5 rounded border-2 border-primary"
+                      />
+                      <div>
+                        <h4 className="font-semibold">{installation.descricao}</h4>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Código: {installation.codigo}</span>
+                          <span>Tipologia: {installation.tipologia}</span>
+                          <span>Qtd: {installation.quantidade}</span>
+                          <span className="font-medium">Pavimento: {installation.pavimento}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {(installation.diretriz_altura_cm || installation.diretriz_dist_batente_cm) && (
+                      <div className="text-sm text-muted-foreground">
+                        {installation.diretriz_altura_cm && `Altura: ${installation.diretriz_altura_cm}cm`}
+                        {installation.diretriz_altura_cm && installation.diretriz_dist_batente_cm && " • "}
+                        {installation.diretriz_dist_batente_cm && `Distância do batente: ${installation.diretriz_dist_batente_cm}cm`}
+                      </div>
+                    )}
+                    {installation.observacoes && installation.observacoes.trim() !== "" && (
+                      <div className="bg-warning/10 border border-warning/20 p-3 rounded-md">
+                        <p className="text-sm"><strong>Observação:</strong> {installation.observacoes}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    {installation.installed && (
+                      <Badge variant="success">Instalado</Badge>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setSelectedInstallation(installation)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Detalhes
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderInfoSection = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Básicas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Nome do Projeto</Label>
+              <Input value={project.name} readOnly />
+            </div>
+            <div>
+              <Label>Cliente</Label>
+              <Input value={project.client} readOnly />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input value={project.city} readOnly />
+            </div>
+            <div>
+              <Label>Código</Label>
+              <Input value={project.code} readOnly />
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Input value={project.owner} readOnly />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cronograma</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Data de Instalação</Label>
+              <Input 
+                type="date" 
+                value={project.installation_date || ''} 
+                readOnly 
+              />
+            </div>
+            <div>
+              <Label>Data de Inauguração</Label>
+              <Input 
+                type="date" 
+                value={project.inauguration_date || ''} 
+                readOnly 
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Input value={
+                project.status === 'completed' ? 'Concluído' : 
+                project.status === 'in-progress' ? 'Em Andamento' : 
+                'Planejamento'
+              } readOnly />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Fornecedores</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {project.suppliers.map((supplier, index) => (
+              <div key={index} className="p-3 bg-muted rounded-md">
+                {supplier}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderRelatoriosSection = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Gerar Relatórios</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Gere relatórios completos com classificação automática: Pendências, Próximos Passos e Instaladas.
+            </p>
+            <div className="flex gap-4 flex-wrap">
+              <Button onClick={() => handleGenerateReport('pdf')}>
+                <Download className="h-4 w-4 mr-2" />
+                Gerar Relatório PDF
+              </Button>
+              <Button variant="outline" onClick={() => handleGenerateReport('xlsx')}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Gerar Relatório Excel
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderOrcamentosSection = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Orçamentos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12">
+            <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Seção de Orçamentos</h3>
+            <p className="text-muted-foreground">
+              Esta seção será implementada em versões futuras do sistema.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -185,289 +469,53 @@ export default function ProjectDetailNew() {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="installations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="installations">Instalações</TabsTrigger>
-            <TabsTrigger value="info">Informações</TabsTrigger>
-            <TabsTrigger value="reports">Relatórios</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="installations" className="space-y-6">
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatsCard
-                title="Instalações Concluídas"
-                value={completedInstallations}
-                description={`${installations.length} total`}
-                icon={CheckCircle2}
-                variant="success"
+        {/* Navigation Menu */}
+        <div className="mb-8">
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant={currentSection === 'info' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}`)}
+            >
+              Informações
+            </Button>
+            <Button 
+              variant={currentSection === 'pecas' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}/pecas`)}
+            >
+              Peças
+            </Button>
+            <Button 
+              variant={currentSection === 'relatorios' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}/relatorios`)}
+            >
+              Relatórios
+            </Button>
+            <Button 
+              variant={currentSection === 'orcamentos' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}/orcamentos`)}
+            >
+              Orçamentos
+            </Button>
+            
+            {/* Import button - only shows import functionality */}
+            <Button variant="outline" disabled={isImporting} className="ml-auto">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <StatsCard
-                title="Pendentes"
-                value={pendingInstallations}
-                icon={Clock}
-                variant="warning"
-              />
-              <StatsCard
-                title="Com Observações"
-                value={installationsWithObservations}
-                icon={AlertTriangle}
-                variant="default"
-              />
-            </div>
+              <Upload className="h-4 w-4 mr-2" />
+              {isImporting ? "Importando..." : "Importar Planilha"}
+            </Button>
+          </div>
+        </div>
 
-            {/* Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Progresso Geral
-                  <span className="text-2xl font-bold">{Math.round(progressPercentage)}%</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Progress value={progressPercentage} className="h-3" />
-              </CardContent>
-            </Card>
-
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Buscar por código, tipologia ou descrição..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="installed">Instalados</option>
-                  <option value="pending">Pendentes</option>
-                </select>
-                
-                <select
-                  value={pavimentoFilter}
-                  onChange={(e) => setPavimentoFilter(e.target.value)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value="all">Todos os Pavimentos</option>
-                  {pavimentos.map(pavimento => (
-                    <option key={pavimento} value={pavimento}>{pavimento}</option>
-                  ))}
-                </select>
-                
-                <Button variant="outline" disabled={isImporting}>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isImporting ? "Importando..." : "Importar Excel"}
-                </Button>
-                
-                <Button variant="outline">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sincronizar
-                </Button>
-              </div>
-            </div>
-
-            {/* Installations List */}
-            <div className="space-y-4">
-              {filteredInstallations.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
-                    <p className="text-muted-foreground text-center mb-4">
-                      {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all"
-                        ? "Tente ajustar os filtros de busca"
-                        : "Importe uma planilha Excel para começar"
-                      }
-                    </p>
-                    {!searchTerm && statusFilter === "all" && pavimentoFilter === "all" && (
-                      <Button variant="outline" disabled={isImporting}>
-                        <input
-                          type="file"
-                          accept=".xlsx,.xls"
-                          onChange={handleFileUpload}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <Upload className="h-4 w-4 mr-2" />
-                        {isImporting ? "Importando..." : "Importar Primeira Planilha"}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredInstallations.map((installation) => (
-                  <Card key={installation.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={installation.installed}
-                              onChange={() => toggleInstallation(installation.id)}
-                              className="h-5 w-5 rounded border-2 border-primary"
-                            />
-                            <div>
-                              <h4 className="font-semibold">{installation.descricao}</h4>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>Código: {installation.codigo}</span>
-                                <span>Tipologia: {installation.tipologia}</span>
-                                <span>Qtd: {installation.quantidade}</span>
-                                <span className="font-medium">Pavimento: {installation.pavimento}</span>
-                              </div>
-                            </div>
-                          </div>
-                          {(installation.diretriz_altura_cm || installation.diretriz_dist_batente_cm) && (
-                            <div className="text-sm text-muted-foreground">
-                              {installation.diretriz_altura_cm && `Altura: ${installation.diretriz_altura_cm}cm`}
-                              {installation.diretriz_altura_cm && installation.diretriz_dist_batente_cm && " • "}
-                              {installation.diretriz_dist_batente_cm && `Distância do batente: ${installation.diretriz_dist_batente_cm}cm`}
-                            </div>
-                          )}
-                          {installation.observacoes && installation.observacoes.trim() !== "" && (
-                            <div className="bg-warning/10 border border-warning/20 p-3 rounded-md">
-                              <p className="text-sm"><strong>Observação:</strong> {installation.observacoes}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          {installation.installed && (
-                            <Badge variant="success">Instalado</Badge>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setSelectedInstallation(installation)}
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Detalhes
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="info" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações Básicas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Nome do Projeto</Label>
-                    <Input value={project.name} readOnly />
-                  </div>
-                  <div>
-                    <Label>Cliente</Label>
-                    <Input value={project.client} readOnly />
-                  </div>
-                  <div>
-                    <Label>Cidade</Label>
-                    <Input value={project.city} readOnly />
-                  </div>
-                  <div>
-                    <Label>Código</Label>
-                    <Input value={project.code} readOnly />
-                  </div>
-                  <div>
-                    <Label>Responsável</Label>
-                    <Input value={project.owner} readOnly />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cronograma</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Data de Instalação</Label>
-                    <Input 
-                      type="date" 
-                      value={project.installation_date || ''} 
-                      readOnly 
-                    />
-                  </div>
-                  <div>
-                    <Label>Data de Inauguração</Label>
-                    <Input 
-                      type="date" 
-                      value={project.inauguration_date || ''} 
-                      readOnly 
-                    />
-                  </div>
-                  <div>
-                    <Label>Status</Label>
-                    <Input value={
-                      project.status === 'completed' ? 'Concluído' : 
-                      project.status === 'in-progress' ? 'Em Andamento' : 
-                      'Planejamento'
-                    } readOnly />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Fornecedores</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {project.suppliers.map((supplier, index) => (
-                    <div key={index} className="p-3 bg-muted rounded-md">
-                      {supplier}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reports" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gerar Relatórios</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Gere relatórios completos com classificação automática: Pendências, Próximos Passos e Instaladas.
-                  </p>
-                  <div className="flex gap-4 flex-wrap">
-                    <Button onClick={() => handleGenerateReport('pdf')}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Gerar Relatório PDF
-                    </Button>
-                    <Button variant="outline" onClick={() => handleGenerateReport('xlsx')}>
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Gerar Relatório Excel
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Content based on current section */}
+        {currentSection === 'info' && renderInfoSection()}
+        {currentSection === 'pecas' && renderPecasSection()}
+        {currentSection === 'relatorios' && renderRelatoriosSection()}
+        {currentSection === 'orcamentos' && renderOrcamentosSection()}
       </div>
 
       {/* Installation Detail Modal */}
