@@ -1,5 +1,5 @@
 // Local storage management for offline functionality
-import { Project, Installation, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
+import { Project, Installation, ItemVersion, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
 
 class StorageManager {
   private getStorageKey(type: string): string {
@@ -74,16 +74,19 @@ class StorageManager {
     return projectId ? installations.filter(i => i.project_id === projectId) : installations;
   }
 
-  saveInstallation(installation: Omit<Installation, 'id' | 'updated_at'>): Installation {
-    const installations = this.getInstallations();
-    const newInstallation: Installation = {
-      ...installation,
+  saveInstallation(projectId: string, data: Omit<Installation, 'id' | 'project_id' | 'updated_at'>): Installation {
+    const installation: Installation = {
+      ...data,
       id: this.generateId(),
+      project_id: projectId,
       updated_at: new Date().toISOString(),
     };
-    installations.push(newInstallation);
+    
+    const installations = this.getInstallations();
+    installations.push(installation);
     this.setItems('installations', installations);
-    return newInstallation;
+    
+    return installation;
   }
 
   updateInstallation(id: string, updates: Partial<Installation>): Installation | null {
@@ -101,6 +104,76 @@ class StorageManager {
     };
     this.setItems('installations', installations);
     return installations[index];
+  }
+
+  // Overwrite installation with version history
+  overwriteInstallation(
+    installationId: string, 
+    data: Partial<Omit<Installation, 'id' | 'project_id' | 'revisado' | 'revisao'>>,
+    motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros',
+    descricaoMotivo?: string
+  ): Installation {
+    const installations = this.getInstallations();
+    const installation = installations.find(i => i.id === installationId);
+    
+    if (!installation) {
+      throw new Error('Installation not found');
+    }
+
+    // Create version snapshot before overwriting
+    const version: ItemVersion = {
+      id: this.generateId(),
+      itemId: installationId,
+      snapshot: {
+        project_id: installation.project_id,
+        tipologia: installation.tipologia,
+        codigo: installation.codigo,
+        descricao: installation.descricao,
+        quantidade: installation.quantidade,
+        pavimento: installation.pavimento,
+        diretriz_altura_cm: installation.diretriz_altura_cm,
+        diretriz_dist_batente_cm: installation.diretriz_dist_batente_cm,
+        observacoes: installation.observacoes,
+        installed: installation.installed,
+        installed_at: installation.installed_at,
+        updated_at: installation.updated_at,
+        photos: installation.photos,
+      },
+      revisao: installation.revisao,
+      motivo,
+      descricao_motivo: descricaoMotivo,
+      criadoEm: new Date().toISOString(),
+    };
+
+    // Save version to history
+    const versions = this.getInstallationVersions(installationId);
+    versions.push(version);
+    localStorage.setItem(`versions_${installationId}`, JSON.stringify(versions));
+
+    // Update installation with new data
+    const index = installations.findIndex(i => i.id === installationId);
+    installations[index] = {
+      ...installation,
+      ...data,
+      revisado: true,
+      revisao: installation.revisao + 1,
+      updated_at: new Date().toISOString(),
+    };
+
+    this.setItems('installations', installations);
+    return installations[index];
+  }
+
+  // Get installation version history
+  getInstallationVersions(installationId: string): ItemVersion[] {
+    try {
+      const data = localStorage.getItem(`versions_${installationId}`);
+      return data ? JSON.parse(data).sort((a: ItemVersion, b: ItemVersion) => 
+        new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+      ) : [];
+    } catch {
+      return [];
+    }
   }
 
   // Bulk import installations from Excel data with floor/pavimento support
@@ -122,10 +195,12 @@ class StorageManager {
         pavimento: pavimento,
         diretriz_altura_cm: row.diretriz_altura_cm ? Number(row.diretriz_altura_cm) : undefined,
         diretriz_dist_batente_cm: row.diretriz_dist_batente_cm ? Number(row.diretriz_dist_batente_cm) : undefined,
-        observacoes: row.observacoes,
+        observacoes: row.observacoes || undefined,
         installed: false,
         photos: [],
         updated_at: new Date().toISOString(),
+        revisado: false,
+        revisao: 1,
       }));
 
       allInstallations.push(...installations);
@@ -139,7 +214,7 @@ class StorageManager {
     return { summary, installations: allInstallations };
   }
 
-  // ... keep existing code (budget, contact, report methods)
+  // Budgets
   getBudgets(projectId?: string): ProjectBudget[] {
     const budgets = this.getItems<ProjectBudget>('budgets');
     return projectId ? budgets.filter(b => b.project_id === projectId) : budgets;

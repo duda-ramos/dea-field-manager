@@ -1,9 +1,9 @@
 // IndexedDB management for offline functionality
-import { Project, Installation, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
+import { Project, Installation, ItemVersion, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
 
 class IndexedDBManager {
   private dbName = 'dea_manager_db';
-  private version = 1;
+  private version = 2;
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
@@ -27,6 +27,10 @@ class IndexedDBManager {
           const installationsStore = db.createObjectStore('installations', { keyPath: 'id' });
           installationsStore.createIndex('project_id', 'project_id', { unique: false });
           installationsStore.createIndex('pavimento', 'pavimento', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('item_versions')) {
+          const versionsStore = db.createObjectStore('item_versions', { keyPath: 'id' });
+          versionsStore.createIndex('itemId', 'itemId', { unique: false });
         }
         if (!db.objectStoreNames.contains('budgets')) {
           const budgetsStore = db.createObjectStore('budgets', { keyPath: 'id' });
@@ -210,6 +214,8 @@ class IndexedDBManager {
         installed: false,
         photos: [],
         updated_at: new Date().toISOString(),
+        revisado: false,
+        revisao: 1,
       }));
 
       allInstallations.push(...installations);

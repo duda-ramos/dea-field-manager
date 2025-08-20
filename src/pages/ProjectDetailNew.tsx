@@ -10,12 +10,13 @@ import { StatsCard } from "@/components/ui/stats-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
-  Settings, Search, FileSpreadsheet, RefreshCw 
+  Settings, Search, FileSpreadsheet, RefreshCw, Plus 
 } from "lucide-react";
 import { Project, Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
+import { AddInstallationModal } from "@/components/add-installation-modal";
 import { importExcelFile } from "@/lib/excel-import";
 import { generatePDFReport, generateXLSXReport } from "@/lib/reports";
 
@@ -32,6 +33,7 @@ export default function ProjectDetailNew() {
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -574,6 +576,14 @@ export default function ProjectDetailNew() {
               <Upload className="h-4 w-4 mr-2" />
               {isImporting ? "Importando..." : "Importar Planilha"}
             </Button>
+
+            {/* Add Installation button - only shows for pecas section */}
+            {currentSection === 'pecas' && (
+              <Button onClick={() => setShowAddModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar ou Atualizar Peça
+              </Button>
+            )}
           </div>
         </div>
 
@@ -583,6 +593,14 @@ export default function ProjectDetailNew() {
         {currentSection === 'relatorios' && renderRelatoriosSection()}
         {currentSection === 'orcamentos' && renderOrcamentosSection()}
       </div>
+
+      {/* Add Installation Modal */}
+      <AddInstallationModal
+        projectId={id!}
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onUpdate={() => setInstallations(storage.getInstallations(id!))}
+      />
 
       {/* Installation Detail Modal */}
       {selectedInstallation && (

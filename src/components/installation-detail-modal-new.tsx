@@ -5,10 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Installation } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoGallery } from "@/components/photo-gallery";
+import { History, Edit3, Eye } from "lucide-react";
 
 interface InstallationDetailModalNewProps {
   installation: Installation;
@@ -28,10 +31,14 @@ export function InstallationDetailModalNew({
   const [currentObservation, setCurrentObservation] = useState("");
   const [observationHistory, setObservationHistory] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>(installation.photos);
+  const [versions, setVersions] = useState<ItemVersion[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
 
   useEffect(() => {
     setInstalled(installation.installed);
     setPhotos(installation.photos);
+    setVersions(storage.getInstallationVersions(installation.id));
     
     // Parse existing observations as history
     if (installation.observacoes && installation.observacoes.trim() !== "") {
@@ -66,13 +73,6 @@ export function InstallationDetailModalNew({
     }
   };
 
-  const handleCancel = () => {
-    setInstalled(installation.installed);
-    setCurrentObservation("");
-    setPhotos(installation.photos);
-    onClose();
-  };
-
   const addObservation = () => {
     if (currentObservation.trim() === "") return;
     
@@ -82,124 +82,264 @@ export function InstallationDetailModalNew({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{installation.codigo} {installation.descricao}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Descrição</Label>
-              <Input value={installation.descricao} readOnly className="bg-muted" />
-            </div>
-            <div>
-              <Label>Código</Label>
-              <Input value={String(installation.codigo)} readOnly className="bg-muted" />
-            </div>
-            <div>
-              <Label>Tipologia</Label>
-              <Input value={installation.tipologia} readOnly className="bg-muted" />
-            </div>
-            <div>
-              <Label>Quantidade</Label>
-              <Input value={String(installation.quantidade)} readOnly className="bg-muted" />
-            </div>
-            <div>
-              <Label>Pavimento</Label>
-              <Input value={installation.pavimento} readOnly className="bg-muted" />
-            </div>
-            <div>
-              <Label>Altura da Diretriz (cm)</Label>
-              <Input 
-                value={installation.diretriz_altura_cm ? String(installation.diretriz_altura_cm) : "Não especificado"} 
-                readOnly 
-                className="bg-muted" 
-              />
-            </div>
-            <div>
-              <Label>Distância do Batente (cm)</Label>
-              <Input 
-                value={installation.diretriz_dist_batente_cm ? String(installation.diretriz_dist_batente_cm) : "Não especificado"} 
-                readOnly 
-                className="bg-muted" 
-              />
-            </div>
-          </div>
-
-          {/* Installation Status */}
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="installed"
-              checked={installed}
-              onCheckedChange={setInstalled}
-            />
-            <Label htmlFor="installed">
-              Marcar como instalado
-              {installed && installation.installed_at && (
-                <span className="text-sm text-muted-foreground ml-2">
-                  (Instalado em: {new Date(installation.installed_at).toLocaleDateString('pt-BR')})
-                </span>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {installation.codigo} {installation.descricao}
+              {installation.revisado && (
+                <Badge variant="secondary" className="ml-2">
+                  Revisado (rev. {installation.revisao})
+                </Badge>
               )}
-            </Label>
-          </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Descrição</Label>
+                <Input value={installation.descricao} readOnly className="bg-muted" />
+              </div>
+              <div>
+                <Label>Código</Label>
+                <Input value={String(installation.codigo)} readOnly className="bg-muted" />
+              </div>
+              <div>
+                <Label>Tipologia</Label>
+                <Input value={installation.tipologia} readOnly className="bg-muted" />
+              </div>
+              <div>
+                <Label>Quantidade</Label>
+                <Input value={String(installation.quantidade)} readOnly className="bg-muted" />
+              </div>
+              <div>
+                <Label>Pavimento</Label>
+                <Input value={installation.pavimento} readOnly className="bg-muted" />
+              </div>
+              <div>
+                <Label>Altura da Diretriz (cm)</Label>
+                <Input 
+                  value={installation.diretriz_altura_cm ? String(installation.diretriz_altura_cm) : "Não especificado"} 
+                  readOnly 
+                  className="bg-muted" 
+                />
+              </div>
+              <div>
+                <Label>Distância do Batente (cm)</Label>
+                <Input 
+                  value={installation.diretriz_dist_batente_cm ? String(installation.diretriz_dist_batente_cm) : "Não especificado"} 
+                  readOnly 
+                  className="bg-muted" 
+                />
+              </div>
+            </div>
 
-          {/* Observations */}
-          <div className="space-y-4">
-            <Label>Observações</Label>
-            
-            {/* Add new observation */}
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Adicionar nova observação..."
-                value={currentObservation}
-                onChange={(e) => setCurrentObservation(e.target.value)}
-                className="flex-1"
-                rows={3}
+            {/* Installation Status */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="installed"
+                checked={installed}
+                onCheckedChange={setInstalled}
               />
-              <Button 
-                onClick={addObservation}
-                disabled={currentObservation.trim() === ""}
-                className="self-start"
-              >
-                Adicionar
+              <Label htmlFor="installed">
+                Marcar como instalado
+                {installed && installation.installed_at && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (Instalado em: {new Date(installation.installed_at).toLocaleDateString('pt-BR')})
+                  </span>
+                )}
+              </Label>
+            </div>
+
+            {/* Observations */}
+            <div className="space-y-4">
+              <Label>Observações</Label>
+              
+              {/* Add new observation */}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Adicionar nova observação..."
+                  value={currentObservation}
+                  onChange={(e) => setCurrentObservation(e.target.value)}
+                  className="flex-1"
+                  rows={3}
+                />
+                <Button 
+                  onClick={addObservation}
+                  disabled={currentObservation.trim() === ""}
+                  className="self-start"
+                >
+                  Adicionar
+                </Button>
+              </div>
+              
+              {/* Observation history */}
+              {observationHistory.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Histórico de Observações:</Label>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {observationHistory.map((obs, index) => (
+                      <div key={index} className="p-3 bg-muted rounded-md text-sm">
+                        {obs}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Photo Gallery */}
+            <PhotoGallery
+              photos={photos}
+              onPhotosChange={setPhotos}
+            />
+
+            {/* Revision Actions */}
+            <div className="flex gap-2 justify-end">
+              {versions.length > 0 && (
+                <Button variant="outline" onClick={() => setShowHistory(!showHistory)}>
+                  <History className="h-4 w-4 mr-2" />
+                  {showHistory ? "Ocultar Histórico" : "Ver Histórico"}
+                </Button>
+              )}
+              <Button onClick={handleSave}>
+                Salvar Alterações
               </Button>
             </div>
-            
-            {/* Observation history */}
-            {observationHistory.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Histórico de Observações:</Label>
-                <div className="max-h-40 overflow-y-auto space-y-2">
-                  {observationHistory.map((obs, index) => (
-                    <div key={index} className="p-3 bg-muted rounded-md text-sm">
-                      {obs}
+
+            {/* Version History */}
+            {showHistory && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Histórico de Revisões
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {versions.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">
+                      Nenhuma revisão anterior encontrada
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {versions.map((version) => (
+                        <div key={version.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <span className="font-semibold">Revisão {version.revisao}</span>
+                              <span className="text-sm text-muted-foreground ml-2">
+                                {new Date(version.criadoEm).toLocaleString('pt-BR')}
+                              </span>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setSelectedVersion(version)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Detalhes
+                            </Button>
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Motivo:</span> {
+                              version.motivo === 'problema-instalacao' ? 'Problema de instalação' :
+                              version.motivo === 'revisao-conteudo' ? 'Revisão de conteúdo' :
+                              version.motivo === 'desaprovado-cliente' ? 'Desaprovado pelo cliente' :
+                              'Outros'
+                            }
+                            {version.descricao_motivo && (
+                              <span className="block mt-1 text-muted-foreground">
+                                {version.descricao_motivo}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Photo Gallery */}
-          <PhotoGallery
-            photos={photos}
-            onPhotosChange={setPhotos}
-          />
+      {/* Version Detail Modal */}
+      {selectedVersion && (
+        <Dialog open={!!selectedVersion} onOpenChange={() => setSelectedVersion(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Revisão {selectedVersion.revisao} - {selectedVersion.snapshot.codigo} {selectedVersion.snapshot.descricao}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Tipologia</Label>
+                  <Input value={selectedVersion.snapshot.tipologia} readOnly className="bg-muted" />
+                </div>
+                <div>
+                  <Label>Código</Label>
+                  <Input value={String(selectedVersion.snapshot.codigo)} readOnly className="bg-muted" />
+                </div>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input value={String(selectedVersion.snapshot.quantidade)} readOnly className="bg-muted" />
+                </div>
+                <div>
+                  <Label>Pavimento</Label>
+                  <Input value={selectedVersion.snapshot.pavimento} readOnly className="bg-muted" />
+                </div>
+              </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>
-              Salvar Alterações
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+              <div>
+                <Label>Descrição</Label>
+                <Textarea value={selectedVersion.snapshot.descricao} readOnly className="bg-muted min-h-[80px]" />
+              </div>
+
+              {(selectedVersion.snapshot.diretriz_altura_cm || selectedVersion.snapshot.diretriz_dist_batente_cm) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Altura da Diretriz (cm)</Label>
+                    <Input 
+                      value={selectedVersion.snapshot.diretriz_altura_cm ? String(selectedVersion.snapshot.diretriz_altura_cm) : "Não especificado"} 
+                      readOnly 
+                      className="bg-muted" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Distância do Batente (cm)</Label>
+                    <Input 
+                      value={selectedVersion.snapshot.diretriz_dist_batente_cm ? String(selectedVersion.snapshot.diretriz_dist_batente_cm) : "Não especificado"} 
+                      readOnly 
+                      className="bg-muted" 
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedVersion.snapshot.observacoes && (
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea value={selectedVersion.snapshot.observacoes} readOnly className="bg-muted min-h-[80px]" />
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setSelectedVersion(null)}>
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

@@ -31,6 +31,19 @@ export interface Installation {
   installed_at?: string;
   updated_at: string;
   photos: string[];
+  // Campos de revisão
+  revisado: boolean;
+  revisao: number;
+}
+
+export interface ItemVersion {
+  id: string;
+  itemId: string;
+  snapshot: Omit<Installation, 'id' | 'revisado' | 'revisao'>;
+  revisao: number;
+  motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros';
+  descricao_motivo?: string;
+  criadoEm: string;
 }
 
 export interface ProjectBudget {
