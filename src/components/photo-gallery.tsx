@@ -37,17 +37,20 @@ export function PhotoGallery({ photos, onPhotosChange, className }: PhotoGallery
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <h4 className="font-medium">Fotos ({photos.length})</h4>
-        <Button variant="outline" size="sm">
+        <div className="relative">
           <input
             type="file"
             accept="image/*"
             multiple
             onChange={handleFileUpload}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            onClick={(e) => e.stopPropagation()}
           />
-          <Camera className="h-4 w-4 mr-2" />
-          Adicionar Fotos
-        </Button>
+          <Button variant="outline" size="sm" className="pointer-events-none">
+            <Camera className="h-4 w-4 mr-2" />
+            Adicionar Fotos
+          </Button>
+        </div>
       </div>
 
       {photos.length === 0 ? (
@@ -75,15 +78,16 @@ export function PhotoGallery({ photos, onPhotosChange, className }: PhotoGallery
               </Button>
             </div>
           ))}
-          <div className="border-2 border-dashed border-muted-foreground/25 rounded-md h-20 flex items-center justify-center hover:border-primary/50 transition-colors">
-            <Button variant="ghost" size="sm" className="h-full w-full">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
+          <div className="border-2 border-dashed border-muted-foreground/25 rounded-md h-20 flex items-center justify-center hover:border-primary/50 transition-colors relative">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <Button variant="ghost" size="sm" className="h-full w-full pointer-events-none">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
