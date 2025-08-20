@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 interface StorageBarProps {
+  instalados: number;
   pendentes: number;
   emAndamento: number;
-  instalados: number;
   title?: string;
   size?: 'default' | 'mini';
-  onSegmentClick?: (segment: 'pendentes' | 'emAndamento' | 'instalados') => void;
+  onSegmentClick?: (segment: 'instalados' | 'pendentes' | 'emAndamento') => void;
   className?: string;
 }
 
@@ -18,15 +18,15 @@ const colors = {
 };
 
 export function StorageBar({ 
+  instalados,
   pendentes, 
-  emAndamento, 
-  instalados, 
+  emAndamento,
   title,
   size = 'default',
   onSegmentClick,
   className 
 }: StorageBarProps) {
-  const total = pendentes + emAndamento + instalados;
+  const total = instalados + pendentes + emAndamento;
   
   if (total === 0) {
     return (
@@ -45,9 +45,9 @@ export function StorageBar({
     );
   }
   
+  const instaladosPercent = (instalados / total) * 100;
   const pendentesPercent = (pendentes / total) * 100;
   const emAndamentoPercent = (emAndamento / total) * 100;
-  const instaladosPercent = (instalados / total) * 100;
   
   const barHeight = size === 'mini' ? 'h-3' : 'h-5';
   
@@ -58,9 +58,9 @@ export function StorageBar({
           <div className="text-sm font-medium">{title}</div>
           {size === 'default' && (
             <div className="text-xs text-muted-foreground">
+              Instalados {Math.round(instaladosPercent)}% ({instalados}) • 
               Pendentes {Math.round(pendentesPercent)}% ({pendentes}) • 
-              Em Andamento {Math.round(emAndamentoPercent)}% ({emAndamento}) • 
-              Instalados {Math.round(instaladosPercent)}% ({instalados}) — 
+              Em Andamento {Math.round(emAndamentoPercent)}% ({emAndamento}) — 
               Total {total}
             </div>
           )}
@@ -68,16 +68,34 @@ export function StorageBar({
       )}
       
       <div className={cn("w-full rounded-full bg-muted flex overflow-hidden", barHeight)}>
-        {/* Pendentes */}
-        {pendentes > 0 && (
+        {/* Instalados */}
+        {instalados > 0 && (
           <div
             className={cn(
               "transition-all duration-200 first:rounded-l-full",
               onSegmentClick && "cursor-pointer hover:opacity-80"
             )}
             style={{
+              width: `${instaladosPercent}%`,
+              backgroundColor: colors.instalados
+            }}
+            onClick={() => onSegmentClick?.('instalados')}
+            role={onSegmentClick ? "button" : undefined}
+            aria-label={`Instalados: ${instalados} itens (${Math.round(instaladosPercent)}%)`}
+          />
+        )}
+        
+        {/* Pendentes */}
+        {pendentes > 0 && (
+          <div
+            className={cn(
+              "transition-all duration-200",
+              onSegmentClick && "cursor-pointer hover:opacity-80"
+            )}
+            style={{
               width: `${pendentesPercent}%`,
-              backgroundColor: colors.pendentes
+              backgroundColor: colors.pendentes,
+              marginLeft: instalados > 0 ? '2px' : '0'
             }}
             onClick={() => onSegmentClick?.('pendentes')}
             role={onSegmentClick ? "button" : undefined}
@@ -89,41 +107,30 @@ export function StorageBar({
         {emAndamento > 0 && (
           <div
             className={cn(
-              "transition-all duration-200",
+              "transition-all duration-200 last:rounded-r-full",
               onSegmentClick && "cursor-pointer hover:opacity-80"
             )}
             style={{
               width: `${emAndamentoPercent}%`,
               backgroundColor: colors.emAndamento,
-              marginLeft: pendentes > 0 ? '2px' : '0'
+              marginLeft: (instalados > 0 || pendentes > 0) ? '2px' : '0'
             }}
             onClick={() => onSegmentClick?.('emAndamento')}
             role={onSegmentClick ? "button" : undefined}
             aria-label={`Em Andamento: ${emAndamento} itens (${Math.round(emAndamentoPercent)}%)`}
           />
         )}
-        
-        {/* Instalados */}
-        {instalados > 0 && (
-          <div
-            className={cn(
-              "transition-all duration-200 last:rounded-r-full",
-              onSegmentClick && "cursor-pointer hover:opacity-80"
-            )}
-            style={{
-              width: `${instaladosPercent}%`,
-              backgroundColor: colors.instalados,
-              marginLeft: (pendentes > 0 || emAndamento > 0) ? '2px' : '0'
-            }}
-            onClick={() => onSegmentClick?.('instalados')}
-            role={onSegmentClick ? "button" : undefined}
-            aria-label={`Instalados: ${instalados} itens (${Math.round(instaladosPercent)}%)`}
-          />
-        )}
       </div>
       
       {size === 'mini' && (
         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: colors.instalados }}
+            />
+            {instalados}
+          </div>
           <div className="flex items-center gap-1">
             <div 
               className="w-2 h-2 rounded-full" 
@@ -137,13 +144,6 @@ export function StorageBar({
               style={{ backgroundColor: colors.emAndamento }}
             />
             {emAndamento}
-          </div>
-          <div className="flex items-center gap-1">
-            <div 
-              className="w-2 h-2 rounded-full" 
-              style={{ backgroundColor: colors.instalados }}
-            />
-            {instalados}
           </div>
           <span className="font-medium">Total: {total}</span>
         </div>

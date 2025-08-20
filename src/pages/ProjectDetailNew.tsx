@@ -679,9 +679,9 @@ export default function ProjectDetailNew() {
                     return (
                       <>
                         <StorageBar
+                          instalados={sections.concluidas.length}
                           pendentes={sections.pendencias.length}
                           emAndamento={sections.emAndamento.length}
-                          instalados={sections.concluidas.length}
                           title="Distribuição Geral"
                           onSegmentClick={(segment) => {
                             setReportFilter(segment);
@@ -697,9 +697,9 @@ export default function ProjectDetailNew() {
                               {pavimentoSummary.map((pav) => (
                                 <StorageBar
                                   key={pav.pavimento}
+                                  instalados={pav.instalados}
                                   pendentes={pav.pendentes}
                                   emAndamento={pav.emAndamento}
-                                  instalados={pav.instalados}
                                   title={pav.pavimento}
                                   size="mini"
                                   onSegmentClick={(segment) => {
@@ -718,8 +718,8 @@ export default function ProjectDetailNew() {
                             <span className="text-sm text-muted-foreground">Filtros ativos:</span>
                             {reportFilter !== 'all' && (
                               <Badge variant="secondary" className="cursor-pointer" onClick={() => setReportFilter('all')}>
-                                {reportFilter === 'pendentes' ? 'Pendentes' : 
-                                 reportFilter === 'emAndamento' ? 'Em Andamento' : 'Instalados'} ×
+                                {reportFilter === 'instalados' ? 'Instalados' : 
+                                 reportFilter === 'pendentes' ? 'Pendentes' : 'Em Andamento'} ×
                               </Badge>
                             )}
                             {reportPavimentoFilter !== 'all' && (
@@ -763,10 +763,10 @@ export default function ProjectDetailNew() {
                 const sections = calculateReportSections(reportData);
                 
                 let filteredItems: Installation[] = [];
-                if (reportFilter === 'pendentes') filteredItems = sections.pendencias;
+                if (reportFilter === 'instalados') filteredItems = sections.concluidas;
+                else if (reportFilter === 'pendentes') filteredItems = sections.pendencias;
                 else if (reportFilter === 'emAndamento') filteredItems = sections.emAndamento;
-                else if (reportFilter === 'instalados') filteredItems = sections.concluidas;
-                else filteredItems = [...sections.pendencias, ...sections.emAndamento, ...sections.concluidas];
+                else filteredItems = [...sections.concluidas, ...sections.pendencias, ...sections.emAndamento];
                 
                 if (reportPavimentoFilter !== 'all') {
                   filteredItems = filteredItems.filter(item => item.pavimento === reportPavimentoFilter);
@@ -790,9 +790,9 @@ export default function ProjectDetailNew() {
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-3 h-3 rounded-full ${
+                            sections.concluidas.includes(item) ? 'bg-green-400' :
                             sections.pendencias.includes(item) ? 'bg-orange-400' :
-                            sections.emAndamento.includes(item) ? 'bg-gray-400' :
-                            'bg-green-400'
+                            'bg-gray-400'
                           }`} />
                           <div>
                             <div className="font-medium">

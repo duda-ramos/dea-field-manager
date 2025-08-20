@@ -156,9 +156,9 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     ctx.fillRect(0, 0, 800, 120);
 
     // Calculate percentages
+    const instaladosPercent = (data.concluidas.length / total) * 100;
     const pendentesPercent = (data.pendencias.length / total) * 100;
     const emAndamentoPercent = (data.emAndamento.length / total) * 100;
-    const instaladosPercent = (data.concluidas.length / total) * 100;
 
     // Storage bar configuration
     const barX = 40;
@@ -169,9 +169,9 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
 
     // Draw the main storage bar
     drawStorageBar(ctx, barX, barY, barWidth, barHeight, borderRadius, {
+      instalados: { value: data.concluidas.length, color: reportTheme.colors.instalados },
       pendentes: { value: data.pendencias.length, color: reportTheme.colors.pendentes },
-      emAndamento: { value: data.emAndamento.length, color: reportTheme.colors.emAndamento },
-      instalados: { value: data.concluidas.length, color: reportTheme.colors.instalados }
+      emAndamento: { value: data.emAndamento.length, color: reportTheme.colors.emAndamento }
     }, total);
 
     // Draw legend text below the bar
@@ -180,25 +180,25 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
-    // Pendentes
-    ctx.fillStyle = reportTheme.colors.pendentes;
+    // Instalados
+    ctx.fillStyle = reportTheme.colors.instalados;
     ctx.fillText('●', barX, legendY);
     ctx.fillStyle = '#1f2937';
-    ctx.fillText(`Pendentes ${Math.round(pendentesPercent)}% (${data.pendencias.length})`, barX + 20, legendY);
+    ctx.fillText(`Instalados ${Math.round(instaladosPercent)}% (${data.concluidas.length})`, barX + 20, legendY);
+
+    // Pendentes
+    const pendentesX = barX + 200;
+    ctx.fillStyle = reportTheme.colors.pendentes;
+    ctx.fillText('●', pendentesX, legendY);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText(`Pendentes ${Math.round(pendentesPercent)}% (${data.pendencias.length})`, pendentesX + 20, legendY);
 
     // Em Andamento
-    const emAndamentoX = barX + 200;
+    const emAndamentoX = barX + 400;
     ctx.fillStyle = reportTheme.colors.emAndamento;
     ctx.fillText('●', emAndamentoX, legendY);
     ctx.fillStyle = '#1f2937';
     ctx.fillText(`Em Andamento ${Math.round(emAndamentoPercent)}% (${data.emAndamento.length})`, emAndamentoX + 20, legendY);
-
-    // Instalados
-    const instaladosX = barX + 400;
-    ctx.fillStyle = reportTheme.colors.instalados;
-    ctx.fillText('●', instaladosX, legendY);
-    ctx.fillStyle = '#1f2937';
-    ctx.fillText(`Instalados ${Math.round(instaladosPercent)}% (${data.concluidas.length})`, instaladosX + 20, legendY);
 
     // Total
     const totalX = barX + 600;
@@ -242,9 +242,9 @@ export async function generateMiniStorageBar(
     ctx.fillRect(0, 0, 200, 20);
 
     drawStorageBar(ctx, 0, 0, 200, 14, 7, {
+      instalados: { value: instalados, color: reportTheme.colors.instalados },
       pendentes: { value: pendentes, color: reportTheme.colors.pendentes },
-      emAndamento: { value: emAndamento, color: reportTheme.colors.emAndamento },
-      instalados: { value: instalados, color: reportTheme.colors.instalados }
+      emAndamento: { value: emAndamento, color: reportTheme.colors.emAndamento }
     }, total);
 
     resolve(canvas.toDataURL('image/png', 1.0));
@@ -259,9 +259,9 @@ function drawStorageBar(
   height: number,
   borderRadius: number,
   segments: {
+    instalados: { value: number, color: string },
     pendentes: { value: number, color: string },
-    emAndamento: { value: number, color: string },
-    instalados: { value: number, color: string }
+    emAndamento: { value: number, color: string }
   },
   total: number
 ) {
@@ -269,9 +269,9 @@ function drawStorageBar(
   const effectiveWidth = width - (segmentSpacing * 2); // 2 gaps between 3 segments
   
   // Calculate segment widths
+  const instaladosWidth = total > 0 ? (segments.instalados.value / total) * effectiveWidth : 0;
   const pendentesWidth = total > 0 ? (segments.pendentes.value / total) * effectiveWidth : 0;
   const emAndamentoWidth = total > 0 ? (segments.emAndamento.value / total) * effectiveWidth : 0;
-  const instaladosWidth = total > 0 ? (segments.instalados.value / total) * effectiveWidth : 0;
   
   let currentX = x;
   
@@ -282,24 +282,24 @@ function drawStorageBar(
   ctx.fill();
   
   // Draw segments with spacing
+  if (instaladosWidth > 0) {
+    ctx.fillStyle = segments.instalados.color;
+    ctx.beginPath();
+    ctx.roundRect(currentX, y, instaladosWidth, height, [borderRadius, 0, 0, borderRadius]);
+    ctx.fill();
+    currentX += instaladosWidth + segmentSpacing;
+  }
+  
   if (pendentesWidth > 0) {
     ctx.fillStyle = segments.pendentes.color;
-    ctx.beginPath();
-    ctx.roundRect(currentX, y, pendentesWidth, height, [borderRadius, 0, 0, borderRadius]);
-    ctx.fill();
+    ctx.fillRect(currentX, y, pendentesWidth, height);
     currentX += pendentesWidth + segmentSpacing;
   }
   
   if (emAndamentoWidth > 0) {
     ctx.fillStyle = segments.emAndamento.color;
-    ctx.fillRect(currentX, y, emAndamentoWidth, height);
-    currentX += emAndamentoWidth + segmentSpacing;
-  }
-  
-  if (instaladosWidth > 0) {
-    ctx.fillStyle = segments.instalados.color;
     ctx.beginPath();
-    ctx.roundRect(currentX, y, instaladosWidth, height, [0, borderRadius, borderRadius, 0]);
+    ctx.roundRect(currentX, y, emAndamentoWidth, height, [0, borderRadius, borderRadius, 0]);
     ctx.fill();
   }
 }
