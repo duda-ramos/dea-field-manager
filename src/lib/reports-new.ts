@@ -488,7 +488,7 @@ async function addPavimentoSummaryToPDF(
   return yPosition + 10;
 }
 
-// Enhanced hierarchical section rendering: Section → Pavimento → Tipologia → Items
+// Flat section rendering without subgroups
 function addEnhancedSectionToPDF(
   doc: jsPDF, 
   title: string, 
@@ -512,133 +512,226 @@ function addEnhancedSectionToPDF(
   doc.text(title, reportTheme.spacing.margin, yPosition);
   yPosition += 15;
 
-  // Group items by pavimento
-  const pavimentoGroups = new Map<string, Installation[]>();
-  items.forEach(item => {
-    const pavimento = item.pavimento || 'Sem Pavimento';
-    if (!pavimentoGroups.has(pavimento)) {
-      pavimentoGroups.set(pavimento, []);
-    }
-    pavimentoGroups.get(pavimento)!.push(item);
-  });
-
-  // Sort pavimentos naturally
-  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => {
-    if (a === 'Sem Pavimento') return 1;
-    if (b === 'Sem Pavimento') return -1;
-    return a.localeCompare(b, 'pt-BR', { numeric: true });
-  });
-
-  // Process each pavimento
-  for (const pavimento of sortedPavimentos) {
-    const pavimentoItems = pavimentoGroups.get(pavimento)!;
-    
-    // Check if new page needed for pavimento header + at least 3 lines
-    if (yPosition > 230) {
-      doc.addPage();
-      yPosition = reportTheme.spacing.margin;
-    }
-
-    // Pavimento subcabeçalho (pill style)
-    doc.setFillColor(243, 244, 246); // #F3F4F6
-    doc.roundedRect(reportTheme.spacing.margin, yPosition - 6, 170, 12, 3, 3, 'F');
-    doc.setDrawColor(229, 231, 235); // #E5E7EB
-    doc.setLineWidth(0.5);
-    doc.roundedRect(reportTheme.spacing.margin, yPosition - 6, 170, 12, 3, 3, 'S');
-    
-    doc.setTextColor(55, 65, 81); // #374151
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Pavimento ${pavimento} • ${pavimentoItems.length} itens`, reportTheme.spacing.margin + 6, yPosition);
-    doc.setTextColor(0, 0, 0);
-    yPosition += 20;
-
-    // Group by tipologia within this pavimento
-    const tipologiaGroups = new Map<string, Installation[]>();
-    pavimentoItems.forEach(item => {
-      const tipologia = item.tipologia || 'Sem Tipologia';
-      if (!tipologiaGroups.has(tipologia)) {
-        tipologiaGroups.set(tipologia, []);
-      }
-      tipologiaGroups.get(tipologia)!.push(item);
+  // For flat sections (Pendencias and Em Revisao) - single table without subgroups
+  if (sectionType === 'pendencias' || sectionType === 'revisao') {
+    // Sort items by Pavimento, Tipologia, Código
+    const sortedItems = [...items].sort((a, b) => {
+      if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+      if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+      const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
+      const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
+      return codeA - codeB;
     });
 
-    // Sort tipologias A-Z
-    const sortedTipologias = Array.from(tipologiaGroups.keys()).sort();
+    // Prepare table data (full columns including Pavimento and Tipologia)
+    const { columns, rows } = prepareFlatTableData(sortedItems, interlocutor, sectionType);
 
-    // Process each tipologia
-    for (const tipologia of sortedTipologias) {
-      const tipologiaItems = tipologiaGroups.get(tipologia)!;
-
-      // Check if new page needed for tipologia header + at least 2 lines
-      if (yPosition > 250) {
-        doc.addPage();
-        yPosition = reportTheme.spacing.margin;
+    // Generate single flat table
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: yPosition,
+      margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
+      styles: { 
+        fontSize: 10,
+        cellPadding: 3,
+        lineColor: [229, 231, 235],
+        lineWidth: 0.1
+      },
+      headStyles: { 
+        fillColor: [55, 65, 81], // #374151
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 10
+      },
+      bodyStyles: {
+        fontSize: 10,
+        cellPadding: 3
+      },
+      alternateRowStyles: { 
+        fillColor: [250, 250, 251] // #FAFAFB
+      },
+      columnStyles: getFlatColumnStyles(sectionType, interlocutor),
+      theme: 'grid',
+      didDrawPage: () => {
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(reportTheme.fonts.footer);
+        doc.setTextColor(reportTheme.colors.footer);
+        const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
       }
+    });
 
-      // Mini-cabeçalho de tipologia
-      doc.setFillColor(238, 242, 247); // #EEF2F7
-      doc.rect(reportTheme.spacing.margin, yPosition - 5, 170, 10, 'F');
-      doc.setTextColor(55, 65, 81); // #374151
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${tipologia} • ${tipologiaItems.length} itens`, reportTheme.spacing.margin + 4, yPosition);
-      doc.setTextColor(0, 0, 0);
-      yPosition += 15;
+    yPosition = (doc as any).lastAutoTable.finalY + 10;
+  } 
+  // For aggregated sections (Concluidas, Em Andamento) - grouped by Pavimento and Tipologia
+  else {
+    const aggregatedData = aggregateByPavimentoTipologia(items);
+    
+    // Sort by Pavimento, then Tipologia
+    const sortedAggregated = aggregatedData.sort((a, b) => {
+      if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+      return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+    });
 
-      // Sort items by código (numeric)
-      const sortedItems = tipologiaItems.sort((a, b) => {
-        const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
-        const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
-        return codeA - codeB;
-      });
+    const columns = ['Pavimento', 'Tipologia', 'Quantidade Total'];
+    const rows = sortedAggregated.map(item => [
+      item.pavimento,
+      item.tipologia,
+      item.quantidade.toString()
+    ]);
 
-      // Prepare compact columns (remove Pavimento and Tipologia)
-      const { columns, rows } = prepareCompactTableData(sortedItems, interlocutor, sectionType);
+    // Generate aggregated table
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: yPosition,
+      margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
+      styles: { 
+        fontSize: 10,
+        cellPadding: 3,
+        lineColor: [229, 231, 235],
+        lineWidth: 0.1
+      },
+      headStyles: { 
+        fillColor: [55, 65, 81], // #374151
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 10
+      },
+      bodyStyles: {
+        fontSize: 10,
+        cellPadding: 3
+      },
+      alternateRowStyles: { 
+        fillColor: [250, 250, 251] // #FAFAFB
+      },
+      columnStyles: getAggregatedColumnStyles(),
+      theme: 'grid',
+      didDrawPage: () => {
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(reportTheme.fonts.footer);
+        doc.setTextColor(reportTheme.colors.footer);
+        const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+      }
+    });
 
-      // Generate table for this tipologia
-      autoTable(doc, {
-        head: [columns],
-        body: rows,
-        startY: yPosition,
-        margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
-        styles: { 
-          fontSize: 10,
-          cellPadding: 3,
-          lineColor: [229, 231, 235],
-          lineWidth: 0.1
-        },
-        headStyles: { 
-          fillColor: [55, 65, 81], // #374151
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 10
-        },
-        bodyStyles: {
-          fontSize: 10,
-          cellPadding: 3
-        },
-        alternateRowStyles: { 
-          fillColor: [250, 250, 251] // #FAFAFB
-        },
-        columnStyles: getCompactColumnStyles(columns),
-        theme: 'grid',
-        didDrawPage: () => {
-          const pageHeight = doc.internal.pageSize.height;
-          doc.setFontSize(reportTheme.fonts.footer);
-          doc.setTextColor(reportTheme.colors.footer);
-          const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
-          doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
-        }
-      });
-
-      yPosition = (doc as any).lastAutoTable.finalY + 8;
-    }
-
-    yPosition += 10; // Extra space between pavimentos
+    yPosition = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  return yPosition + 10;
+  return yPosition;
+}
+
+// Prepare flat table data for Pendencias and Em Revisao sections (includes Pavimento and Tipologia)
+function prepareFlatTableData(
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'revisao'
+): { columns: string[], rows: any[][] } {
+  let columns: string[] = [];
+  let rows: any[][] = [];
+
+  if (sectionType === 'pendencias') {
+    if (interlocutor === 'cliente') {
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
+      rows = items.map(item => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    } else {
+      // For Fornecedor, combine observações and comentários
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
+      rows = items.map(item => {
+        const observacao = [];
+        if (item.observacoes) observacao.push(`Obs: ${item.observacoes}`);
+        if (item.comentarios_fornecedor) observacao.push(`Coment.: ${item.comentarios_fornecedor}`);
+        
+        return [
+          item.pavimento,
+          item.tipologia,
+          item.codigo.toString(),
+          item.descricao,
+          observacao.join(' | '),
+          item.photos.length > 0 ? 'Ver foto' : ''
+        ];
+      });
+    }
+  } else if (sectionType === 'revisao') {
+    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
+    rows = items.map(item => {
+      const versions = storage.getInstallationVersions(item.id);
+      const latestVersion = versions[versions.length - 1];
+      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
+      
+      return [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.revisao.toString(),
+        motivo
+      ];
+    });
+  }
+
+  return { columns, rows };
+}
+
+// Aggregate items by Pavimento and Tipologia for summary sections
+function aggregateByPavimentoTipologia(items: Installation[]): { pavimento: string, tipologia: string, quantidade: number }[] {
+  const aggregationMap = new Map<string, number>();
+
+  items.forEach(item => {
+    const key = `${item.pavimento}|${item.tipologia}`;
+    aggregationMap.set(key, (aggregationMap.get(key) || 0) + 1);
+  });
+
+  return Array.from(aggregationMap.entries()).map(([key, quantidade]) => {
+    const [pavimento, tipologia] = key.split('|');
+    return { pavimento, tipologia, quantidade };
+  });
+}
+
+// Get column styles for flat tables (with Pavimento and Tipologia)
+function getFlatColumnStyles(
+  sectionType: 'pendencias' | 'revisao',
+  interlocutor: 'cliente' | 'fornecedor'
+): any {
+  if (sectionType === 'pendencias') {
+    return {
+      0: { halign: 'left', cellWidth: 25 },   // Pavimento - 12%
+      1: { halign: 'left', cellWidth: 42 },   // Tipologia - 20%
+      2: { halign: 'right', cellWidth: 17 },  // Código - 8%
+      3: { halign: 'left', cellWidth: 67 },   // Descrição - 32%
+      4: { halign: 'left', cellWidth: 42 },   // Observação - 20%
+      5: { halign: 'center', cellWidth: 17 }  // Foto - 8%
+    };
+  } else if (sectionType === 'revisao') {
+    return {
+      0: { halign: 'left', cellWidth: 29 },   // Pavimento - 14%
+      1: { halign: 'left', cellWidth: 50 },   // Tipologia - 24%
+      2: { halign: 'right', cellWidth: 17 },  // Código - 8%
+      3: { halign: 'left', cellWidth: 63 },   // Descrição - 30%
+      4: { halign: 'center', cellWidth: 17 }, // Versão - 8%
+      5: { halign: 'left', cellWidth: 34 }    // Motivo - 16%
+    };
+  }
+  
+  return {};
+}
+
+// Get column styles for aggregated tables
+function getAggregatedColumnStyles(): any {
+  return {
+    0: { halign: 'left', cellWidth: 84 },   // Pavimento - 40%
+    1: { halign: 'left', cellWidth: 84 },   // Tipologia - 40%
+    2: { halign: 'right', cellWidth: 42 }   // Quantidade Total - 20%
+  };
 }
 
 // Prepare table data based on section type and interlocutor
@@ -975,22 +1068,22 @@ export function generateXLSXReport(data: ReportData): Blob {
     XLSX.utils.book_append_sheet(workbook, pavimentoSheet, 'Resumo_Pavimento');
   }
 
-  // Add sections only if they have items with enhanced formatting
+  // Add sections only if they have items with flat formatting
   if (sections.pendencias.length > 0) {
-    addEnhancedSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
+    addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
   }
 
   if (sections.concluidas.length > 0) {
-    addEnhancedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
+    addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
   }
 
   if (sections.emRevisao.length > 0) {
-    addEnhancedSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
+    addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
   }
 
   if (sections.emAndamento.length > 0) {
     const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    addEnhancedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
+    addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
   }
 
   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -1154,6 +1247,71 @@ function addEnhancedSectionToXLSX(
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
   // Auto filter on header row
   worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + compactColumns.length - 1)}1` };
+  
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+}
+
+// Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
+function addFlatSectionToXLSX(
+  workbook: XLSX.WorkBook,
+  sheetName: string,
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'revisao'
+) {
+  // Sort items by Pavimento, Tipologia, Código
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+    if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+    const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
+    const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
+    return codeA - codeB;
+  });
+
+  // Prepare flat table data (includes Pavimento and Tipologia)
+  const { columns, rows } = prepareFlatTableData(sortedItems, interlocutor, sectionType);
+
+  const wsData = [columns, ...rows];
+  const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Freeze top row (header)
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  // Auto filter on header row
+  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + columns.length - 1)}${sortedItems.length + 1}` };
+  
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+}
+
+// Add aggregated section to XLSX for Concluidas and Em Andamento (grouped by Pavimento and Tipologia)
+function addAggregatedSectionToXLSX(
+  workbook: XLSX.WorkBook,
+  sheetName: string,
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'concluidas' | 'andamento'
+) {
+  const aggregatedData = aggregateByPavimentoTipologia(items);
+  
+  // Sort by Pavimento, then Tipologia
+  const sortedAggregated = aggregatedData.sort((a, b) => {
+    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
+    return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
+  });
+
+  const headers = ['Pavimento', 'Tipologia', 'Quantidade Total'];
+  const rows = sortedAggregated.map(item => [
+    item.pavimento,
+    item.tipologia,
+    item.quantidade
+  ]);
+
+  const wsData = [headers, ...rows];
+  const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Freeze top row (header)
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  // Auto filter on header row
+  worksheet['!autofilter'] = { ref: `A1:C${sortedAggregated.length + 1}` };
   
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
