@@ -68,7 +68,15 @@ export interface ProjectContact {
 export interface ProjectReport {
   id: string;
   project_id: string;
+  interlocutor: 'cliente' | 'fornecedor';
   generated_by: string;
   generated_at: string;
-  file_path: string;
+  arquivo_pdf?: Blob;
+  arquivo_xlsx?: Blob;
+  totais?: {
+    pendentes: number;
+    instalados: number;
+    andamento: number;
+  };
+  observacoes?: string;
 }

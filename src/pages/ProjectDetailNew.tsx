@@ -18,7 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { importExcelFile } from "@/lib/excel-import";
-import { generatePDFReport, generateXLSXReport } from "@/lib/reports";
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +34,8 @@ export default function ProjectDetailNew() {
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedInterlocutor, setSelectedInterlocutor] = useState<'cliente' | 'fornecedor'>('cliente');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -141,36 +142,7 @@ export default function ProjectDetailNew() {
     }
   };
 
-  const handleGenerateReport = (format: 'pdf' | 'xlsx') => {
-    const reportData = {
-      project,
-      installations,
-      generatedBy: project.owner,
-      generatedAt: new Date().toISOString()
-    };
-
-    if (format === 'pdf') {
-      generatePDFReport(reportData);
-    } else {
-      generateXLSXReport(reportData);
-    }
-
-    // Save report to history
-    const newReport = storage.saveReport({
-      project_id: project.id,
-      generated_by: project.owner,
-      generated_at: new Date().toISOString(),
-      file_path: `relatorio-${project.name}-${Date.now()}.${format}`
-    });
-
-    // Update reports state
-    setReports(prev => [newReport, ...prev]);
-
-    toast({
-      title: "Relatório gerado",
-      description: `Relatório ${format.toUpperCase()} foi baixado com sucesso`,
-    });
-  };
+  // Remove this old function since we have the new implementation
 
   const renderPecasSection = () => {
     // Group installations by tipologia
@@ -469,91 +441,217 @@ export default function ProjectDetailNew() {
     </div>
   );
 
-  const renderRelatoriosSection = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerar Relatórios</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-muted-foreground">
-              Gere relatórios completos com classificação automática: Pendências, Próximos Passos e Instaladas.
-            </p>
-            <div className="flex gap-4 flex-wrap">
-              <Button onClick={() => handleGenerateReport('pdf')}>
-                <Download className="h-4 w-4 mr-2" />
-                Gerar Relatório PDF
-              </Button>
-              <Button variant="outline" onClick={() => handleGenerateReport('xlsx')}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Gerar Relatório Excel
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  const renderRelatoriosSection = () => {
+    const handleGenerateNewReport = async (format: 'pdf' | 'xlsx') => {
+      setIsGenerating(true);
+      try {
+        const { generatePDFReport, generateXLSXReport, generateFileName } = await import('@/lib/reports-new');
+        
+        const versions = installations.map(installation => 
+          storage.getInstallationVersions(installation.id)
+        ).flat();
 
-      {reports.length > 0 && (
+        const reportData = {
+          project,
+          installations,
+          versions,
+          generatedBy: project.owner,
+          generatedAt: new Date().toISOString(),
+          interlocutor: selectedInterlocutor
+        };
+
+        let blob: Blob;
+        if (format === 'pdf') {
+          blob = await generatePDFReport(reportData);
+        } else {
+          blob = generateXLSXReport(reportData);
+        }
+
+        // Download file
+        const fileName = generateFileName(project, selectedInterlocutor, format);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Calculate totals
+        const { calculateReportSections } = await import('@/lib/reports-new');
+        const sections = calculateReportSections(reportData);
+        const totals = {
+          pendentes: sections.pendencias.length,
+          instalados: sections.concluidas.length,
+          andamento: sections.emAndamento.length + sections.emRevisao.length
+        };
+
+        // Save to history
+        const newReport = storage.saveReport({
+          project_id: project.id,
+          interlocutor: selectedInterlocutor,
+          generated_by: project.owner,
+          generated_at: new Date().toISOString(),
+          arquivo_pdf: format === 'pdf' ? blob : undefined,
+          arquivo_xlsx: format === 'xlsx' ? blob : undefined,
+          totais: totals
+        });
+
+        setReports(prev => [newReport, ...prev]);
+
+        toast({
+          title: "Relatório gerado",
+          description: `Relatório ${format.toUpperCase()} para ${selectedInterlocutor} foi baixado com sucesso`,
+        });
+      } catch (error) {
+        toast({
+          title: "Erro na geração",
+          description: "Erro ao gerar relatório",
+          variant: "destructive"
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de Relatórios</CardTitle>
+            <CardTitle>Gerar Relatórios</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {reports
-                .sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime())
-                .map((report) => {
-                  const date = new Date(report.generated_at);
-                  const fileType = report.file_path.split('.').pop()?.toUpperCase();
-                  
-                  return (
-                    <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        {fileType === 'PDF' ? (
-                          <Download className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <div>
-                          <p className="font-medium">Relatório {fileType}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {date.toLocaleDateString('pt-BR')} às {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - por {report.generated_by}
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        // Regenerate and download the report
-                        const reportData = {
-                          project,
-                          installations,
-                          generatedBy: report.generated_by,
-                          generatedAt: report.generated_at
-                        };
+            <div className="space-y-6">
+              <div>
+                <Label>Selecionar Interlocutor</Label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant={selectedInterlocutor === 'cliente' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedInterlocutor('cliente')}
+                  >
+                    Cliente
+                  </Button>
+                  <Button
+                    variant={selectedInterlocutor === 'fornecedor' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedInterlocutor('fornecedor')}
+                  >
+                    Fornecedor
+                  </Button>
+                </div>
+              </div>
 
-                        const fileType = report.file_path.split('.').pop();
-                        if (fileType === 'pdf') {
-                          generatePDFReport(reportData);
-                        } else if (fileType === 'xlsx') {
-                          generateXLSXReport(reportData);
-                        }
-
-                        toast({
-                          title: "Relatório baixado",
-                          description: `Relatório ${fileType?.toUpperCase()} foi baixado novamente`,
-                        });
-                      }}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })}
+              <div>
+                <p className="text-muted-foreground mb-4">
+                  Gere relatórios específicos para {selectedInterlocutor} com classificação automática: Pendências, Concluídas, Em Revisão e {selectedInterlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento'}.
+                </p>
+                <div className="flex gap-4 flex-wrap">
+                  <Button 
+                    onClick={() => handleGenerateNewReport('pdf')}
+                    disabled={isGenerating}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isGenerating ? 'Gerando...' : 'Gerar Relatório PDF'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleGenerateNewReport('xlsx')}
+                    disabled={isGenerating}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    {isGenerating ? 'Gerando...' : 'Gerar Relatório Excel'}
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
-    </div>
-  );
+
+        {reports.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Relatórios</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {reports
+                  .sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime())
+                  .map((report) => {
+                    const date = new Date(report.generated_at);
+                    
+                    return (
+                      <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col gap-1">
+                            {report.arquivo_pdf && (
+                              <div className="flex items-center gap-2">
+                                <Download className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">PDF</span>
+                              </div>
+                            )}
+                            {report.arquivo_xlsx && (
+                              <div className="flex items-center gap-2">
+                                <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">Excel</span>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium capitalize">{report.interlocutor}</span>
+                              <span className="text-xs bg-muted px-2 py-1 rounded">
+                                {report.totais ? `${report.totais.pendentes}P | ${report.totais.instalados}I | ${report.totais.andamento}A` : ''}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {date.toLocaleDateString('pt-BR')} às {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - por {report.generated_by}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {report.arquivo_pdf && (
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              const url = URL.createObjectURL(report.arquivo_pdf!);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `Relatorio-${project.name}-${date.toISOString().split('T')[0]}-${report.interlocutor.toUpperCase()}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            }}>
+                              <Download className="h-4 w-4" />
+                              PDF
+                            </Button>
+                          )}
+                          {report.arquivo_xlsx && (
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              const url = URL.createObjectURL(report.arquivo_xlsx!);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `Relatorio-${project.name}-${date.toISOString().split('T')[0]}-${report.interlocutor.toUpperCase()}.xlsx`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            }}>
+                              <FileSpreadsheet className="h-4 w-4" />
+                              Excel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
 
   const renderOrcamentosSection = () => (
     <div className="space-y-6">
