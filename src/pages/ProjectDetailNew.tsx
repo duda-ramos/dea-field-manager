@@ -592,17 +592,19 @@ export default function ProjectDetailNew() {
             </Button>
             
             {/* Import button - only shows import functionality */}
-            <Button variant="outline" disabled={isImporting} className="ml-auto">
+            <div className="relative ml-auto">
               <input
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleFileUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 onClick={(e) => e.stopPropagation()}
               />
-              <Upload className="h-4 w-4 mr-2" />
-              {isImporting ? "Importando..." : "Importar Planilha"}
-            </Button>
+              <Button variant="outline" disabled={isImporting} className="pointer-events-none">
+                <Upload className="h-4 w-4 mr-2" />
+                {isImporting ? "Importando..." : "Importar Planilha"}
+              </Button>
+            </div>
 
             {/* Add Installation button - only shows for pecas section */}
             {currentSection === 'pecas' && (
