@@ -552,72 +552,7 @@ export default function ProjectDetailNew() {
 
     return (
       <div className="space-y-6">
-        {/* Interactive Storage Bar and Filters - MOVED TO TOP */}
-        {installations.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Visão Geral - {selectedInterlocutor === 'cliente' ? 'Cliente' : 'Fornecedor'}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Main Storage Bar */}
-                <div className="space-y-4">
-                  {(() => {
-                    const reportData = {
-                      project,
-                      installations,
-                      versions: [],
-                      generatedBy: 'Usuario',
-                      generatedAt: new Date().toISOString(),
-                      interlocutor: selectedInterlocutor
-                    };
-                    const sections = calculateReportSections(reportData);
-                    const pavimentoSummary = calculatePavimentoSummary(sections);
-                    
-                    return (
-                      <>
-                        <StorageBar
-                          instalados={sections.concluidas.length}
-                          pendentes={sections.pendencias.length}
-                          emAndamento={sections.emAndamento.length}
-                          title="Distribuição Geral"
-                          onSegmentClick={(segment) => {
-                            setReportFilter(segment);
-                            setReportPavimentoFilter('all');
-                          }}
-                        />
-                        
-                        {/* Pavimento Summary */}
-                        {pavimentoSummary.length > 0 && (
-                          <div className="space-y-3">
-                            <h4 className="text-sm font-medium">Resumo por Pavimento</h4>
-                            <div className="grid gap-3 max-h-64 overflow-y-auto">
-                              {pavimentoSummary.map((pav) => (
-                                <StorageBar
-                                  key={pav.pavimento}
-                                  instalados={pav.instalados}
-                                  pendentes={pav.pendentes}
-                                  emAndamento={pav.emAndamento}
-                                  title={pav.pavimento}
-                                  size="mini"
-                                  onSegmentClick={(segment) => {
-                                    setReportFilter(segment);
-                                    setReportPavimentoFilter(pav.pavimento);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+        {/* 1. Gerar Relatórios */}
         <Card>
           <CardHeader>
             <CardTitle>Gerar Relatórios</CardTitle>
@@ -670,6 +605,7 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
+        {/* 2. Histórico de Relatórios */}
         {reports.length > 0 && (
           <Card>
             <CardHeader>
@@ -750,6 +686,97 @@ export default function ProjectDetailNew() {
             </CardContent>
           </Card>
         )}
+
+        {installations.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Visão Geral - {selectedInterlocutor === 'cliente' ? 'Cliente' : 'Fornecedor'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Main Storage Bar */}
+                <div className="space-y-4">
+                  {(() => {
+                    const reportData = {
+                      project,
+                      installations,
+                      versions: [],
+                      generatedBy: 'Usuario',
+                      generatedAt: new Date().toISOString(),
+                      interlocutor: selectedInterlocutor
+                    };
+                    const sections = calculateReportSections(reportData);
+                    const pavimentoSummary = calculatePavimentoSummary(sections);
+                    
+                    return (
+                      <>
+                        <StorageBar
+                          instalados={sections.concluidas.length}
+                          pendentes={sections.pendencias.length}
+                          emAndamento={sections.emAndamento.length}
+                          title="Distribuição Geral"
+                          onSegmentClick={(segment) => {
+                            setReportFilter(segment);
+                            setReportPavimentoFilter('all');
+                          }}
+                        />
+                        
+                        {/* Pavimento Summary */}
+                        {pavimentoSummary.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-medium">Resumo por Pavimento</h4>
+                            <div className="grid gap-3 max-h-64 overflow-y-auto">
+                              {pavimentoSummary.map((pav) => (
+                                <StorageBar
+                                  key={pav.pavimento}
+                                  instalados={pav.instalados}
+                                  pendentes={pav.pendentes}
+                                  emAndamento={pav.emAndamento}
+                                  title={pav.pavimento}
+                                  size="mini"
+                                  onSegmentClick={(segment) => {
+                                    setReportFilter(segment);
+                                    setReportPavimentoFilter(pav.pavimento);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Active Filters */}
+                        {(reportFilter !== 'all' || reportPavimentoFilter !== 'all') && (
+                          <div className="flex gap-2 flex-wrap">
+                            <span className="text-sm text-muted-foreground">Filtros ativos:</span>
+                            {reportFilter !== 'all' && (
+                              <Badge variant="secondary" className="cursor-pointer" onClick={() => setReportFilter('all')}>
+                                {reportFilter === 'instalados' ? 'Instalados' : 
+                                 reportFilter === 'pendentes' ? 'Pendentes' : 'Em Andamento'} ×
+                              </Badge>
+                            )}
+                            {reportPavimentoFilter !== 'all' && (
+                              <Badge variant="secondary" className="cursor-pointer" onClick={() => setReportPavimentoFilter('all')}>
+                                {reportPavimentoFilter} ×
+                              </Badge>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setReportFilter('all');
+                              setReportPavimentoFilter('all');
+                            }}>
+                              Limpar filtros
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 4. Filtros ativos - Itens Filtrados */}
 
         {/* Filtered Items List */}
         {(reportFilter !== 'all' || reportPavimentoFilter !== 'all') && (
