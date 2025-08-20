@@ -209,16 +209,14 @@ export function InstallationDetailModalNew({
             </div>
 
             {/* Comments for supplier */}
-            {installation.comentarios_fornecedor && (
-              <div>
-                <Label>Comentários para o Fornecedor</Label>
-                <Textarea 
-                  value={installation.comentarios_fornecedor} 
-                  readOnly 
-                  className="bg-muted min-h-[80px]" 
-                />
-              </div>
-            )}
+            <div>
+              <Label>Comentários para o Fornecedor</Label>
+              <Textarea 
+                value={installation.comentarios_fornecedor || "Nenhum comentário para o fornecedor"} 
+                readOnly 
+                className="bg-muted min-h-[80px]" 
+              />
+            </div>
 
             {/* Installation Status */}
             <div className="flex items-center space-x-2">
