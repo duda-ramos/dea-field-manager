@@ -12,7 +12,7 @@ import {
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
   Settings, Search, FileSpreadsheet, RefreshCw, Plus 
 } from "lucide-react";
-import { Project, Installation } from "@/types";
+import { Project, Installation, ProjectReport } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
@@ -28,6 +28,7 @@ export default function ProjectDetailNew() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
+  const [reports, setReports] = useState<ProjectReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
@@ -46,6 +47,7 @@ export default function ProjectDetailNew() {
     
     setProject(projectData);
     setInstallations(storage.getInstallations(id));
+    setReports(storage.getReports(id));
   }, [id, navigate]);
 
   if (!project) return null;
@@ -154,12 +156,15 @@ export default function ProjectDetailNew() {
     }
 
     // Save report to history
-    storage.saveReport({
+    const newReport = storage.saveReport({
       project_id: project.id,
       generated_by: project.owner,
       generated_at: new Date().toISOString(),
       file_path: `relatorio-${project.name}-${Date.now()}.${format}`
     });
+
+    // Update reports state
+    setReports(prev => [newReport, ...prev]);
 
     toast({
       title: "Relatório gerado",
@@ -488,6 +493,52 @@ export default function ProjectDetailNew() {
           </div>
         </CardContent>
       </Card>
+
+      {reports.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Histórico de Relatórios</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {reports
+                .sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime())
+                .map((report) => {
+                  const date = new Date(report.generated_at);
+                  const fileType = report.file_path.split('.').pop()?.toUpperCase();
+                  
+                  return (
+                    <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {fileType === 'PDF' ? (
+                          <Download className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-medium">Relatório {fileType}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {date.toLocaleDateString('pt-BR')} às {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - por {report.generated_by}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        // Since we can't actually download the file again, we'll show a message
+                        toast({
+                          title: "Download não disponível",
+                          description: "Este relatório foi gerado anteriormente. Gere um novo relatório para download.",
+                          variant: "destructive"
+                        });
+                      }}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 
