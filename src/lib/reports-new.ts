@@ -380,20 +380,20 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items
   if (sections.pendencias.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias');
+    yPosition = addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name);
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas');
+    yPosition = addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name);
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao');
+    yPosition = addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name);
   }
 
   if (sections.emAndamento.length > 0) {
     const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento');
+    yPosition = addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name);
   }
 
   // Add footer to all pages
@@ -488,16 +488,19 @@ async function addPavimentoSummaryToPDF(
   return yPosition + 10;
 }
 
-// Enhanced section rendering with pavimento sub-groups
+// Enhanced hierarchical section rendering: Section → Pavimento → Tipologia → Items
 function addEnhancedSectionToPDF(
   doc: jsPDF, 
   title: string, 
   items: Installation[], 
   yPosition: number, 
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectName?: string
 ): number {
-  // Check if new page needed
+  if (items.length === 0) return yPosition;
+
+  // Check if new page needed for section title
   if (yPosition > 220) {
     doc.addPage();
     yPosition = reportTheme.spacing.margin;
@@ -507,78 +510,135 @@ function addEnhancedSectionToPDF(
   doc.setFontSize(reportTheme.fonts.subtitle);
   doc.setTextColor('#000000');
   doc.text(title, reportTheme.spacing.margin, yPosition);
-  yPosition += reportTheme.spacing.subtitleBottom;
+  yPosition += 15;
 
   // Group items by pavimento
   const pavimentoGroups = new Map<string, Installation[]>();
   items.forEach(item => {
-    if (!pavimentoGroups.has(item.pavimento)) {
-      pavimentoGroups.set(item.pavimento, []);
+    const pavimento = item.pavimento || 'Sem Pavimento';
+    if (!pavimentoGroups.has(pavimento)) {
+      pavimentoGroups.set(pavimento, []);
     }
-    pavimentoGroups.get(item.pavimento)!.push(item);
+    pavimentoGroups.get(pavimento)!.push(item);
   });
 
   // Sort pavimentos naturally
-  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => 
-    a.localeCompare(b, 'pt-BR', { numeric: true })
-  );
+  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => {
+    if (a === 'Sem Pavimento') return 1;
+    if (b === 'Sem Pavimento') return -1;
+    return a.localeCompare(b, 'pt-BR', { numeric: true });
+  });
 
-  // Process each pavimento group
+  // Process each pavimento
   for (const pavimento of sortedPavimentos) {
     const pavimentoItems = pavimentoGroups.get(pavimento)!;
     
-    // Sort items within pavimento: Tipologia → Código
-    const sortedItems = pavimentoItems.sort((a, b) => {
-      if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-      return a.codigo - b.codigo;
-    });
-
-    // Check if new page needed for pavimento group
+    // Check if new page needed for pavimento header + at least 3 lines
     if (yPosition > 230) {
       doc.addPage();
       yPosition = reportTheme.spacing.margin;
     }
 
-    // Pavimento subtitle with chip style
+    // Pavimento subcabeçalho (pill style)
+    doc.setFillColor(243, 244, 246); // #F3F4F6
+    doc.roundedRect(reportTheme.spacing.margin, yPosition - 6, 170, 12, 3, 3, 'F');
+    doc.setDrawColor(229, 231, 235); // #E5E7EB
+    doc.setLineWidth(0.5);
+    doc.roundedRect(reportTheme.spacing.margin, yPosition - 6, 170, 12, 3, 3, 'S');
+    
+    doc.setTextColor(55, 65, 81); // #374151
     doc.setFontSize(12);
-    doc.setTextColor('#374151');
-    doc.text(`${pavimento} — ${sortedItems.length} itens`, reportTheme.spacing.margin, yPosition);
-    yPosition += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Pavimento ${pavimento} • ${pavimentoItems.length} itens`, reportTheme.spacing.margin + 6, yPosition);
+    doc.setTextColor(0, 0, 0);
+    yPosition += 20;
 
-    // Thin divider line
-    doc.setDrawColor('#E5E7EB');
-    doc.setLineWidth(0.3);
-    doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
-    yPosition += 5;
-
-    // Prepare table data
-    const { columns, rows } = prepareTableData(sortedItems, interlocutor, sectionType);
-
-    // Define column widths based on section type
-    const columnStyles = getColumnStyles(sectionType, interlocutor);
-
-    autoTable(doc, {
-      head: [columns],
-      body: rows,
-      startY: yPosition,
-      styles: { 
-        fontSize: reportTheme.fonts.text,
-        cellPadding: 3
-      },
-      headStyles: { 
-        fillColor: reportTheme.colors.header,
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      alternateRowStyles: { fillColor: reportTheme.colors.alternateRow },
-      columnStyles,
-      margin: { left: reportTheme.spacing.margin }
+    // Group by tipologia within this pavimento
+    const tipologiaGroups = new Map<string, Installation[]>();
+    pavimentoItems.forEach(item => {
+      const tipologia = item.tipologia || 'Sem Tipologia';
+      if (!tipologiaGroups.has(tipologia)) {
+        tipologiaGroups.set(tipologia, []);
+      }
+      tipologiaGroups.get(tipologia)!.push(item);
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + reportTheme.spacing.sectionSpacing;
+    // Sort tipologias A-Z
+    const sortedTipologias = Array.from(tipologiaGroups.keys()).sort();
+
+    // Process each tipologia
+    for (const tipologia of sortedTipologias) {
+      const tipologiaItems = tipologiaGroups.get(tipologia)!;
+
+      // Check if new page needed for tipologia header + at least 2 lines
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = reportTheme.spacing.margin;
+      }
+
+      // Mini-cabeçalho de tipologia
+      doc.setFillColor(238, 242, 247); // #EEF2F7
+      doc.rect(reportTheme.spacing.margin, yPosition - 5, 170, 10, 'F');
+      doc.setTextColor(55, 65, 81); // #374151
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${tipologia} • ${tipologiaItems.length} itens`, reportTheme.spacing.margin + 4, yPosition);
+      doc.setTextColor(0, 0, 0);
+      yPosition += 15;
+
+      // Sort items by código (numeric)
+      const sortedItems = tipologiaItems.sort((a, b) => {
+        const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
+        const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
+        return codeA - codeB;
+      });
+
+      // Prepare compact columns (remove Pavimento and Tipologia)
+      const { columns, rows } = prepareCompactTableData(sortedItems, interlocutor, sectionType);
+
+      // Generate table for this tipologia
+      autoTable(doc, {
+        head: [columns],
+        body: rows,
+        startY: yPosition,
+        margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 3,
+          lineColor: [229, 231, 235],
+          lineWidth: 0.1
+        },
+        headStyles: { 
+          fillColor: [55, 65, 81], // #374151
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        bodyStyles: {
+          fontSize: 10,
+          cellPadding: 3
+        },
+        alternateRowStyles: { 
+          fillColor: [250, 250, 251] // #FAFAFB
+        },
+        columnStyles: getCompactColumnStyles(columns),
+        theme: 'grid',
+        didDrawPage: () => {
+          const pageHeight = doc.internal.pageSize.height;
+          doc.setFontSize(reportTheme.fonts.footer);
+          doc.setTextColor(reportTheme.colors.footer);
+          const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+        }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    yPosition += 10; // Extra space between pavimentos
   }
 
-  return yPosition;
+  return yPosition + 10;
 }
 
 // Prepare table data based on section type and interlocutor
@@ -642,6 +702,59 @@ function prepareTableData(
   return { columns, rows };
 }
 
+// Prepare compact table data (without Pavimento and Tipologia columns)
+function prepareCompactTableData(
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+): { columns: string[], rows: any[][] } {
+  let columns: string[] = [];
+  let rows: any[][] = [];
+
+  if (sectionType === 'pendencias') {
+    if (interlocutor === 'cliente') {
+      columns = ['Código', 'Descrição', 'Observação', 'Foto'];
+      rows = items.map(item => [
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    } else {
+      columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      rows = items.map(item => [
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        item.photos.length > 0 ? 'Ver foto' : ''
+      ]);
+    }
+  } else if (sectionType === 'revisao') {
+    columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
+    rows = items.map(item => {
+      const versions = storage.getInstallationVersions(item.id);
+      const latestVersion = versions[versions.length - 1];
+      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
+      
+      return [
+        item.codigo.toString(),
+        item.descricao,
+        item.revisao.toString(),
+        motivo
+      ];
+    });
+  } else {
+    columns = ['Código', 'Descrição'];
+    rows = items.map(item => [
+      item.codigo.toString(),
+      item.descricao
+    ]);
+  }
+
+  return { columns, rows };
+}
+
 // Get column styles based on section type
 function getColumnStyles(
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
@@ -678,6 +791,29 @@ function getColumnStyles(
   }
 
   return baseStyles;
+}
+
+// Get compact column styles (for tables without Pavimento and Tipologia)
+function getCompactColumnStyles(columns: string[]): any {
+  const styles: Record<number, any> = {};
+  
+  columns.forEach((col, index) => {
+    switch (col) {
+      case 'Código':
+        styles[index] = { halign: 'right' };
+        break;
+      case 'Versão':
+        styles[index] = { halign: 'center' };
+        break;
+      case 'Foto':
+        styles[index] = { halign: 'center' };
+        break;
+      default:
+        styles[index] = { halign: 'left' };
+    }
+  });
+  
+  return styles;
 }
 
 function addSectionToPDF(
@@ -932,7 +1068,7 @@ function addSectionToXLSX(
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
 
-// Enhanced XLSX section with pavimento sub-groups
+// Enhanced XLSX section with hierarchical structure (Pavimento → Tipologia → Items)
 function addEnhancedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
@@ -940,44 +1076,84 @@ function addEnhancedSectionToXLSX(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
 ) {
-  // Group by pavimento and prepare data with sub-headers
+  // Use compact columns (without Pavimento and Tipologia)
+  const { columns: compactColumns } = prepareCompactTableData([], interlocutor, sectionType);
+  const allData: any[][] = [compactColumns]; // Headers
+
+  // Group by pavimento
   const pavimentoGroups = new Map<string, Installation[]>();
   items.forEach(item => {
-    if (!pavimentoGroups.has(item.pavimento)) {
-      pavimentoGroups.set(item.pavimento, []);
+    const pavimento = item.pavimento || 'Sem Pavimento';
+    if (!pavimentoGroups.has(pavimento)) {
+      pavimentoGroups.set(pavimento, []);
     }
-    pavimentoGroups.get(item.pavimento)!.push(item);
+    pavimentoGroups.get(pavimento)!.push(item);
   });
 
-  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => 
-    a.localeCompare(b, 'pt-BR', { numeric: true })
-  );
+  // Sort pavimentos naturally
+  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => {
+    if (a === 'Sem Pavimento') return 1;
+    if (b === 'Sem Pavimento') return -1;
+    return a.localeCompare(b, 'pt-BR', { numeric: true });
+  });
 
-  const { columns } = prepareTableData([], interlocutor, sectionType);
-  const allData: any[][] = [columns]; // Headers
-
-  // Add data with pavimento separators
+  // Process each pavimento
   for (const pavimento of sortedPavimentos) {
     const pavimentoItems = pavimentoGroups.get(pavimento)!;
-    const sortedItems = pavimentoItems.sort((a, b) => {
-      if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-      return a.codigo - b.codigo;
+
+    // Add pavimento title row (merged across all columns)
+    const pavimentoTitle = [`Pavimento ${pavimento} • ${pavimentoItems.length} itens`];
+    while (pavimentoTitle.length < compactColumns.length) {
+      pavimentoTitle.push('');
+    }
+    allData.push(pavimentoTitle);
+
+    // Group by tipologia within this pavimento
+    const tipologiaGroups = new Map<string, Installation[]>();
+    pavimentoItems.forEach(item => {
+      const tipologia = item.tipologia || 'Sem Tipologia';
+      if (!tipologiaGroups.has(tipologia)) {
+        tipologiaGroups.set(tipologia, []);
+      }
+      tipologiaGroups.get(tipologia)!.push(item);
     });
 
-    // Add pavimento separator row
-    allData.push([`${pavimento} — ${sortedItems.length} itens`, '', '', '', '', '']);
-    
-    // Add items data
-    const { rows } = prepareTableData(sortedItems, interlocutor, sectionType);
-    allData.push(...rows);
-    
-    // Add empty row between pavimentos
-    allData.push(['', '', '', '', '', '']);
+    // Sort tipologias A-Z
+    const sortedTipologias = Array.from(tipologiaGroups.keys()).sort();
+
+    // Process each tipologia
+    for (const tipologia of sortedTipologias) {
+      const tipologiaItems = tipologiaGroups.get(tipologia)!;
+
+      // Add tipologia title row
+      const tipologiaTitle = [`${tipologia} • ${tipologiaItems.length} itens`];
+      while (tipologiaTitle.length < compactColumns.length) {
+        tipologiaTitle.push('');
+      }
+      allData.push(tipologiaTitle);
+
+      // Sort items by código (numeric)
+      const sortedItems = tipologiaItems.sort((a, b) => {
+        const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
+        const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
+        return codeA - codeB;
+      });
+
+      // Add items data (compact format)
+      const { rows } = prepareCompactTableData(sortedItems, interlocutor, sectionType);
+      allData.push(...rows);
+    }
+
+    // Add spacing between pavimentos
+    const emptyRow = new Array(compactColumns.length).fill('');
+    allData.push(emptyRow);
   }
 
   const worksheet = XLSX.utils.aoa_to_sheet(allData);
+  // Freeze top row (header)
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + columns.length - 1)}1` };
+  // Auto filter on header row
+  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + compactColumns.length - 1)}1` };
   
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
