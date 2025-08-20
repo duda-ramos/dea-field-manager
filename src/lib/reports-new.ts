@@ -704,21 +704,21 @@ function getFlatColumnStyles(
 ): any {
   if (sectionType === 'pendencias') {
     return {
-      0: { halign: 'left', cellWidth: 25 },   // Pavimento - 12%
-      1: { halign: 'left', cellWidth: 42 },   // Tipologia - 20%
-      2: { halign: 'right', cellWidth: 17 },  // Código - 8%
-      3: { halign: 'left', cellWidth: 67 },   // Descrição - 32%
-      4: { halign: 'left', cellWidth: 42 },   // Observação - 20%
-      5: { halign: 'center', cellWidth: 17 }  // Foto - 8%
+      0: { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
+      1: { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
+      2: { halign: 'right', cellWidth: 14 },  // Código - 8%
+      3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
+      4: { halign: 'left', cellWidth: 35 },   // Observação - 21%
+      5: { halign: 'center', cellWidth: 14 }  // Foto - 8%
     };
   } else if (sectionType === 'revisao') {
     return {
-      0: { halign: 'left', cellWidth: 29 },   // Pavimento - 14%
-      1: { halign: 'left', cellWidth: 50 },   // Tipologia - 24%
-      2: { halign: 'right', cellWidth: 17 },  // Código - 8%
-      3: { halign: 'left', cellWidth: 63 },   // Descrição - 30%
-      4: { halign: 'center', cellWidth: 17 }, // Versão - 8%
-      5: { halign: 'left', cellWidth: 34 }    // Motivo - 16%
+      0: { halign: 'left', cellWidth: 22 },   // Pavimento - 13%
+      1: { halign: 'left', cellWidth: 40 },   // Tipologia - 24%
+      2: { halign: 'right', cellWidth: 14 },  // Código - 8%
+      3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
+      4: { halign: 'center', cellWidth: 14 }, // Versão - 8%
+      5: { halign: 'left', cellWidth: 28 }    // Motivo - 17%
     };
   }
   
@@ -728,9 +728,9 @@ function getFlatColumnStyles(
 // Get column styles for aggregated tables
 function getAggregatedColumnStyles(): any {
   return {
-    0: { halign: 'left', cellWidth: 84 },   // Pavimento - 40%
-    1: { halign: 'left', cellWidth: 84 },   // Tipologia - 40%
-    2: { halign: 'right', cellWidth: 42 }   // Quantidade Total - 20%
+    0: { halign: 'left', cellWidth: 68 },   // Pavimento - 40%
+    1: { halign: 'left', cellWidth: 68 },   // Tipologia - 40%
+    2: { halign: 'right', cellWidth: 34 }   // Quantidade Total - 20%
   };
 }
 
