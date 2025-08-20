@@ -21,6 +21,7 @@ import { EditProjectModal } from "@/components/edit-project-modal";
 import { importExcelFile } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
+import { FileUpload } from "@/components/file-upload";
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -868,16 +869,22 @@ export default function ProjectDetailNew() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Orçamentos</CardTitle>
+          <CardTitle>Gestão de Arquivos de Orçamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-12">
-            <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Seção de Orçamentos</h3>
-            <p className="text-muted-foreground">
-              Esta seção será implementada em versões futuras do sistema.
-            </p>
-          </div>
+          <p className="text-muted-foreground mb-6">
+            Faça upload e gerencie os arquivos relacionados aos orçamentos do projeto. Você pode arrastar e soltar os arquivos ou usar o botão para navegar e selecionar.
+          </p>
+          
+          <FileUpload 
+            projectId={project.id}
+            acceptedTypes={['.pdf', '.xlsx', '.xls', '.doc', '.docx', '.png', '.jpg', '.jpeg']}
+            maxFileSize={10}
+            onFilesChange={(files) => {
+              // Handle files change if needed
+              console.log('Files updated:', files);
+            }}
+          />
         </CardContent>
       </Card>
     </div>
