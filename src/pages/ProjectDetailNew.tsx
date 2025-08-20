@@ -898,16 +898,29 @@ export default function ProjectDetailNew() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
-            <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Seção de Contatos</h3>
-            <p className="text-muted-foreground">
-              Esta seção será implementada em versões futuras do sistema.
+            <div className="text-lg font-semibold mb-2">Sistema de Contatos Completo</div>
+            <p className="text-muted-foreground mb-4">
+              Acesse a página dedicada de contatos para gerenciar clientes, obra e fornecedores.
             </p>
+            <Button onClick={() => navigate(`/projeto/${id}/contatos`)}>
+              Gerenciar Contatos
+            </Button>
           </div>
         </CardContent>
       </Card>
     </div>
   );
+
+  // Calcular contadores de contatos
+  const contadores = (() => {
+    const contatos = storage.getContacts(id);
+    return {
+      cliente: contatos.filter(c => c.tipo === 'cliente').length,
+      obra: contatos.filter(c => c.tipo === 'obra').length,
+      fornecedor: contatos.filter(c => c.tipo === 'fornecedor').length,
+      total: contatos.length
+    };
+  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -968,7 +981,7 @@ export default function ProjectDetailNew() {
               variant={currentSection === 'contatos' ? 'default' : 'outline'}
               onClick={() => navigate(`/projeto/${id}/contatos`)}
             >
-              Contatos
+              Contatos {contadores.total > 0 && `(${contadores.total})`}
             </Button>
             
             {/* Import button - only shows import functionality */}

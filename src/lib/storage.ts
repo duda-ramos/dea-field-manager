@@ -1,5 +1,6 @@
 // Local storage management for offline functionality
 import { Project, Installation, ItemVersion, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
+import { Contato } from '@/features/contatos';
 
 class StorageManager {
   private getStorageKey(type: string): string {
@@ -232,14 +233,14 @@ class StorageManager {
     return newBudget;
   }
 
-  // Contacts
-  getContacts(projectId?: string): ProjectContact[] {
+  // Contacts (legacy - ProjectContact)
+  getProjectContacts(projectId?: string): ProjectContact[] {
     const contacts = this.getItems<ProjectContact>('contacts');
     return projectId ? contacts.filter(c => c.project_id === projectId) : contacts;
   }
 
-  saveContact(contact: Omit<ProjectContact, 'id'>): ProjectContact {
-    const contacts = this.getContacts();
+  saveProjectContact(contact: Omit<ProjectContact, 'id'>): ProjectContact {
+    const contacts = this.getProjectContacts();
     const newContact: ProjectContact = {
       ...contact,
       id: this.generateId(),
@@ -264,6 +265,57 @@ class StorageManager {
     reports.push(newReport);
     this.setItems('reports', reports);
     return newReport;
+  }
+
+  // =============== NEW CONTATOS MANAGEMENT ===============
+  
+  getContacts(projectId?: string): Contato[] {
+    const contacts = JSON.parse(localStorage.getItem('project_contacts') || '[]');
+    return projectId ? contacts.filter((c: Contato) => c.projetoId === projectId) : contacts;
+  }
+  
+  saveContact(projectId: string, data: Omit<Contato, 'id' | 'projetoId' | 'criadoEm' | 'atualizadoEm'>): Contato {
+    const contacts = this.getContacts();
+    const now = new Date().toISOString();
+    
+    const contact: Contato = {
+      id: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      projetoId: projectId,
+      criadoEm: now,
+      atualizadoEm: now,
+      ...data
+    };
+
+    contacts.push(contact);
+    localStorage.setItem('project_contacts', JSON.stringify(contacts));
+    return contact;
+  }
+
+  updateContact(id: string, updates: Partial<Contato>): Contato | null {
+    const contacts = this.getContacts();
+    const index = contacts.findIndex(c => c.id === id);
+    
+    if (index === -1) return null;
+
+    const updatedContact = {
+      ...contacts[index],
+      ...updates,
+      atualizadoEm: new Date().toISOString()
+    };
+
+    contacts[index] = updatedContact;
+    localStorage.setItem('project_contacts', JSON.stringify(contacts));
+    return updatedContact;
+  }
+
+  deleteContact(id: string): boolean {
+    const contacts = this.getContacts();
+    const filtered = contacts.filter(c => c.id !== id);
+    
+    if (filtered.length === contacts.length) return false;
+    
+    localStorage.setItem('project_contacts', JSON.stringify(filtered));
+    return true;
   }
 }
 
