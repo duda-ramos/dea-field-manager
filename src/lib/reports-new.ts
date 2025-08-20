@@ -123,14 +123,14 @@ export function calculatePavimentoSummary(data: ReportSections): PavimentoSummar
   );
 }
 
-// Generate three enhanced doughnut charts side by side
-export async function generateChartImage(data: ReportSections): Promise<string> {
+// Generate iPhone-style storage bar (100% stacked)
+export async function generateStorageBarImage(data: ReportSections): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     // Higher resolution for crisp PDF export
     const scale = 2;
-    canvas.width = 900 * scale;
-    canvas.height = 400 * scale;
+    canvas.width = 800 * scale;
+    canvas.height = 120 * scale;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
@@ -144,85 +144,163 @@ export async function generateChartImage(data: ReportSections): Promise<string> 
     // Calculate totals (excluding Em Revisão from charts)
     const total = data.pendencias.length + data.concluidas.length + data.emAndamento.length;
     if (total === 0) {
-      resolve('');
+      // Draw empty bar
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 800, 120);
+      resolve(canvas.toDataURL('image/png', 1.0));
       return;
     }
 
     // Clear canvas with white background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 900, 400);
+    ctx.fillRect(0, 0, 800, 120);
 
-    // Chart configuration
-    const chartWidth = 250;
-    const chartSpacing = 50;
-    const centerY = 200;
-    const radius = 80;
-    const innerRadius = 50;
+    // Calculate percentages
+    const pendentesPercent = (data.pendencias.length / total) * 100;
+    const emAndamentoPercent = (data.emAndamento.length / total) * 100;
+    const instaladosPercent = (data.concluidas.length / total) * 100;
 
-    // Chart 1: Pendentes
-    const chart1X = chartSpacing + chartWidth / 2;
-    drawEnhancedDoughnutChart(ctx, chart1X, centerY, radius, innerRadius, 
-      data.pendencias.length, total, reportTheme.colors.pendentes, 'Pendentes');
+    // Storage bar configuration
+    const barX = 40;
+    const barY = 30;
+    const barWidth = 720;
+    const barHeight = 20;
+    const borderRadius = 10;
 
-    // Chart 2: Instalados
-    const chart2X = chart1X + chartWidth + chartSpacing;
-    drawEnhancedDoughnutChart(ctx, chart2X, centerY, radius, innerRadius, 
-      data.concluidas.length, total, reportTheme.colors.instalados, 'Instalados');
+    // Draw the main storage bar
+    drawStorageBar(ctx, barX, barY, barWidth, barHeight, borderRadius, {
+      pendentes: { value: data.pendencias.length, color: reportTheme.colors.pendentes },
+      emAndamento: { value: data.emAndamento.length, color: reportTheme.colors.emAndamento },
+      instalados: { value: data.concluidas.length, color: reportTheme.colors.instalados }
+    }, total);
 
-    // Chart 3: Em Andamento
-    const chart3X = chart2X + chartWidth + chartSpacing;
-    drawEnhancedDoughnutChart(ctx, chart3X, centerY, radius, innerRadius, 
-      data.emAndamento.length, total, reportTheme.colors.emAndamento, 'Em Andamento');
+    // Draw legend text below the bar
+    const legendY = barY + barHeight + 25;
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    // Pendentes
+    ctx.fillStyle = reportTheme.colors.pendentes;
+    ctx.fillText('●', barX, legendY);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText(`Pendentes ${Math.round(pendentesPercent)}% (${data.pendencias.length})`, barX + 20, legendY);
+
+    // Em Andamento
+    const emAndamentoX = barX + 200;
+    ctx.fillStyle = reportTheme.colors.emAndamento;
+    ctx.fillText('●', emAndamentoX, legendY);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText(`Em Andamento ${Math.round(emAndamentoPercent)}% (${data.emAndamento.length})`, emAndamentoX + 20, legendY);
+
+    // Instalados
+    const instaladosX = barX + 400;
+    ctx.fillStyle = reportTheme.colors.instalados;
+    ctx.fillText('●', instaladosX, legendY);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText(`Instalados ${Math.round(instaladosPercent)}% (${data.concluidas.length})`, instaladosX + 20, legendY);
+
+    // Total
+    const totalX = barX + 600;
+    ctx.fillStyle = '#374151';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(`Total: ${total}`, totalX, legendY);
 
     resolve(canvas.toDataURL('image/png', 1.0));
   });
+}
 
-  function drawEnhancedDoughnutChart(
-    ctx: CanvasRenderingContext2D,
-    centerX: number,
-    centerY: number,
-    radius: number,
-    innerRadius: number,
-    value: number,
-    total: number,
-    color: string,
-    label: string
-  ) {
-    const percentage = total > 0 ? (value / total) * 100 : 0;
-    const angle = (value / total) * 2 * Math.PI;
-
-    // Draw background circle (restante)
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-    ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true);
-    ctx.fillStyle = reportTheme.colors.restante;
-    ctx.fill();
-
-    // Draw value slice
-    if (value > 0) {
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + angle);
-      ctx.arc(centerX, centerY, innerRadius, -Math.PI / 2 + angle, -Math.PI / 2, true);
-      ctx.fillStyle = color;
-      ctx.fill();
+// Generate mini storage bar for pavimento summary
+export async function generateMiniStorageBar(
+  pendentes: number, 
+  emAndamento: number, 
+  instalados: number
+): Promise<string> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const scale = 2;
+    canvas.width = 200 * scale;
+    canvas.height = 20 * scale;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      resolve('');
+      return;
     }
 
-    // Draw percentage in center (large)
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(percentage)}%`, centerX, centerY - 5);
+    ctx.scale(scale, scale);
+    
+    const total = pendentes + emAndamento + instalados;
+    if (total === 0) {
+      ctx.fillStyle = reportTheme.colors.restante;
+      ctx.fillRect(0, 0, 200, 20);
+      resolve(canvas.toDataURL('image/png', 1.0));
+      return;
+    }
 
-    // Draw count below percentage
-    ctx.font = '12px Arial';
-    ctx.fillStyle = '#6b7280';
-    ctx.fillText(`(${value} de ${total})`, centerX, centerY + 15);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 200, 20);
 
-    // Draw label below chart
-    ctx.font = 'bold 14px Arial';
-    ctx.fillStyle = '#374151';
-    ctx.fillText(label, centerX, centerY + radius + 35);
+    drawStorageBar(ctx, 0, 0, 200, 14, 7, {
+      pendentes: { value: pendentes, color: reportTheme.colors.pendentes },
+      emAndamento: { value: emAndamento, color: reportTheme.colors.emAndamento },
+      instalados: { value: instalados, color: reportTheme.colors.instalados }
+    }, total);
+
+    resolve(canvas.toDataURL('image/png', 1.0));
+  });
+}
+
+function drawStorageBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  borderRadius: number,
+  segments: {
+    pendentes: { value: number, color: string },
+    emAndamento: { value: number, color: string },
+    instalados: { value: number, color: string }
+  },
+  total: number
+) {
+  const segmentSpacing = 2;
+  const effectiveWidth = width - (segmentSpacing * 2); // 2 gaps between 3 segments
+  
+  // Calculate segment widths
+  const pendentesWidth = total > 0 ? (segments.pendentes.value / total) * effectiveWidth : 0;
+  const emAndamentoWidth = total > 0 ? (segments.emAndamento.value / total) * effectiveWidth : 0;
+  const instaladosWidth = total > 0 ? (segments.instalados.value / total) * effectiveWidth : 0;
+  
+  let currentX = x;
+  
+  // Draw background with rounded corners
+  ctx.fillStyle = reportTheme.colors.restante;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, borderRadius);
+  ctx.fill();
+  
+  // Draw segments with spacing
+  if (pendentesWidth > 0) {
+    ctx.fillStyle = segments.pendentes.color;
+    ctx.beginPath();
+    ctx.roundRect(currentX, y, pendentesWidth, height, [borderRadius, 0, 0, borderRadius]);
+    ctx.fill();
+    currentX += pendentesWidth + segmentSpacing;
+  }
+  
+  if (emAndamentoWidth > 0) {
+    ctx.fillStyle = segments.emAndamento.color;
+    ctx.fillRect(currentX, y, emAndamentoWidth, height);
+    currentX += emAndamentoWidth + segmentSpacing;
+  }
+  
+  if (instaladosWidth > 0) {
+    ctx.fillStyle = segments.instalados.color;
+    ctx.beginPath();
+    ctx.roundRect(currentX, y, instaladosWidth, height, [0, borderRadius, borderRadius, 0]);
+    ctx.fill();
   }
 }
 
@@ -237,7 +315,7 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
 export async function generatePDFReport(data: ReportData): Promise<Blob> {
   const sections = calculateReportSections(data);
   const pavimentoSummary = calculatePavimentoSummary(sections);
-  const chartImage = await generateChartImage(sections);
+  const storageBarImage = await generateStorageBarImage(sections);
   
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -283,15 +361,21 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
   doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
   yPosition += 10;
 
-  // Add chart if available
-  if (chartImage) {
-    doc.addImage(chartImage, 'PNG', reportTheme.spacing.margin, yPosition, 170, 85);
-    yPosition += 95;
+  // Add Gráficos de Acompanhamento section
+  doc.setFontSize(reportTheme.fonts.subtitle);
+  doc.setTextColor('#000000');
+  doc.text('Gráficos de Acompanhamento', reportTheme.spacing.margin, yPosition);
+  yPosition += 10;
+
+  // Add storage bar if available
+  if (storageBarImage) {
+    doc.addImage(storageBarImage, 'PNG', reportTheme.spacing.margin, yPosition, 170, 25);
+    yPosition += 35;
   }
 
   // Add pavimento summary
   if (pavimentoSummary.length > 0) {
-    yPosition = addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
+    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
   }
 
   // Add sections only if they have items
@@ -322,13 +406,13 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
   return new Blob([doc.output('blob')], { type: 'application/pdf' });
 }
 
-// Add pavimento summary table to PDF
-function addPavimentoSummaryToPDF(
+// Add pavimento summary with mini storage bars to PDF
+async function addPavimentoSummaryToPDF(
   doc: jsPDF, 
   summary: PavimentoSummary[], 
   yPosition: number, 
   interlocutor: 'cliente' | 'fornecedor'
-): number {
+): Promise<number> {
   // Check if new page needed
   if (yPosition > 200) {
     doc.addPage();
@@ -340,39 +424,68 @@ function addPavimentoSummaryToPDF(
   doc.text('Resumo por Pavimento', reportTheme.spacing.margin, yPosition);
   yPosition += 15;
 
-  const headers = ['Pavimento', 'Pendentes', 'Instalados', 'Em Revisão', 
-    interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento', 'Total'];
-  
-  const rows = summary.map(item => [
-    item.pavimento,
-    item.pendentes.toString(),
-    item.instalados.toString(), 
-    item.emRevisao.toString(),
-    item.emAndamento.toString(),
-    item.total.toString()
-  ]);
-
-  autoTable(doc, {
-    head: [headers],
-    body: rows,
-    startY: yPosition,
-    styles: { 
-      fontSize: reportTheme.fonts.text,
-      halign: 'center'
-    },
-    headStyles: { 
-      fillColor: reportTheme.colors.header,
-      textColor: 255,
-      fontStyle: 'bold'
-    },
-    alternateRowStyles: { fillColor: reportTheme.colors.alternateRow },
-    columnStyles: {
-      0: { halign: 'left' }, // Pavimento aligned left
-      5: { fontStyle: 'bold' } // Total column bold
+  // Generate mini storage bars for each pavimento
+  for (const item of summary) {
+    // Check if new page needed
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = reportTheme.spacing.margin;
     }
-  });
 
-  return (doc as any).lastAutoTable.finalY + reportTheme.spacing.sectionSpacing;
+    // Generate mini storage bar image
+    const miniBarImage = await generateMiniStorageBar(
+      item.pendentes, 
+      item.emAndamento, 
+      item.instalados
+    );
+
+    // Pavimento label
+    doc.setFontSize(12);
+    doc.setTextColor('#374151');
+    doc.text(item.pavimento, reportTheme.spacing.margin, yPosition);
+
+    // Mini storage bar
+    if (miniBarImage) {
+      doc.addImage(miniBarImage, 'PNG', reportTheme.spacing.margin + 40, yPosition - 4, 60, 8);
+    }
+
+    // Badges with numbers
+    let badgeX = reportTheme.spacing.margin + 110;
+    doc.setFontSize(9);
+    
+    // Pendentes badge
+    doc.setFillColor('#FEF3C7'); // Light orange background
+    doc.setTextColor('#92400E'); // Dark orange text
+    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
+    doc.text(item.pendentes.toString(), badgeX + 4, yPosition + 1);
+    badgeX += 20;
+    
+    // Em Andamento badge
+    doc.setFillColor('#F3F4F6'); // Light gray background
+    doc.setTextColor('#374151'); // Dark gray text
+    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
+    doc.text(item.emAndamento.toString(), badgeX + 4, yPosition + 1);
+    badgeX += 20;
+    
+    // Instalados badge
+    doc.setFillColor('#D1FAE5'); // Light green background
+    doc.setTextColor('#065F46'); // Dark green text
+    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
+    doc.text(item.instalados.toString(), badgeX + 4, yPosition + 1);
+    badgeX += 20;
+    
+    // Total badge
+    doc.setFillColor('#E5E7EB'); // Light gray background
+    doc.setTextColor('#111827'); // Black text
+    doc.setFont(undefined, 'bold');
+    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
+    doc.text(item.total.toString(), badgeX + 4, yPosition + 1);
+    doc.setFont(undefined, 'normal');
+
+    yPosition += 15;
+  }
+
+  return yPosition + 10;
 }
 
 // Enhanced section rendering with pavimento sub-groups
@@ -692,26 +805,36 @@ export function generateXLSXReport(data: ReportData): Blob {
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
 
-  // Add pavimento summary sheet
+  // Add enhanced pavimento summary sheet
   if (pavimentoSummary.length > 0) {
-    const pavimentoData = [
-      ['Pavimento', 'Pendentes', 'Instalados', 'Em Revisão', 
-       data.interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento', 'Total'],
-      ...pavimentoSummary.map(item => [
-        item.pavimento,
-        item.pendentes,
-        item.instalados,
-        item.emRevisao,
-        item.emAndamento,
-        item.total
-      ])
+    const pavimentoHeaders = [
+      'Pavimento', 'Pendentes', 'Em_Andamento', 'Instalados', 'Total', 
+      '%Pendentes', '%Em_Andamento', '%Instalados'
     ];
     
-    const pavimentoSheet = XLSX.utils.aoa_to_sheet(pavimentoData);
+    const pavimentoData = pavimentoSummary.map(item => {
+      const total = item.pendentes + item.emAndamento + item.instalados;
+      const percentPendentes = total > 0 ? Math.round((item.pendentes / total) * 100) : 0;
+      const percentEmAndamento = total > 0 ? Math.round((item.emAndamento / total) * 100) : 0;
+      const percentInstalados = total > 0 ? Math.round((item.instalados / total) * 100) : 0;
+      
+      return [
+        item.pavimento,
+        item.pendentes,
+        item.emAndamento,
+        item.instalados,
+        total,
+        `${percentPendentes}%`,
+        `${percentEmAndamento}%`,
+        `${percentInstalados}%`
+      ];
+    });
+    
+    const pavimentoSheet = XLSX.utils.aoa_to_sheet([pavimentoHeaders, ...pavimentoData]);
     // Freeze top row
     pavimentoSheet['!freeze'] = { xSplit: 0, ySplit: 1 };
     // Auto filter
-    pavimentoSheet['!autofilter'] = { ref: `A1:F${pavimentoSummary.length + 1}` };
+    pavimentoSheet['!autofilter'] = { ref: `A1:H${pavimentoSummary.length + 1}` };
     
     XLSX.utils.book_append_sheet(workbook, pavimentoSheet, 'Resumo_Pavimento');
   }
