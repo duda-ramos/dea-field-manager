@@ -85,7 +85,7 @@ export function InstallationDetailModalNew({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da Instalação</DialogTitle>
+          <DialogTitle>{installation.codigo} {installation.descricao}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -97,7 +97,7 @@ export function InstallationDetailModalNew({
             </div>
             <div>
               <Label>Código</Label>
-              <Input value={installation.codigo.toString()} readOnly className="bg-muted" />
+              <Input value={String(installation.codigo)} readOnly className="bg-muted" />
             </div>
             <div>
               <Label>Tipologia</Label>
@@ -105,7 +105,7 @@ export function InstallationDetailModalNew({
             </div>
             <div>
               <Label>Quantidade</Label>
-              <Input value={installation.quantidade.toString()} readOnly className="bg-muted" />
+              <Input value={String(installation.quantidade)} readOnly className="bg-muted" />
             </div>
             <div>
               <Label>Pavimento</Label>
@@ -114,7 +114,7 @@ export function InstallationDetailModalNew({
             <div>
               <Label>Altura da Diretriz (cm)</Label>
               <Input 
-                value={installation.diretriz_altura_cm?.toString() || "Não especificado"} 
+                value={installation.diretriz_altura_cm ? String(installation.diretriz_altura_cm) : "Não especificado"} 
                 readOnly 
                 className="bg-muted" 
               />
@@ -122,7 +122,7 @@ export function InstallationDetailModalNew({
             <div>
               <Label>Distância do Batente (cm)</Label>
               <Input 
-                value={installation.diretriz_dist_batente_cm?.toString() || "Não especificado"} 
+                value={installation.diretriz_dist_batente_cm ? String(installation.diretriz_dist_batente_cm) : "Não especificado"} 
                 readOnly 
                 className="bg-muted" 
               />

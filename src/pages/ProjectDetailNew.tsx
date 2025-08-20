@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatsCard } from "@/components/ui/stats-card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
   Settings, Search, FileSpreadsheet, RefreshCw 
@@ -59,7 +60,7 @@ export default function ProjectDetailNew() {
   const filteredInstallations = installations.filter(installation => {
     const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          installation.codigo.toString().includes(searchTerm.toLowerCase());
+                          String(installation.codigo).includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || 
                           (statusFilter === "installed" && installation.installed) ||
@@ -163,156 +164,221 @@ export default function ProjectDetailNew() {
     });
   };
 
-  const renderPecasSection = () => (
-    <div className="space-y-6">
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatsCard
-          title="Instalações Concluídas"
-          value={completedInstallations}
-          description={`${installations.length} total`}
-          icon={CheckCircle2}
-          variant="success"
-        />
-        <StatsCard
-          title="Pendentes"
-          value={pendingInstallations}
-          icon={Clock}
-          variant="warning"
-        />
-        <StatsCard
-          title="Com Observações"
-          value={installationsWithObservations}
-          icon={AlertTriangle}
-          variant="default"
-        />
-      </div>
+  const renderPecasSection = () => {
+    // Group installations by tipologia
+    const groupedInstallations = filteredInstallations.reduce((groups, installation) => {
+      const tipologia = installation.tipologia;
+      if (!groups[tipologia]) {
+        groups[tipologia] = [];
+      }
+      groups[tipologia].push(installation);
+      return groups;
+    }, {} as Record<string, Installation[]>);
 
-      {/* Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Progresso Geral
-            <span className="text-2xl font-bold">{Math.round(progressPercentage)}%</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Progress value={progressPercentage} className="h-3" />
-        </CardContent>
-      </Card>
+    // Sort installations within each group by codigo as number
+    Object.keys(groupedInstallations).forEach(tipologia => {
+      groupedInstallations[tipologia].sort((a, b) => {
+        const codeA = typeof a.codigo === 'number' ? a.codigo : parseInt(String(a.codigo)) || 0;
+        const codeB = typeof b.codigo === 'number' ? b.codigo : parseInt(String(b.codigo)) || 0;
+        return codeA - codeB;
+      });
+    });
 
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Buscar por código, tipologia ou descrição..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+    return (
+      <div className="space-y-6">
+        {/* Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo das Peças</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-primary">{installations.length}</div>
+                <div className="text-sm text-muted-foreground">Total de Peças</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">{completedInstallations}</div>
+                <div className="text-sm text-muted-foreground">Instaladas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-orange-600">{pendingInstallations}</div>
+                <div className="text-sm text-muted-foreground">Pendentes</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatsCard
+            title="Instalações Concluídas"
+            value={completedInstallations}
+            description={`${installations.length} total`}
+            icon={CheckCircle2}
+            variant="success"
+          />
+          <StatsCard
+            title="Pendentes"
+            value={pendingInstallations}
+            icon={Clock}
+            variant="warning"
+          />
+          <StatsCard
+            title="Com Observações"
+            value={installationsWithObservations}
+            icon={AlertTriangle}
+            variant="default"
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-          >
-            <option value="all">Todos os Status</option>
-            <option value="installed">Instalados</option>
-            <option value="pending">Pendentes</option>
-          </select>
-          
-          <select
-            value={pavimentoFilter}
-            onChange={(e) => setPavimentoFilter(e.target.value)}
-            className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-          >
-            <option value="all">Todos os Pavimentos</option>
-            {pavimentos.map(pavimento => (
-              <option key={pavimento} value={pavimento}>{pavimento}</option>
-            ))}
-          </select>
-          
-          <Button variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Sincronizar
-          </Button>
-        </div>
-      </div>
 
-      {/* Installations List */}
-      <div className="space-y-4">
-        {filteredInstallations.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all"
-                  ? "Tente ajustar os filtros de busca"
-                  : "Importe uma planilha Excel para começar"
-                }
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredInstallations.map((installation) => (
-            <Card key={installation.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={installation.installed}
-                        onChange={() => toggleInstallation(installation.id)}
-                        className="h-5 w-5 rounded border-2 border-primary"
-                      />
-                      <div>
-                        <h4 className="font-semibold">{installation.descricao}</h4>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Código: {installation.codigo}</span>
-                          <span>Tipologia: {installation.tipologia}</span>
-                          <span>Qtd: {installation.quantidade}</span>
-                          <span className="font-medium">Pavimento: {installation.pavimento}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {(installation.diretriz_altura_cm || installation.diretriz_dist_batente_cm) && (
-                      <div className="text-sm text-muted-foreground">
-                        {installation.diretriz_altura_cm && `Altura: ${installation.diretriz_altura_cm}cm`}
-                        {installation.diretriz_altura_cm && installation.diretriz_dist_batente_cm && " • "}
-                        {installation.diretriz_dist_batente_cm && `Distância do batente: ${installation.diretriz_dist_batente_cm}cm`}
-                      </div>
-                    )}
-                    {installation.observacoes && installation.observacoes.trim() !== "" && (
-                      <div className="bg-warning/10 border border-warning/20 p-3 rounded-md">
-                        <p className="text-sm"><strong>Observação:</strong> {installation.observacoes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    {installation.installed && (
-                      <Badge variant="success">Instalado</Badge>
-                    )}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setSelectedInstallation(installation)}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Detalhes
-                    </Button>
-                  </div>
-                </div>
+        {/* Progress */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Progresso Geral
+              <span className="text-2xl font-bold">{Math.round(progressPercentage)}%</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Progress value={progressPercentage} className="h-3" />
+          </CardContent>
+        </Card>
+
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Buscar por código, tipologia ou descrição..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="installed">Instalados</option>
+              <option value="pending">Pendentes</option>
+            </select>
+            
+            <select
+              value={pavimentoFilter}
+              onChange={(e) => setPavimentoFilter(e.target.value)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">Todos os Pavimentos</option>
+              {pavimentos.map(pavimento => (
+                <option key={pavimento} value={pavimento}>{pavimento}</option>
+              ))}
+            </select>
+            
+            <Button variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sincronizar
+            </Button>
+          </div>
+        </div>
+
+        {/* Installations List - Grouped by Tipologia */}
+        <div className="space-y-4">
+          {Object.keys(groupedInstallations).length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all"
+                    ? "Tente ajustar os filtros de busca"
+                    : "Importe uma planilha Excel para começar"
+                  }
+                </p>
               </CardContent>
             </Card>
-          ))
-        )}
+          ) : (
+            <Accordion type="multiple" className="space-y-2">
+              {Object.entries(groupedInstallations)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([tipologia, installations]) => (
+                  <AccordionItem key={tipologia} value={tipologia} className="border rounded-lg">
+                    <AccordionTrigger className="px-4 hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">{tipologia}</span>
+                        <Badge variant="outline" className="ml-2">
+                          {installations.length} {installations.length === 1 ? 'item' : 'itens'}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="space-y-3">
+                        {installations.map((installation) => (
+                          <Card key={installation.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={installation.installed}
+                                      onChange={() => toggleInstallation(installation.id)}
+                                      className="h-5 w-5 rounded border-2 border-primary"
+                                    />
+                                    <div>
+                                      <h4 className="font-semibold">
+                                        {installation.codigo} {installation.descricao}
+                                      </h4>
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <span className="font-medium">{installation.pavimento}</span>
+                                        <span>•</span>
+                                        <span>qtd: {installation.quantidade}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {(installation.diretriz_altura_cm || installation.diretriz_dist_batente_cm) && (
+                                    <div className="text-sm text-muted-foreground ml-8">
+                                      {installation.diretriz_altura_cm && `Altura: ${installation.diretriz_altura_cm}cm`}
+                                      {installation.diretriz_altura_cm && installation.diretriz_dist_batente_cm && " • "}
+                                      {installation.diretriz_dist_batente_cm && `Distância do batente: ${installation.diretriz_dist_batente_cm}cm`}
+                                    </div>
+                                  )}
+                                  {installation.observacoes && installation.observacoes.trim() !== "" && (
+                                    <div className="bg-warning/10 border border-warning/20 p-3 rounded-md ml-8">
+                                      <p className="text-sm"><strong>Observação:</strong> {installation.observacoes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 ml-4">
+                                  {installation.installed && (
+                                    <Badge variant="success">Instalado</Badge>
+                                  )}
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setSelectedInstallation(installation)}
+                                  >
+                                    <Settings className="h-4 w-4 mr-2" />
+                                    Detalhes
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+            </Accordion>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderInfoSection = () => (
     <div className="space-y-6">
