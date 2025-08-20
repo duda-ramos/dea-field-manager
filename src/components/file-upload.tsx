@@ -249,8 +249,13 @@ export function FileUpload({
   useState(() => {
     const storageKey = `project_files_${projectId}`;
     const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    setFiles(storedFiles);
-    onFilesChange?.(storedFiles);
+    // Ensure uploadedAt is converted back to Date object
+    const filesWithDates = storedFiles.map((file: any) => ({
+      ...file,
+      uploadedAt: new Date(file.uploadedAt)
+    }));
+    setFiles(filesWithDates);
+    onFilesChange?.(filesWithDates);
   });
 
   return (
