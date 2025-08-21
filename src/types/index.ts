@@ -12,6 +12,12 @@ export interface Project {
   project_files_link?: string; // New field for project files link
   created_at: string;
   updated_at: string;
+  // Local timestamp for compatibility
+  updatedAt?: number;
+  createdAt?: number;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }
 
 export interface Installation {
@@ -36,6 +42,12 @@ export interface Installation {
   // Campos de revisão
   revisado: boolean;
   revisao: number;
+  // Local timestamp for compatibility
+  updatedAt?: number;
+  createdAt?: number;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }
 
 export interface ItemVersion {
@@ -46,6 +58,9 @@ export interface ItemVersion {
   motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros';
   descricao_motivo?: string;
   criadoEm: string;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }
 
 export interface ProjectBudget {
@@ -55,6 +70,12 @@ export interface ProjectBudget {
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+  // Local timestamp for compatibility
+  updatedAt?: number;
+  createdAt?: number;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }
 
 export interface ProjectContact {
@@ -64,6 +85,9 @@ export interface ProjectContact {
   role: string;
   phone: string;
   email: string;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }
 
 export interface ProjectReport {
@@ -90,4 +114,10 @@ export interface ProjectFile {
   type: string;
   url: string;
   uploaded_at: string;
+  // Local timestamp for compatibility
+  updatedAt?: number;
+  createdAt?: number;
+  // Sync flags
+  _dirty?: number;
+  _deleted?: number;
 }

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
+import { SyncButton } from "@/components/sync-button";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -187,6 +188,7 @@ export default function Dashboard() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input placeholder="Buscar projetos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
+          <SyncButton />
         </div>
 
         {/* Projects Grid */}

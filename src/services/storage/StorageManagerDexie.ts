@@ -6,40 +6,79 @@ const now = () => Date.now();
 export const StorageManagerDexie = {
   // -------- PROJECTS ----------
   async getProjects() {
-    return db.projects.orderBy('updatedAt').reverse().toArray();
+    const projects = await db.projects.where('_deleted').notEqual(1).toArray();
+    return projects.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   },
   async getProjectById(id: string) {
     return db.projects.get(id);
   },
   async upsertProject(project: Project) {
-    const withDates = { ...project, updatedAt: now(), createdAt: (project as any)?.createdAt ?? now() };
+    const withDates = { 
+      ...project, 
+      updatedAt: now(), 
+      createdAt: (project as any)?.createdAt ?? now(),
+      _dirty: 1,
+      _deleted: 0
+    };
     await db.projects.put(withDates);
     return withDates;
   },
   async deleteProject(id: string) {
-    await db.transaction('rw', db.projects, db.installations, db.budgets, db.files, async () => {
-      await db.projects.delete(id);
-      await db.installations.where('project_id').equals(id).delete();
-      await db.budgets.where('projectId').equals(id).delete();
-      await db.files.where('projectId').equals(id).delete();
-    });
+    // Mark as deleted instead of actually deleting (tombstone)
+    const existing = await db.projects.get(id);
+    if (existing) {
+      await db.projects.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
+    
+    // Also mark related records as deleted
+    const installations = await db.installations.where('project_id').equals(id).toArray();
+    for (const installation of installations) {
+      await db.installations.put({ ...installation, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
+    
+    const budgets = await db.budgets.where('projectId').equals(id).toArray();
+    for (const budget of budgets) {
+      await db.budgets.put({ ...budget, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
+    
+    const files = await db.files.where('projectId').equals(id).toArray();
+    for (const file of files) {
+      await db.files.put({ ...file, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
   },
 
   // -------- INSTALLATIONS ----------
   async getInstallationsByProject(projectId: string) {
-    return db.installations.where('project_id').equals(projectId).toArray();
+    return db.installations.where('project_id').equals(projectId).and(item => item._deleted !== 1).toArray();
   },
   async upsertInstallation(installation: Installation) {
-    const withDates = { ...installation, updatedAt: now(), createdAt: (installation as any)?.createdAt ?? now() };
+    const withDates = { 
+      ...installation, 
+      updatedAt: now(), 
+      createdAt: (installation as any)?.createdAt ?? now(),
+      _dirty: 1,
+      _deleted: 0
+    };
     await db.installations.put(withDates);
     return withDates;
   },
   async deleteInstallation(id: string) {
-    await db.transaction('rw', db.installations, db.itemVersions, db.files, async () => {
-      await db.installations.delete(id);
-      await db.itemVersions.where('installationId').equals(id).delete();
-      await db.files.where('installationId').equals(id).delete();
-    });
+    // Mark as deleted instead of actually deleting (tombstone)
+    const existing = await db.installations.get(id);
+    if (existing) {
+      await db.installations.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
+    
+    // Also mark related records as deleted
+    const itemVersions = await db.itemVersions.where('installationId').equals(id).toArray();
+    for (const itemVersion of itemVersions) {
+      await db.itemVersions.put({ ...itemVersion, _deleted: 1, _dirty: 1 });
+    }
+    
+    const files = await db.files.where('installationId').equals(id).toArray();
+    for (const file of files) {
+      await db.files.put({ ...file, _deleted: 1, _dirty: 1, updatedAt: now() });
+    }
   },
 
   // -------- ITEM VERSIONS ----------
@@ -47,21 +86,30 @@ export const StorageManagerDexie = {
     return db.itemVersions.where('installationId').equals(installationId).toArray();
   },
   async upsertItemVersion(version: ItemVersion) {
-    const withDates = { ...version, createdAt: (version as any)?.createdAt ?? now() };
+    const withDates = { 
+      ...version, 
+      createdAt: (version as any)?.createdAt ?? now(),
+      _dirty: 1,
+      _deleted: 0
+    };
     await db.itemVersions.put(withDates);
     return withDates;
   },
 
   // -------- CONTACTS ----------
   async getContacts() {
-    return db.contacts.toArray();
+    return db.contacts.where('_deleted').notEqual(1).toArray();
   },
   async upsertContact(contact: ProjectContact) {
-    await db.contacts.put(contact);
-    return contact;
+    const withFlags = { ...contact, _dirty: 1, _deleted: 0 };
+    await db.contacts.put(withFlags);
+    return withFlags;
   },
   async deleteContact(id: string) {
-    await db.contacts.delete(id);
+    const existing = await db.contacts.get(id);
+    if (existing) {
+      await db.contacts.put({ ...existing, _deleted: 1, _dirty: 1 });
+    }
   },
 
   // -------- BUDGETS ----------
@@ -69,7 +117,13 @@ export const StorageManagerDexie = {
     return db.budgets.where('projectId').equals(projectId).toArray();
   },
   async upsertBudget(budget: ProjectBudget) {
-    const withDates = { ...budget, updatedAt: now(), createdAt: (budget as any)?.createdAt ?? now() };
+    const withDates = { 
+      ...budget, 
+      updatedAt: now(), 
+      createdAt: (budget as any)?.createdAt ?? now(),
+      _dirty: 1,
+      _deleted: 0
+    };
     await db.budgets.put(withDates);
     return withDates;
   },
@@ -82,11 +136,15 @@ export const StorageManagerDexie = {
     return db.files.where('installationId').equals(installationId).toArray();
   },
   async upsertFile(file: ProjectFile) {
-    await db.files.put(file);
-    return file;
+    const withFlags = { ...file, _dirty: 1, _deleted: 0 };
+    await db.files.put(withFlags);
+    return withFlags;
   },
   async deleteFile(id: string) {
-    await db.files.delete(id);
+    const existing = await db.files.get(id);
+    if (existing) {
+      await db.files.put({ ...existing, _deleted: 1, _dirty: 1 });
+    }
   }
 };
 
