@@ -81,3 +81,13 @@ export interface ProjectReport {
   };
   observacoes?: string;
 }
+
+export interface ProjectFile {
+  id: string;
+  project_id: string;
+  name: string;
+  size: number;
+  type: string;
+  url: string;
+  uploaded_at: string;
+}
