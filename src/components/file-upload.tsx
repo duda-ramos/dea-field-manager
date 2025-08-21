@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Upload, File, X, Download, Trash2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 
 interface UploadedFile {
   id: string;
@@ -15,6 +16,7 @@ interface UploadedFile {
   type: string;
   url: string;
   uploadedAt: Date;
+  projectId: string;
 }
 
 interface FileUploadProps {
@@ -65,13 +67,13 @@ export function FileUpload({
 
   const uploadFile = async (file: File): Promise<UploadedFile> => {
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Simulate upload progress
     setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-    
+
     // Create blob URL for local storage
     const url = URL.createObjectURL(file);
-    
+
     // Simulate upload progress
     for (let progress = 0; progress <= 100; progress += 10) {
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -84,14 +86,19 @@ export function FileUpload({
       size: file.size,
       type: file.type,
       url,
-      uploadedAt: new Date()
+      uploadedAt: new Date(),
+      projectId
     };
 
-    // Store in localStorage
-    const storageKey = `project_files_${projectId}`;
-    const existingFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    const updatedFiles = [...existingFiles, uploadedFile];
-    localStorage.setItem(storageKey, JSON.stringify(updatedFiles));
+    await Storage.upsertFile({
+      id: fileId,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url,
+      uploadedAt: uploadedFile.uploadedAt.toISOString(),
+      projectId
+    } as any);
 
     setUploadProgress(prev => {
       const { [fileId]: _, ...rest } = prev;
@@ -161,18 +168,15 @@ export function FileUpload({
     }
   };
 
-  const removeFile = (fileId: string) => {
+  const removeFile = async (fileId: string) => {
     setFiles(prev => {
       const updated = prev.filter(f => f.id !== fileId);
       onFilesChange?.(updated);
-      
-      // Remove from localStorage
-      const storageKey = `project_files_${projectId}`;
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      
       return updated;
     });
-    
+
+    await Storage.deleteFile(fileId);
+
     toast({
       title: "Arquivo removido",
       description: "O arquivo foi removido com sucesso."
@@ -245,18 +249,20 @@ export function FileUpload({
     );
   };
 
-  // Load files from localStorage on component mount
-  useState(() => {
-    const storageKey = `project_files_${projectId}`;
-    const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    // Ensure uploadedAt is converted back to Date object
-    const filesWithDates = storedFiles.map((file: any) => ({
-      ...file,
-      uploadedAt: new Date(file.uploadedAt)
-    }));
-    setFiles(filesWithDates);
-    onFilesChange?.(filesWithDates);
-  });
+  // Load files from IndexedDB on component mount
+  useEffect(() => {
+    const load = async () => {
+      const storedFiles = await Storage.getFilesByProject(projectId);
+      const filesWithDates = storedFiles.map((file: any) => ({
+        ...file,
+        uploadedAt: new Date(file.uploadedAt),
+        projectId
+      }));
+      setFiles(filesWithDates);
+      onFilesChange?.(filesWithDates);
+    };
+    load();
+  }, [projectId, onFilesChange]);
 
   return (
     <div className={cn("space-y-4", className)}>
