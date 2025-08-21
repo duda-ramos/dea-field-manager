@@ -77,81 +77,62 @@ export function createBatches<T>(items: T[], batchSize: number): T[][] {
 }
 
 // Sync metrics tracking
-export interface SyncMetrics {
-  startTime: number;
-  endTime?: number;
-  totalDuration?: number;
-  pushed: {
-    projects: number;
-    installations: number;
-    contacts: number;
-    budgets: number;
-    itemVersions: number;
-    files: number;
+export interface LegacySyncMetrics {
+  success: boolean;
+  duration: number;
+  error?: string;
+  push: {
+    projects?: { pushed: number; deleted: number; errors: string[] };
+    installations?: { pushed: number; deleted: number; errors: string[] };
+    contacts?: { pushed: number; deleted: number; errors: string[] };
+    budgets?: { pushed: number; deleted: number; errors: string[] };
+    item_versions?: { pushed: number; deleted: number; errors: string[] };
+    files?: { pushed: number; deleted: number; errors: string[] };
   };
-  pulled: {
-    projects: number;
-    installations: number;
-    contacts: number;
-    budgets: number;
-    itemVersions: number;
-    files: number;
+  pull: {
+    projects?: { pulled: number; errors: string[] };
+    installations?: { pulled: number; errors: string[] };
+    contacts?: { pulled: number; errors: string[] };
+    budgets?: { pulled: number; errors: string[] };
+    item_versions?: { pulled: number; errors: string[] };
+    files?: { pulled: number; errors: string[] };
   };
-  deleted: {
-    projects: number;
-    installations: number;
-    contacts: number;
-    budgets: number;
-    itemVersions: number;
-    files: number;
-  };
-  errors: Array<{
-    operation: string;
-    error: string;
-    timestamp: number;
-  }>;
 }
 
-export function createEmptyMetrics(): SyncMetrics {
+export function createEmptyMetrics(): LegacySyncMetrics {
   return {
-    startTime: Date.now(),
-    pushed: { projects: 0, installations: 0, contacts: 0, budgets: 0, itemVersions: 0, files: 0 },
-    pulled: { projects: 0, installations: 0, contacts: 0, budgets: 0, itemVersions: 0, files: 0 },
-    deleted: { projects: 0, installations: 0, contacts: 0, budgets: 0, itemVersions: 0, files: 0 },
-    errors: []
+    success: false,
+    duration: 0,
+    push: {},
+    pull: {}
   };
 }
 
-export function logSyncMetrics(metrics: SyncMetrics): void {
-  const duration = metrics.totalDuration || 0;
+export function logSyncMetrics(operation: string, metrics: LegacySyncMetrics): void {
+  const duration = metrics.duration || 0;
   
-  console.group('📊 Sync Metrics');
+  console.group(`📊 ${operation} Sync Metrics`);
   console.log(`⏱️ Duration: ${duration}ms`);
+  console.log(`✅ Success: ${metrics.success}`);
   
-  console.group('📤 Pushed');
-  Object.entries(metrics.pushed).forEach(([table, count]) => {
-    if (count > 0) console.log(`  ${table}: ${count}`);
-  });
-  console.groupEnd();
-  
-  console.group('📥 Pulled');
-  Object.entries(metrics.pulled).forEach(([table, count]) => {
-    if (count > 0) console.log(`  ${table}: ${count}`);
-  });
-  console.groupEnd();
-  
-  console.group('🗑️ Deleted');
-  Object.entries(metrics.deleted).forEach(([table, count]) => {
-    if (count > 0) console.log(`  ${table}: ${count}`);
-  });
-  console.groupEnd();
-  
-  if (metrics.errors.length > 0) {
-    console.group('❌ Errors');
-    metrics.errors.forEach(error => {
-      console.error(`  ${error.operation}: ${error.error}`);
+  if (metrics.push && Object.keys(metrics.push).length > 0) {
+    console.group('📤 Pushed');
+    Object.entries(metrics.push).forEach(([table, data]) => {
+      if (data && data.pushed > 0) console.log(`  ${table}: ${data.pushed} pushed, ${data.deleted} deleted`);
     });
     console.groupEnd();
+  }
+  
+  if (metrics.pull && Object.keys(metrics.pull).length > 0) {
+    console.group('📥 Pulled');
+    Object.entries(metrics.pull).forEach(([table, data]) => {
+      if (data && data.pulled > 0) console.log(`  ${table}: ${data.pulled}`);
+    });
+    console.groupEnd();
+  }
+  
+  if (metrics.error) {
+    console.error('❌ Error:', metrics.error);
   }
   
   console.groupEnd();

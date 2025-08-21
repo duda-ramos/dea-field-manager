@@ -42,13 +42,25 @@ export function SyncButton() {
 
       const result = await fullSync();
       
-      const totalPushed = Object.values(result.pushMetrics.pushed).reduce((sum, count) => sum + count, 0);
-      const totalPulled = Object.values(result.pullMetrics.pulled).reduce((sum, count) => sum + count, 0);
-      const totalDeleted = Object.values(result.pushMetrics.deleted).reduce((sum, count) => sum + count, 0);
+      // Calculate totals from push and pull results
+      const pushTotals = Object.values(result.push).reduce((acc, entityResult) => {
+        if (entityResult) {
+          acc.pushed += entityResult.pushed || 0;
+          acc.deleted += entityResult.deleted || 0;
+        }
+        return acc;
+      }, { pushed: 0, deleted: 0 });
+
+      const pullTotals = Object.values(result.pull).reduce((acc, entityResult) => {
+        if (entityResult) {
+          acc.pulled += entityResult.pulled || 0;
+        }
+        return acc;
+      }, { pulled: 0 });
 
       toast({
         title: "Sincronização Concluída",
-        description: `Enviados: ${totalPushed} | Recebidos: ${totalPulled} | Removidos: ${totalDeleted}`
+        description: `Enviados: ${pushTotals.pushed} | Recebidos: ${pullTotals.pulled} | Removidos: ${pushTotals.deleted}`
       });
     } catch (error) {
       console.error('Sync error:', error);

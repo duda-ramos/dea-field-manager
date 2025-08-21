@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/db/indexedDb';
 import { getLastPulledAt, setLastPulledAt, setSyncStatus } from './localFlags';
-import { withRetry, createBatches, createEmptyMetrics, logSyncMetrics, type SyncMetrics } from './utils';
+import { withRetry, createBatches, createEmptyMetrics, type LegacySyncMetrics } from './utils';
 import { syncStateManager } from './syncState';
 import { fileSyncService } from './fileSync';
 import { rateLimiter } from './rateLimiter';
@@ -25,709 +25,397 @@ const denormalizeTimestamps = (obj: any) => ({
   updatedAt: obj.updated_at ? new Date(obj.updated_at).getTime() : Date.now()
 });
 
-// Push operations with batching
-async function pushProjects(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyProjects = await db.projects.where('_dirty').equals(1).toArray();
-  if (dirtyProjects.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyProjects.length} projects...`);
-  const batches = createBatches(dirtyProjects, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando projetos');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (project) => {
-        try {
-          if (project._deleted) {
-            await supabase.from('projects').delete().eq('id', project.id);
-            metrics.deleted.projects++;
-          } else {
-            const normalizedProject = normalizeTimestamps({
-              ...project,
-              user_id: user.id,
-              owner_name: project.owner,
-              suppliers: project.suppliers || []
-            });
-            delete normalizedProject._dirty;
-            delete normalizedProject._deleted;
-            delete normalizedProject.owner;
-            delete normalizedProject.updatedAt;
-            delete normalizedProject.createdAt;
-            
-            await supabase.from('projects').upsert(normalizedProject);
-            metrics.pushed.projects++;
-          }
-          
-          // Clear dirty flag
-          if (project._deleted) {
-            await db.projects.delete(project.id);
-          } else {
-            await db.projects.update(project.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_project_${project.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-async function pushInstallations(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyInstallations = await db.installations.where('_dirty').equals(1).toArray();
-  if (dirtyInstallations.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyInstallations.length} installations...`);
-  const batches = createBatches(dirtyInstallations, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando instalações');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (installation) => {
-        try {
-          if (installation._deleted) {
-            await supabase.from('installations').delete().eq('id', installation.id);
-            metrics.deleted.installations++;
-          } else {
-            const normalizedInstallation = normalizeTimestamps({
-              ...installation,
-              user_id: user.id,
-              photos: installation.photos || []
-            });
-            delete normalizedInstallation._dirty;
-            delete normalizedInstallation._deleted;
-            delete normalizedInstallation.updatedAt;
-            delete normalizedInstallation.createdAt;
-            
-            await supabase.from('installations').upsert(normalizedInstallation);
-            metrics.pushed.installations++;
-          }
-          
-          if (installation._deleted) {
-            await db.installations.delete(installation.id);
-          } else {
-            await db.installations.update(installation.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_installation_${installation.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-async function pushContacts(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyContacts = await db.contacts.where('_dirty').equals(1).toArray();
-  if (dirtyContacts.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyContacts.length} contacts...`);
-  const batches = createBatches(dirtyContacts, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando contatos');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (contact) => {
-        try {
-          if (contact._deleted) {
-            await supabase.from('contacts').delete().eq('id', contact.id);
-            metrics.deleted.contacts++;
-          } else {
-            const normalizedContact = normalizeTimestamps({
-              id: contact.id,
-              project_id: contact.projetoId,
-              name: contact.nome,
-              role: contact.tipo,
-              phone: contact.telefone,
-              email: contact.email,
-              user_id: user.id
-            });
-            delete normalizedContact._dirty;
-            delete normalizedContact._deleted;
-            
-            await supabase.from('contacts').upsert(normalizedContact);
-            metrics.pushed.contacts++;
-          }
-          
-          if (contact._deleted) {
-            await db.contacts.delete(contact.id);
-          } else {
-            await db.contacts.update(contact.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_contact_${contact.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-async function pushBudgets(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyBudgets = await db.budgets.where('_dirty').equals(1).toArray();
-  if (dirtyBudgets.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyBudgets.length} budgets...`);
-  const batches = createBatches(dirtyBudgets, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando orçamentos');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (budget) => {
-        try {
-          if (budget._deleted) {
-            await supabase.from('budgets').delete().eq('id', budget.id);
-            metrics.deleted.budgets++;
-          } else {
-            const normalizedBudget = normalizeTimestamps({
-              ...budget,
-              user_id: user.id,
-              project_id: budget.projectId
-            });
-            delete normalizedBudget._dirty;
-            delete normalizedBudget._deleted;
-            delete normalizedBudget.projectId;
-            delete normalizedBudget.updatedAt;
-            delete normalizedBudget.createdAt;
-            
-            await supabase.from('budgets').upsert(normalizedBudget);
-            metrics.pushed.budgets++;
-          }
-          
-          if (budget._deleted) {
-            await db.budgets.delete(budget.id);
-          } else {
-            await db.budgets.update(budget.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_budget_${budget.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-async function pushItemVersions(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyItemVersions = await db.itemVersions.where('_dirty').equals(1).toArray();
-  if (dirtyItemVersions.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyItemVersions.length} item versions...`);
-  const batches = createBatches(dirtyItemVersions, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando versões');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (itemVersion) => {
-        try {
-          if (itemVersion._deleted) {
-            await supabase.from('item_versions').delete().eq('id', itemVersion.id);
-            metrics.deleted.itemVersions++;
-          } else {
-            const normalizedItemVersion = normalizeTimestamps({
-              id: itemVersion.id,
-              installation_id: itemVersion.itemId,
-              snapshot: itemVersion.snapshot,
-              revisao: itemVersion.revisao,
-              motivo: itemVersion.motivo,
-              descricao_motivo: itemVersion.descricao_motivo,
-              user_id: user.id
-            });
-            delete normalizedItemVersion._dirty;
-            delete normalizedItemVersion._deleted;
-            delete normalizedItemVersion.updatedAt;
-            delete normalizedItemVersion.createdAt;
-            
-            await supabase.from('item_versions').upsert(normalizedItemVersion);
-            metrics.pushed.itemVersions++;
-          }
-          
-          if (itemVersion._deleted) {
-            await db.itemVersions.delete(itemVersion.id);
-          } else {
-            await db.itemVersions.update(itemVersion.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_itemversion_${itemVersion.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-async function pushFiles(metrics: SyncMetrics, user: any): Promise<void> {
-  const dirtyFiles = await db.files.where('_dirty').equals(1).toArray();
-  if (dirtyFiles.length === 0) return;
-
-  console.log(`📤 Pushing ${dirtyFiles.length} files...`);
-  const batches = createBatches(dirtyFiles, BATCH_SIZE);
-
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    syncStateManager.setProgress(i + 1, batches.length, 'Enviando arquivos');
-
-    await withRetry(async () => {
-      const operations = batch.map(async (file) => {
-        try {
-          if (file._deleted) {
-            await supabase.from('files').delete().eq('id', file.id);
-            metrics.deleted.files++;
-          } else {
-            const normalizedFile = normalizeTimestamps({
-              ...file,
-              user_id: user.id,
-              project_id: file.projectId,
-              installation_id: file.installationId
-            });
-            delete normalizedFile._dirty;
-            delete normalizedFile._deleted;
-            delete normalizedFile.projectId;
-            delete normalizedFile.installationId;
-            delete normalizedFile.updatedAt;
-            delete normalizedFile.createdAt;
-            
-            await supabase.from('files').upsert(normalizedFile);
-            metrics.pushed.files++;
-          }
-          
-          if (file._deleted) {
-            await db.files.delete(file.id);
-          } else {
-            await db.files.update(file.id, { _dirty: 0 });
-          }
-        } catch (error) {
-          metrics.errors.push({
-            operation: `push_file_${file.id}`,
-            error: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          });
-          throw error;
-        }
-      });
-
-      await Promise.all(operations);
-    });
-  }
-}
-
-// Pull operations with pagination
-async function pullProjects(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: projects, error } = await withRetry(async () => {
-      return await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (projects && projects.length > 0) {
-      console.log(`📥 Pulling ${projects.length} projects (page ${page + 1})...`);
-      
-      for (const project of projects) {
-        const localProject = denormalizeTimestamps({
-          ...project,
-          owner: project.owner_name,
-          _dirty: 0,
-          _deleted: 0
-        });
-        delete localProject.owner_name;
-        delete localProject.user_id;
-        
-        await db.projects.put(localProject);
-        metrics.pulled.projects++;
-      }
-
-      hasMore = projects.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-async function pullInstallations(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: installations, error } = await withRetry(async () => {
-      return await supabase
-        .from('installations')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (installations && installations.length > 0) {
-      console.log(`📥 Pulling ${installations.length} installations (page ${page + 1})...`);
-      
-      for (const installation of installations) {
-        const localInstallation = denormalizeTimestamps({
-          ...installation,
-          _dirty: 0,
-          _deleted: 0
-        });
-        delete localInstallation.user_id;
-        
-        await db.installations.put(localInstallation);
-        metrics.pulled.installations++;
-      }
-
-      hasMore = installations.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-async function pullContacts(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: contacts, error } = await withRetry(async () => {
-      return await supabase
-        .from('contacts')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (contacts && contacts.length > 0) {
-      console.log(`📥 Pulling ${contacts.length} contacts (page ${page + 1})...`);
-      
-      for (const contact of contacts) {
-        const localContact = denormalizeTimestamps({
-          id: contact.id,
-          projetoId: contact.project_id,
-          nome: contact.name,
-          tipo: contact.role,
-          telefone: contact.phone,
-          email: contact.email,
-          atualizadoEm: contact.updated_at,
-          _dirty: 0,
-          _deleted: 0
-        });
-        
-        await db.contacts.put(localContact);
-        metrics.pulled.contacts++;
-      }
-
-      hasMore = contacts.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-async function pullBudgets(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: budgets, error } = await withRetry(async () => {
-      return await supabase
-        .from('budgets')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (budgets && budgets.length > 0) {
-      console.log(`📥 Pulling ${budgets.length} budgets (page ${page + 1})...`);
-      
-      for (const budget of budgets) {
-        const localBudget = denormalizeTimestamps({
-          ...budget,
-          projectId: budget.project_id,
-          _dirty: 0,
-          _deleted: 0
-        });
-        delete localBudget.project_id;
-        delete localBudget.user_id;
-        
-        await db.budgets.put(localBudget);
-        metrics.pulled.budgets++;
-      }
-
-      hasMore = budgets.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-async function pullItemVersions(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: itemVersions, error } = await withRetry(async () => {
-      return await supabase
-        .from('item_versions')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (itemVersions && itemVersions.length > 0) {
-      console.log(`📥 Pulling ${itemVersions.length} item versions (page ${page + 1})...`);
-      
-      for (const itemVersion of itemVersions) {
-        const localItemVersion = denormalizeTimestamps({
-          id: itemVersion.id,
-          itemId: itemVersion.installation_id,
-          snapshot: itemVersion.snapshot,
-          revisao: itemVersion.revisao,
-          motivo: itemVersion.motivo,
-          descricao_motivo: itemVersion.descricao_motivo,
-          criadoEm: itemVersion.created_at,
-          _dirty: 0,
-          _deleted: 0
-        });
-        
-        await db.itemVersions.put(localItemVersion);
-        metrics.pulled.itemVersions++;
-      }
-
-      hasMore = itemVersions.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-async function pullFiles(metrics: SyncMetrics, user: any, lastPulledAt: number): Promise<void> {
-  let hasMore = true;
-  let page = 0;
-  const lastPulledDate = new Date(lastPulledAt).toISOString();
-
-  while (hasMore) {
-    const { data: files, error } = await withRetry(async () => {
-      return await supabase
-        .from('files')
-        .select('*')
-        .eq('user_id', user.id)
-        .gt('updated_at', lastPulledDate)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
-    });
-
-    if (error) throw error;
-
-    if (files && files.length > 0) {
-      console.log(`📥 Pulling ${files.length} files (page ${page + 1})...`);
-      
-      for (const file of files) {
-        const localFile = denormalizeTimestamps({
-          ...file,
-          projectId: file.project_id,
-          installationId: file.installation_id,
-          uploaded_at: file.created_at,
-          _dirty: 0,
-          _deleted: 0
-        });
-        delete localFile.project_id;
-        delete localFile.installation_id;
-        delete localFile.user_id;
-        
-        await db.files.put(localFile);
-        metrics.pulled.files++;
-      }
-
-      hasMore = files.length === PULL_PAGE_SIZE;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-}
-
-// Main sync functions
-export async function syncPush(): Promise<SyncMetrics> {
-  const metrics = createEmptyMetrics();
-  console.log('🚀 Starting push sync...');
-  
-  syncStateManager.setSyncing('push');
-  
+// Generic push/pull operations
+async function pushEntityType(entityName: string, tableName: string): Promise<{ pushed: number; deleted: number; errors: string[] }> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('User not authenticated');
+  if (!user) throw new Error('User not authenticated');
+
+  const tableMap: Record<string, string> = {
+    'projects': 'projects',
+    'installations': 'installations', 
+    'contacts': 'contacts',
+    'budgets': 'budgets',
+    'item_versions': 'itemVersions',
+    'files': 'files'
+  };
+
+  const localTableName = tableMap[entityName] || entityName;
+  const dirtyRecords = await (db as any)[localTableName].where('_dirty').equals(1).toArray();
+  if (dirtyRecords.length === 0) return { pushed: 0, deleted: 0, errors: [] };
+
+  logger.debug(`📤 Pushing ${dirtyRecords.length} ${entityName}...`);
+  const batches = createBatches(dirtyRecords, BATCH_SIZE);
+  
+  let pushed = 0;
+  let deleted = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    
+    await withRetry(async () => {
+      const operations = batch.map(async (record: any) => {
+        try {
+          if (record._deleted) {
+            await supabase.from(tableName as any).delete().eq('id', record.id);
+            deleted++;
+            await (db as any)[localTableName].delete(record.id);
+          } else {
+            // Transform record for Supabase
+            const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
+            await supabase.from(tableName as any).upsert(normalizedRecord);
+            pushed++;
+            await (db as any)[localTableName].update(record.id, { _dirty: 0 });
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          errors.push(`${entityName}_${record.id}: ${errorMsg}`);
+          throw error;
+        }
+      });
+
+      await Promise.all(operations);
+    });
   }
+
+  return { pushed, deleted, errors };
+}
+
+async function pullEntityType(entityName: string, tableName: string, lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  let hasMore = true;
+  let page = 0;
+  let pulled = 0;
+  const errors: string[] = [];
+  const lastPulledDate = new Date(lastPulledAt).toISOString();
+
+  const tableMap: Record<string, string> = {
+    'projects': 'projects',
+    'installations': 'installations',
+    'contacts': 'contacts', 
+    'budgets': 'budgets',
+    'item_versions': 'itemVersions',
+    'files': 'files'
+  };
+
+  const localTableName = tableMap[entityName] || entityName;
+
+  while (hasMore) {
+    try {
+      const { data: records, error } = await withRetry(async () => {
+        return await supabase
+          .from(tableName as any)
+          .select('*')
+          .eq('user_id', user.id)
+          .gt('updated_at', lastPulledDate)
+          .order('updated_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
+      });
+
+      if (error) throw error;
+
+      if (records && records.length > 0) {
+        logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
+        
+        for (const record of records) {
+          try {
+            const localRecord = transformRecordForLocal(record, entityName);
+            await (db as any)[localTableName].put(localRecord);
+            pulled++;
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            errors.push(`${entityName}_${(record as any).id || 'unknown'}: ${errorMsg}`);
+          }
+        }
+
+        hasMore = records.length === PULL_PAGE_SIZE;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`${entityName}_page_${page}: ${errorMsg}`);
+      hasMore = false;
+    }
+  }
+
+  return { pulled, errors };
+}
+
+function transformRecordForSupabase(record: any, entityName: string, userId: string): any {
+  const base = normalizeTimestamps({
+    ...record,
+    user_id: userId
+  });
+  
+  // Remove local-only fields
+  delete base._dirty;
+  delete base._deleted;
+  delete base.updatedAt;
+  delete base.createdAt;
+
+  switch (entityName) {
+    case 'projects':
+      return {
+        ...base,
+        owner_name: record.owner,
+        suppliers: record.suppliers || []
+      };
+    case 'contacts':
+      return {
+        id: record.id,
+        project_id: record.projetoId,
+        name: record.nome,
+        role: record.tipo,
+        phone: record.telefone,
+        email: record.email,
+        user_id: userId,
+        created_at: base.created_at,
+        updated_at: base.updated_at
+      };
+    case 'budgets':
+      return {
+        ...base,
+        project_id: record.projectId
+      };
+    case 'item_versions':
+      return {
+        id: record.id,
+        installation_id: record.itemId,
+        snapshot: record.snapshot,
+        revisao: record.revisao,
+        motivo: record.motivo,
+        descricao_motivo: record.descricao_motivo,
+        user_id: userId,
+        created_at: base.created_at,
+        updated_at: base.updated_at
+      };
+    case 'files':
+      return {
+        ...base,
+        project_id: record.projectId,
+        installation_id: record.installationId
+      };
+    default:
+      return base;
+  }
+}
+
+function transformRecordForLocal(record: any, entityName: string): any {
+  const base = denormalizeTimestamps({
+    ...record,
+    _dirty: 0,
+    _deleted: 0
+  });
+  
+  delete base.user_id;
+
+  switch (entityName) {
+    case 'projects':
+      return {
+        ...base,
+        owner: record.owner_name
+      };
+    case 'contacts':
+      return {
+        id: record.id,
+        projetoId: record.project_id,
+        nome: record.name,
+        tipo: record.role,
+        telefone: record.phone,
+        email: record.email,
+        atualizadoEm: record.updated_at,
+        _dirty: 0,
+        _deleted: 0
+      };
+    case 'budgets':
+      return {
+        ...base,
+        projectId: record.project_id
+      };
+    case 'item_versions':
+      return {
+        id: record.id,
+        itemId: record.installation_id,
+        snapshot: record.snapshot,
+        revisao: record.revisao,
+        motivo: record.motivo,
+        descricao_motivo: record.descricao_motivo,
+        criadoEm: record.created_at,
+        updatedAt: new Date(record.updated_at).getTime(),
+        createdAt: new Date(record.created_at).getTime(),
+        _dirty: 0,
+        _deleted: 0
+      };
+    case 'files':
+      return {
+        ...base,
+        projectId: record.project_id,
+        installationId: record.installation_id
+      };
+    default:
+      return base;
+  }
+}
+
+export async function syncPush(): Promise<LegacySyncMetrics> {
+  const startTime = logger.syncStart('push');
+  const metrics = createEmptyMetrics();
+
+  syncStateManager.setSyncing('push');
+  syncStateManager.setProgress(0, 100, 'Uploading local changes...');
 
   try {
-    await pushProjects(metrics, user);
-    await pushInstallations(metrics, user);
-    await pushContacts(metrics, user);
-    await pushBudgets(metrics, user);
-    await pushItemVersions(metrics, user);
-    await pushFiles(metrics, user);
+    // Rate limiting check
+    await rateLimiter.waitForLimit('sync_push');
+
+    // First upload pending files to storage
+    const fileUploadResult = await fileSyncService.uploadPendingFiles();
+    if (fileUploadResult.uploaded > 0) {
+      logger.debug(`📁 Uploaded ${fileUploadResult.uploaded} pending files to storage`);
+    }
+    if (fileUploadResult.errors.length > 0) {
+      logger.warn('⚠️ File upload errors', fileUploadResult.errors);
+    }
+
+    // Push all entity types
+    const entityTypes = [
+      { name: 'projects', table: 'projects' },
+      { name: 'installations', table: 'installations' },
+      { name: 'contacts', table: 'contacts' },
+      { name: 'budgets', table: 'budgets' },
+      { name: 'item_versions', table: 'item_versions' },
+      { name: 'files', table: 'files' }
+    ];
+
+    for (let i = 0; i < entityTypes.length; i++) {
+      const entity = entityTypes[i];
+      const progress = ((i + 1) / entityTypes.length) * 100;
+      
+      syncStateManager.setProgress(progress, 100, `Uploading ${entity.name}...`);
+      
+      let result;
+      if (entity.name === 'files') {
+        // Use specialized file sync service
+        result = await fileSyncService.pushFiles();
+      } else {
+        result = await pushEntityType(entity.name, entity.table);
+      }
+      
+      metrics.push[entity.name as keyof typeof metrics.push] = result;
+    }
+
+    syncStateManager.setProgress(100, 100, 'Upload complete');
+    metrics.success = true;
+    metrics.duration = Date.now() - startTime;
     
-    console.log('✅ Push sync completed');
+    syncStateManager.setIdle(metrics);
     return metrics;
+
   } catch (error) {
-    console.error('❌ Push sync failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.syncError('push', error instanceof Error ? error : new Error(errorMessage));
+    syncStateManager.setError(`Push failed: ${errorMessage}`);
+    
+    metrics.success = false;
+    metrics.error = errorMessage;
+    metrics.duration = Date.now() - startTime;
+    
     throw error;
   }
 }
 
-export async function syncPull(): Promise<SyncMetrics> {
+export async function syncPull(): Promise<LegacySyncMetrics> {
+  const startTime = logger.syncStart('pull');
   const metrics = createEmptyMetrics();
-  console.log('🚀 Starting pull sync...');
-  
-  syncStateManager.setSyncing('pull');
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-
   const lastPulledAt = await getLastPulledAt();
 
+  syncStateManager.setSyncing('pull');
+  syncStateManager.setProgress(0, 100, 'Downloading remote changes...');
+
   try {
-    await pullProjects(metrics, user, lastPulledAt);
-    await pullInstallations(metrics, user, lastPulledAt);
-    await pullContacts(metrics, user, lastPulledAt);
-    await pullBudgets(metrics, user, lastPulledAt);
-    await pullItemVersions(metrics, user, lastPulledAt);
-    await pullFiles(metrics, user, lastPulledAt);
-    
+    // Rate limiting check
+    await rateLimiter.waitForLimit('sync_pull');
+
+    // Pull all entity types
+    const entityTypes = [
+      { name: 'projects', table: 'projects' },
+      { name: 'installations', table: 'installations' },
+      { name: 'contacts', table: 'contacts' },
+      { name: 'budgets', table: 'budgets' },
+      { name: 'item_versions', table: 'item_versions' },
+      { name: 'files', table: 'files' }
+    ];
+
+    for (let i = 0; i < entityTypes.length; i++) {
+      const entity = entityTypes[i];
+      const progress = ((i + 1) / entityTypes.length) * 100;
+      
+      syncStateManager.setProgress(progress, 100, `Downloading ${entity.name}...`);
+      
+      let result;
+      if (entity.name === 'files') {
+        // Use specialized file sync service
+        result = await fileSyncService.pullFiles(lastPulledAt);
+      } else {
+        result = await pullEntityType(entity.name, entity.table, lastPulledAt);
+      }
+      
+      metrics.pull[entity.name as keyof typeof metrics.pull] = result;
+    }
+
     // Update last pulled timestamp
     await setLastPulledAt(Date.now());
-    console.log('✅ Pull sync completed');
+    
+    syncStateManager.setProgress(100, 100, 'Download complete');
+    metrics.success = true;
+    metrics.duration = Date.now() - startTime;
+    
+    syncStateManager.setIdle(metrics);
     return metrics;
+
   } catch (error) {
-    console.error('❌ Pull sync failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.syncError('pull', error instanceof Error ? error : new Error(errorMessage));
+    syncStateManager.setError(`Pull failed: ${errorMessage}`);
+    
+    metrics.success = false;
+    metrics.error = errorMessage;
+    metrics.duration = Date.now() - startTime;
+    
     throw error;
   }
 }
 
-// Full sync operation
-export async function fullSync(): Promise<{ pushMetrics: SyncMetrics; pullMetrics: SyncMetrics }> {
-  console.log('🔄 Starting full sync...');
-  
-  syncStateManager.setSyncing('full');
+export async function fullSync(): Promise<LegacySyncMetrics> {
+  const startTime = logger.syncStart('full');
+  const metrics = createEmptyMetrics();
   
   try {
-    if (!navigator.onLine) {
-      throw new Error('Sem conexão com a internet. Conecte-se para sincronizar.');
-    }
+    const pushResult = await syncPush();
+    const pullResult = await syncPull();
+    
+    metrics.push = pushResult.push;
+    metrics.pull = pullResult.pull;
+    metrics.success = true;
+    metrics.duration = Date.now() - startTime;
+    
+    syncStateManager.setIdle(metrics);
+    return metrics;
 
-    syncStateManager.clearProgress();
-    const pushMetrics = await syncPush();
-    const pullMetrics = await syncPull();
-    
-    const totalMetrics: SyncMetrics = {
-      startTime: Math.min(pushMetrics.startTime, pullMetrics.startTime),
-      endTime: Date.now(),
-      totalDuration: Date.now() - Math.min(pushMetrics.startTime, pullMetrics.startTime),
-      pushed: pushMetrics.pushed,
-      pulled: pullMetrics.pulled,
-      deleted: pushMetrics.deleted,
-      errors: [...pushMetrics.errors, ...pullMetrics.errors]
-    };
-
-    logSyncMetrics(totalMetrics);
-    console.log('✅ Full sync completed successfully');
-    
-    syncStateManager.setIdle({
-      tablesProcessed: {
-        projects: pushMetrics.pushed.projects + pullMetrics.pulled.projects,
-        installations: pushMetrics.pushed.installations + pullMetrics.pulled.installations,
-        contacts: pushMetrics.pushed.contacts + pullMetrics.pulled.contacts,
-        budgets: pushMetrics.pushed.budgets + pullMetrics.pulled.budgets,
-        itemVersions: pushMetrics.pushed.itemVersions + pullMetrics.pulled.itemVersions,
-        files: pushMetrics.pushed.files + pullMetrics.pulled.files
-      }
-    });
-    
-    return { pushMetrics, pullMetrics };
   } catch (error) {
-    console.error('❌ Full sync failed:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido durante a sincronização';
-    syncStateManager.setError(errorMessage);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.syncError('full', error instanceof Error ? error : new Error(errorMessage));
+    syncStateManager.setError(`Full sync failed: ${errorMessage}`);
+    
+    metrics.success = false;
+    metrics.error = errorMessage;
+    metrics.duration = Date.now() - startTime;
+    
     throw error;
-  } finally {
-    syncStateManager.clearProgress();
   }
 }
