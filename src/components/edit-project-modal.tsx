@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Project } from "@/types";
-import { storage } from "@/lib/storage";
+import { StorageManagerDexie as Storage } from "@/services/StorageManager";
 import { Plus, Trash2 } from "lucide-react";
 
 interface EditProjectModalProps {
@@ -31,7 +31,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     suppliers: [...project.suppliers]
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.client || !formData.city) {
       toast({
         title: "Erro",
@@ -41,19 +41,18 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
       return;
     }
 
-    const updatedProject = storage.updateProject(project.id, {
+    const updatedProject = await Storage.upsertProject({
+      ...project,
       ...formData,
       suppliers: formData.suppliers.filter(s => s.trim() !== '')
     });
 
-    if (updatedProject) {
-      onProjectUpdated(updatedProject);
-      onClose();
-      toast({
-        title: "Projeto atualizado",
-        description: "As informações do projeto foram atualizadas com sucesso"
-      });
-    }
+    onProjectUpdated(updatedProject);
+    onClose();
+    toast({
+      title: "Projeto atualizado",
+      description: "As informações do projeto foram atualizadas com sucesso"
+    });
   };
 
   const addSupplierField = () => {
