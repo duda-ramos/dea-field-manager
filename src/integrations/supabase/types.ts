@@ -14,7 +14,314 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      budgets: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          project_id: string
+          status: string | null
+          supplier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          project_id: string
+          status?: string | null
+          supplier: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          project_id?: string
+          status?: string | null
+          supplier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          project_id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone: string
+          project_id: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          project_id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          created_at: string
+          id: string
+          installation_id: string | null
+          name: string
+          project_id: string | null
+          size: number
+          type: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          installation_id?: string | null
+          name: string
+          project_id?: string | null
+          size: number
+          type: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          installation_id?: string | null
+          name?: string
+          project_id?: string | null
+          size?: number
+          type?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installations: {
+        Row: {
+          codigo: number
+          comentarios_fornecedor: string | null
+          created_at: string
+          descricao: string
+          diretriz_altura_cm: number | null
+          diretriz_dist_batente_cm: number | null
+          id: string
+          installed: boolean | null
+          installed_at: string | null
+          observacoes: string | null
+          pavimento: string
+          photos: string[] | null
+          project_id: string
+          quantidade: number
+          revisado: boolean | null
+          revisao: number | null
+          tipologia: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          codigo: number
+          comentarios_fornecedor?: string | null
+          created_at?: string
+          descricao: string
+          diretriz_altura_cm?: number | null
+          diretriz_dist_batente_cm?: number | null
+          id?: string
+          installed?: boolean | null
+          installed_at?: string | null
+          observacoes?: string | null
+          pavimento: string
+          photos?: string[] | null
+          project_id: string
+          quantidade: number
+          revisado?: boolean | null
+          revisao?: number | null
+          tipologia: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          codigo?: number
+          comentarios_fornecedor?: string | null
+          created_at?: string
+          descricao?: string
+          diretriz_altura_cm?: number | null
+          diretriz_dist_batente_cm?: number | null
+          id?: string
+          installed?: boolean | null
+          installed_at?: string | null
+          observacoes?: string | null
+          pavimento?: string
+          photos?: string[] | null
+          project_id?: string
+          quantidade?: number
+          revisado?: boolean | null
+          revisao?: number | null
+          tipologia?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_versions: {
+        Row: {
+          created_at: string
+          descricao_motivo: string | null
+          id: string
+          installation_id: string
+          motivo: string
+          revisao: number
+          snapshot: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          descricao_motivo?: string | null
+          id?: string
+          installation_id: string
+          motivo: string
+          revisao: number
+          snapshot: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          descricao_motivo?: string | null
+          id?: string
+          installation_id?: string
+          motivo?: string
+          revisao?: number
+          snapshot?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_versions_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "installations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          city: string
+          client: string
+          code: string | null
+          created_at: string
+          id: string
+          inauguration_date: string | null
+          installation_date: string | null
+          name: string
+          owner_name: string | null
+          project_files_link: string | null
+          status: string | null
+          suppliers: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          client: string
+          code?: string | null
+          created_at?: string
+          id?: string
+          inauguration_date?: string | null
+          installation_date?: string | null
+          name: string
+          owner_name?: string | null
+          project_files_link?: string | null
+          status?: string | null
+          suppliers?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          client?: string
+          code?: string | null
+          created_at?: string
+          id?: string
+          inauguration_date?: string | null
+          installation_date?: string | null
+          name?: string
+          owner_name?: string | null
+          project_files_link?: string | null
+          status?: string | null
+          suppliers?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
