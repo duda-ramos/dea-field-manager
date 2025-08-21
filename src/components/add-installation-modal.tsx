@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Installation } from "@/types";
-import { storage } from "@/lib/storage";
+import { Installation, ItemVersion } from "@/types";
+import { StorageManagerDexie as Storage } from "@/services/StorageManager";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit3 } from "lucide-react";
 
@@ -42,6 +42,7 @@ export function AddInstallationModal({
   const [overwriteMotivo, setOverwriteMotivo] = useState<string>("");
   const [overwriteDescricao, setOverwriteDescricao] = useState("");
   const [existingInstallation, setExistingInstallation] = useState<Installation | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editingInstallation) {
@@ -94,21 +95,24 @@ export function AddInstallationModal({
     onClose();
   };
 
-  const checkForExistingInstallation = () => {
-    const installations = storage.getInstallations(projectId);
+  const checkForExistingInstallation = async () => {
+    const installations = await Storage.getInstallationsByProject(projectId);
     const codigo = parseInt(formData.codigo);
-    
+
     if (isNaN(codigo)) return null;
-    
-    return installations.find(inst => 
-      inst.codigo === codigo && 
-      inst.tipologia === formData.tipologia && 
-      inst.pavimento === formData.pavimento &&
-      inst.id !== editingInstallation?.id // Exclude current item when editing
+
+    return (
+      installations.find(
+        (inst: any) =>
+          inst.codigo === codigo &&
+          inst.tipologia === formData.tipologia &&
+          inst.pavimento === formData.pavimento &&
+          inst.id !== editingInstallation?.id
+      ) || null
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validate required fields
     if (!formData.tipologia || !formData.codigo || !formData.descricao || !formData.quantidade || !formData.pavimento) {
       toast({
@@ -132,7 +136,7 @@ export function AddInstallationModal({
     }
 
     // Check for existing installation
-    const existing = checkForExistingInstallation();
+    const existing = await checkForExistingInstallation();
     if (existing && !editingInstallation) {
       setExistingInstallation(existing);
       setShowOverwriteConfirm(true);
@@ -140,85 +144,128 @@ export function AddInstallationModal({
     }
 
     // Proceed with save
-    saveInstallation();
+    await saveInstallation();
   };
 
-  const saveInstallation = () => {
-    const codigo = parseInt(formData.codigo);
-    const quantidade = parseInt(formData.quantidade);
-    const diretriz_altura_cm = formData.diretriz_altura_cm ? parseInt(formData.diretriz_altura_cm) : undefined;
-    const diretriz_dist_batente_cm = formData.diretriz_dist_batente_cm ? parseInt(formData.diretriz_dist_batente_cm) : undefined;
+  const saveInstallation = async () => {
+    setLoading(true);
+    try {
+      const codigo = parseInt(formData.codigo);
+      const quantidade = parseInt(formData.quantidade);
+      const diretriz_altura_cm = formData.diretriz_altura_cm ? parseInt(formData.diretriz_altura_cm) : undefined;
+      const diretriz_dist_batente_cm = formData.diretriz_dist_batente_cm ? parseInt(formData.diretriz_dist_batente_cm) : undefined;
 
-    const installationData = {
-      tipologia: formData.tipologia,
-      codigo,
-      descricao: formData.descricao,
-      quantidade,
-      pavimento: formData.pavimento,
-      diretriz_altura_cm,
-      diretriz_dist_batente_cm,
-      observacoes: formData.observacoes || undefined,
-      comentarios_fornecedor: formData.comentarios_fornecedor || undefined
-    };
+      const installationData = {
+        tipologia: formData.tipologia,
+        codigo,
+        descricao: formData.descricao,
+        quantidade,
+        pavimento: formData.pavimento,
+        diretriz_altura_cm,
+        diretriz_dist_batente_cm,
+        observacoes: formData.observacoes || undefined,
+        comentarios_fornecedor: formData.comentarios_fornecedor || undefined,
+      };
 
-    let savedInstallation: Installation;
+      let savedInstallation: any;
 
-    if (editingInstallation) {
-      // Update existing installation
-      savedInstallation = storage.updateInstallation(editingInstallation.id, installationData)!;
-      toast({
-        title: "Peça atualizada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
-      });
-    } else if (existingInstallation && showOverwriteConfirm) {
-      // Overwrite existing installation
-      if (!overwriteMotivo) {
-        toast({
-          title: "Erro",
-          description: "Selecione um motivo para a revisão",
-          variant: "destructive"
+      if (editingInstallation) {
+        savedInstallation = await Storage.upsertInstallation({
+          ...editingInstallation,
+          ...installationData,
         });
-        return;
+        toast({
+          title: "Peça atualizada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
+        });
+      } else if (existingInstallation && showOverwriteConfirm) {
+        if (!overwriteMotivo) {
+          toast({
+            title: "Erro",
+            description: "Selecione um motivo para a revisão",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (overwriteMotivo === 'outros' && !overwriteDescricao.trim()) {
+          toast({
+            title: "Erro",
+            description: "Descreva o motivo da revisão",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        await Storage.getItemVersions(existingInstallation.id);
+        const newRevision = (existingInstallation.revisao || 1) + 1;
+
+        savedInstallation = await Storage.upsertInstallation({
+          ...existingInstallation,
+          ...installationData,
+          revisado: true,
+          revisao: newRevision,
+        });
+
+        await Storage.upsertItemVersion({
+          id: crypto.randomUUID(),
+          installationId: existingInstallation.id,
+          revisao: newRevision,
+          motivo: overwriteMotivo as ItemVersion["motivo"],
+          descricao_motivo: overwriteMotivo === 'outros' ? overwriteDescricao : undefined,
+          snapshot: {
+            project_id: savedInstallation.project_id ?? savedInstallation.projectId,
+            tipologia: savedInstallation.tipologia,
+            codigo: savedInstallation.codigo,
+            descricao: savedInstallation.descricao,
+            quantidade: savedInstallation.quantidade,
+            pavimento: savedInstallation.pavimento,
+            diretriz_altura_cm: savedInstallation.diretriz_altura_cm,
+            diretriz_dist_batente_cm: savedInstallation.diretriz_dist_batente_cm,
+            observacoes: savedInstallation.observacoes,
+            comentarios_fornecedor: savedInstallation.comentarios_fornecedor,
+            installed: savedInstallation.installed,
+            installed_at: savedInstallation.installed_at,
+            updated_at: savedInstallation.updated_at,
+            photos: savedInstallation.photos,
+          },
+          createdAt: Date.now(),
+        });
+
+        toast({
+          title: "Peça atualizada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
+        });
+      } else {
+        const id = crypto.randomUUID();
+        savedInstallation = await Storage.upsertInstallation({
+          id,
+          projectId,
+          ...installationData,
+          installed: false,
+          photos: [],
+          revisado: false,
+          revisao: 1,
+        });
+
+        toast({
+          title: "Peça criada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`,
+        });
       }
 
-      if (overwriteMotivo === 'outros' && !overwriteDescricao.trim()) {
-        toast({
-          title: "Erro",
-          description: "Descreva o motivo da revisão",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      savedInstallation = storage.overwriteInstallation(
-        existingInstallation.id, 
-        installationData,
-        overwriteMotivo as any,
-        overwriteMotivo === 'outros' ? overwriteDescricao : undefined
-      );
-
+      handleClose();
+      onUpdate();
+    } catch (err) {
+      console.error(err);
       toast({
-        title: "Peça atualizada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
+        title: "Erro",
+        description: "Não foi possível salvar a instalação",
+        variant: "destructive",
       });
-    } else {
-      // Create new installation
-      savedInstallation = storage.saveInstallation(projectId, {
-        ...installationData,
-        installed: false,
-        photos: [],
-        revisado: false,
-        revisao: 1
-      });
-
-      toast({
-        title: "Peça criada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`,
-      });
+    } finally {
+      setLoading(false);
     }
-
-    handleClose();
-    onUpdate();
   };
 
   const motivosOptions = [
@@ -274,7 +321,7 @@ export function AddInstallationModal({
               <Button variant="outline" onClick={() => setShowOverwriteConfirm(false)}>
                 Cancelar
               </Button>
-              <Button onClick={saveInstallation}>
+              <Button onClick={saveInstallation} disabled={loading}>
                 Confirmar Revisão
               </Button>
             </div>
@@ -402,7 +449,7 @@ export function AddInstallationModal({
             <Button variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={loading}>
               {editingInstallation ? "Atualizar Peça" : "Salvar Peça"}
             </Button>
           </div>

@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Installation, ItemVersion } from "@/types";
-import { storage } from "@/lib/storage";
+import { StorageManagerDexie as Storage } from "@/services/StorageManager";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { AddInstallationModal } from "@/components/add-installation-modal";
@@ -43,9 +43,12 @@ export function InstallationDetailModalNew({
   useEffect(() => {
     setInstalled(installation.installed);
     setPhotos(installation.photos);
-    setVersions(storage.getInstallationVersions(installation.id));
-    
-    // Parse existing observations as history
+
+    (async () => {
+      const fetched = await Storage.getItemVersions(installation.id);
+      setVersions(fetched);
+    })();
+
     if (installation.observacoes && installation.observacoes.trim() !== "") {
       setObservationHistory(installation.observacoes.split('\n---\n').filter(obs => obs.trim() !== ""));
     } else {
@@ -53,29 +56,27 @@ export function InstallationDetailModalNew({
     }
   }, [installation]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     let newObservations = observationHistory.join('\n---\n');
-    
-    // Add new observation if provided
+
     if (currentObservation.trim() !== "") {
       const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
       newObservations = newObservations ? `${newObservations}\n---\n${timestampedObservation}` : timestampedObservation;
     }
 
-    const updated = storage.updateInstallation(installation.id, {
+    const updated = await Storage.upsertInstallation({
+      ...installation,
       installed,
       observacoes: newObservations || undefined,
       photos
     });
 
-    if (updated) {
-      onUpdate();
-      onClose();
-      toast({
-        title: "Instalação atualizada",
-        description: "As informações foram salvas com sucesso.",
-      });
-    }
+    onUpdate();
+    onClose();
+    toast({
+      title: "Instalação atualizada",
+      description: "As informações foram salvas com sucesso.",
+    });
   };
 
   const addObservation = () => {
@@ -114,8 +115,47 @@ export function InstallationDetailModalNew({
     setShowAddRevisionModal(true);
   };
 
-  const handleRevisionUpdate = () => {
-    // Apply the overwrite with motive
+  const overwriteInstallation = async (
+    base: Installation,
+    updates: Partial<Installation>,
+    motivo: ItemVersion["motivo"],
+    descricao?: string
+  ) => {
+    const newRevision = base.revisao + 1;
+    const updatedInstallation = await Storage.upsertInstallation({
+      ...base,
+      ...updates,
+      revisado: true,
+      revisao: newRevision,
+    });
+    await Storage.upsertItemVersion({
+      id: crypto.randomUUID(),
+      itemId: base.id,
+      snapshot: {
+        project_id: updatedInstallation.project_id,
+        tipologia: updatedInstallation.tipologia,
+        codigo: updatedInstallation.codigo,
+        descricao: updatedInstallation.descricao,
+        quantidade: updatedInstallation.quantidade,
+        pavimento: updatedInstallation.pavimento,
+        diretriz_altura_cm: updatedInstallation.diretriz_altura_cm,
+        diretriz_dist_batente_cm: updatedInstallation.diretriz_dist_batente_cm,
+        observacoes: updatedInstallation.observacoes,
+        comentarios_fornecedor: updatedInstallation.comentarios_fornecedor,
+        installed: updatedInstallation.installed,
+        installed_at: updatedInstallation.installed_at,
+        updated_at: updatedInstallation.updated_at,
+        photos: updatedInstallation.photos
+      },
+      revisao: newRevision,
+      motivo,
+      descricao_motivo: descricao,
+      criadoEm: new Date().toISOString()
+    });
+    return updatedInstallation;
+  };
+
+  const handleRevisionUpdate = async () => {
     if (revisionMotivo && installation) {
       const currentData = {
         tipologia: installation.tipologia,
@@ -126,29 +166,29 @@ export function InstallationDetailModalNew({
         diretriz_altura_cm: installation.diretriz_altura_cm,
         diretriz_dist_batente_cm: installation.diretriz_dist_batente_cm,
         observacoes: installation.observacoes,
-        comentarios_fornecedor: installation.comentarios_fornecedor
+        comentarios_fornecedor: installation.comentarios_fornecedor,
       };
 
-      const updatedInstallation = storage.overwriteInstallation(
-        installation.id,
-        currentData, // Keep same data but create revision
+      const updatedInstallation = await overwriteInstallation(
+        installation,
+        currentData,
         revisionMotivo as any,
         revisionMotivo === 'outros' ? revisionDescricao : undefined
       );
 
-      setVersions(storage.getInstallationVersions(installation.id));
+      const fetched = await Storage.getItemVersions(installation.id);
+      setVersions(fetched);
       onUpdate();
-      
+
       toast({
         title: "Revisão criada",
         description: `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`,
       });
 
-      // Reset revision state
       setRevisionMotivo("");
       setRevisionDescricao("");
     }
-    
+
     setShowAddRevisionModal(false);
   };
 
