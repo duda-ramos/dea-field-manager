@@ -7,6 +7,7 @@ import { RefreshCw, Loader2, Wifi, WifiOff, AlertCircle, CheckCircle } from 'luc
 import { fullSync } from '@/services/sync/sync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager, type SyncState } from '@/services/sync/syncState';
+import { SyncSettingsModal } from './sync-settings-modal';
 
 export function SyncButton() {
   const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState());
@@ -109,16 +110,21 @@ export function SyncButton() {
       )}
 
       {/* Sync button */}
-      <Button 
-        onClick={handleSync} 
-        disabled={syncState.status === 'syncing' || !syncState.isOnline}
-        variant={getStatusVariant()}
-        size="sm"
-        className="min-w-[120px]"
-      >
-        {getStatusIcon()}
-        <span className="ml-2">{getStatusText()}</span>
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button 
+          onClick={handleSync} 
+          disabled={syncState.status === 'syncing' || !syncState.isOnline}
+          variant={getStatusVariant()}
+          size="sm"
+          className="min-w-[120px]"
+        >
+          {getStatusIcon()}
+          <span className="ml-2">{getStatusText()}</span>
+        </Button>
+        
+        {/* Settings button */}
+        <SyncSettingsModal />
+      </div>
 
       {/* Progress indicator */}
       {syncState.progress && (

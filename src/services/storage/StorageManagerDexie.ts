@@ -1,5 +1,6 @@
 import { db } from '@/db/indexedDb';
 import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
+import { autoSyncManager } from '@/services/sync/autoSync';
 
 const now = () => Date.now();
 
@@ -21,6 +22,10 @@ export const StorageManagerDexie = {
       _deleted: 0
     };
     await db.projects.put(withDates);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withDates;
   },
   async deleteProject(id: string) {
@@ -60,6 +65,10 @@ export const StorageManagerDexie = {
       _deleted: 0
     };
     await db.installations.put(withDates);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withDates;
   },
   async deleteInstallation(id: string) {
@@ -93,6 +102,10 @@ export const StorageManagerDexie = {
       _deleted: 0
     };
     await db.itemVersions.put(withDates);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withDates;
   },
 
@@ -103,6 +116,10 @@ export const StorageManagerDexie = {
   async upsertContact(contact: ProjectContact) {
     const withFlags = { ...contact, _dirty: 1, _deleted: 0 };
     await db.contacts.put(withFlags);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withFlags;
   },
   async deleteContact(id: string) {
@@ -125,6 +142,10 @@ export const StorageManagerDexie = {
       _deleted: 0
     };
     await db.budgets.put(withDates);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withDates;
   },
 
@@ -138,6 +159,10 @@ export const StorageManagerDexie = {
   async upsertFile(file: ProjectFile) {
     const withFlags = { ...file, _dirty: 1, _deleted: 0 };
     await db.files.put(withFlags);
+    
+    // Trigger debounced auto-sync
+    autoSyncManager.triggerDebouncedSync();
+    
     return withFlags;
   },
   async deleteFile(id: string) {
