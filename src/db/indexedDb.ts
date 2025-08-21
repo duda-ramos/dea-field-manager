@@ -20,8 +20,8 @@ class DeaFieldManagerDB extends Dexie {
     super('DeaFieldManagerDB');
     this.version(1).stores({
       projects: 'id, updatedAt, name',
-      installations: 'id, projectId, updatedAt, status',
-      contacts: 'id, type, name',
+      installations: 'id, project_id, updatedAt, status',
+      contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm',
       budgets: 'id, projectId, updatedAt',
       itemVersions: 'id, installationId, createdAt',
       files: 'id, projectId, installationId'

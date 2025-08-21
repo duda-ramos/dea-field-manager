@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,16 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const navigate = useNavigate();
-  const installations = storage.getInstallations(project.id);
+  const [installations, setInstallations] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadInstallations = async () => {
+      const projectInstallations = await storage.getInstallationsByProject(project.id);
+      setInstallations(projectInstallations);
+    };
+    loadInstallations();
+  }, [project.id]);
+
   const completedInstallations = installations.filter(i => i.installed).length;
   const totalInstallations = installations.length;
   const progressPercentage = totalInstallations > 0 ? (completedInstallations / totalInstallations) * 100 : 0;

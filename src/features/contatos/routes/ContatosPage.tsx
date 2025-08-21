@@ -23,30 +23,35 @@ export default function ContatosPage() {
   useEffect(() => {
     if (!id) return;
     
-    const projectData = storage.getProjects().find(p => p.id === id);
-    if (!projectData) {
-      navigate('/');
-      return;
-    }
+    const loadData = async () => {
+      const projects = await storage.getProjects();
+      const projectData = projects.find(p => p.id === id);
+      if (!projectData) {
+        navigate('/');
+        return;
+      }
+      
+      setProject(projectData);
+      await loadContatos();
+    };
     
-    setProject(projectData);
-    loadContatos();
+    loadData();
   }, [id, navigate]);
 
-  const loadContatos = () => {
+  const loadContatos = async () => {
     if (!id) return;
-    const allContatos = storage.getContacts(id);
+    const allContatos = await storage.getContacts(id);
     setContatos(allContatos);
   };
 
-  const handleSaveContato = (contato: Contato) => {
+  const handleSaveContato = async (contato: Contato) => {
     if (editingContato) {
-      storage.updateContact(contato.id, contato);
+      await storage.updateContact(contato.id, contato);
     } else {
-      storage.saveContact(id!, contato);
+      await storage.saveContact(id!, contato);
     }
     
-    loadContatos();
+    await loadContatos();
     setIsFormOpen(false);
     setEditingContato(null);
   };
@@ -57,9 +62,9 @@ export default function ContatosPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteContato = (contato: Contato) => {
-    storage.deleteContact(contato.id);
-    loadContatos();
+  const handleDeleteContato = async (contato: Contato) => {
+    await storage.deleteContact(contato.id);
+    await loadContatos();
   };
 
   const handleAddContato = (tipo: "cliente" | "obra" | "fornecedor") => {

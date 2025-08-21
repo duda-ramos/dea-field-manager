@@ -27,10 +27,15 @@ export default function Dashboard() {
     toast
   } = useToast();
   useEffect(() => {
-    setProjects(storage.getProjects());
+    loadProjects();
   }, []);
+
+  const loadProjects = async () => {
+    const projects = await storage.getProjects();
+    setProjects(projects);
+  };
   const filteredProjects = projects.filter(project => project.name.toLowerCase().includes(searchTerm.toLowerCase()) || project.client.toLowerCase().includes(searchTerm.toLowerCase()) || project.city.toLowerCase().includes(searchTerm.toLowerCase()) || project.code.toLowerCase().includes(searchTerm.toLowerCase()));
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!newProject.name || !newProject.client || !newProject.city) {
       toast({
         title: "Erro",
@@ -39,12 +44,15 @@ export default function Dashboard() {
       });
       return;
     }
-    const project = storage.saveProject({
+    const project = await storage.upsertProject({
       ...newProject,
-      status: 'planning',
-      suppliers: newProject.suppliers.filter(s => s.trim() !== '')
+      id: `project_${Date.now()}`,
+      status: 'planning' as const,
+      suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     });
-    setProjects(storage.getProjects());
+    await loadProjects();
     setIsCreateModalOpen(false);
     setNewProject({
       name: "",

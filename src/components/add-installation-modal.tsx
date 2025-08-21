@@ -94,8 +94,8 @@ export function AddInstallationModal({
     onClose();
   };
 
-  const checkForExistingInstallation = () => {
-    const installations = storage.getInstallations(projectId);
+  const checkForExistingInstallation = async () => {
+    const installations = await storage.getInstallationsByProject(projectId);
     const codigo = parseInt(formData.codigo);
     
     if (isNaN(codigo)) return null;
@@ -108,7 +108,7 @@ export function AddInstallationModal({
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validate required fields
     if (!formData.tipologia || !formData.codigo || !formData.descricao || !formData.quantidade || !formData.pavimento) {
       toast({
@@ -131,19 +131,21 @@ export function AddInstallationModal({
       return;
     }
 
-    // Check for existing installation
-    const existing = checkForExistingInstallation();
-    if (existing && !editingInstallation) {
-      setExistingInstallation(existing);
-      setShowOverwriteConfirm(true);
-      return;
+    // Check for existing installation only when creating new (not editing)
+    if (!editingInstallation) {
+      const existing = await checkForExistingInstallation();
+      if (existing) {
+        setExistingInstallation(existing);
+        setShowOverwriteConfirm(true);
+        return;
+      }
     }
 
     // Proceed with save
     saveInstallation();
   };
 
-  const saveInstallation = () => {
+  const saveInstallation = async () => {
     const codigo = parseInt(formData.codigo);
     const quantidade = parseInt(formData.quantidade);
     const diretriz_altura_cm = formData.diretriz_altura_cm ? parseInt(formData.diretriz_altura_cm) : undefined;
@@ -165,7 +167,7 @@ export function AddInstallationModal({
 
     if (editingInstallation) {
       // Update existing installation
-      savedInstallation = storage.updateInstallation(editingInstallation.id, installationData)!;
+      savedInstallation = await storage.upsertInstallation({ ...editingInstallation, ...installationData });
       toast({
         title: "Peça atualizada",
         description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
@@ -190,12 +192,12 @@ export function AddInstallationModal({
         return;
       }
 
-      savedInstallation = storage.overwriteInstallation(
-        existingInstallation.id, 
-        installationData,
-        overwriteMotivo as any,
-        overwriteMotivo === 'outros' ? overwriteDescricao : undefined
-      );
+      savedInstallation = await storage.upsertInstallation({
+        ...existingInstallation,
+        ...installationData,
+        revisado: true,
+        revisao: (existingInstallation.revisao || 1) + 1
+      });
 
       toast({
         title: "Peça atualizada",
@@ -203,12 +205,15 @@ export function AddInstallationModal({
       });
     } else {
       // Create new installation
-      savedInstallation = storage.saveInstallation(projectId, {
+      savedInstallation = await storage.upsertInstallation({
         ...installationData,
+        id: `installation_${Date.now()}`,
+        project_id: projectId,
         installed: false,
         photos: [],
         revisado: false,
-        revisao: 1
+        revisao: 1,
+        updated_at: new Date().toISOString()
       });
 
       toast({

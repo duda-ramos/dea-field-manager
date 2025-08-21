@@ -19,7 +19,7 @@ export const StorageManagerDexie = {
   async deleteProject(id: string) {
     await db.transaction('rw', db.projects, db.installations, db.budgets, db.files, async () => {
       await db.projects.delete(id);
-      await db.installations.where('projectId').equals(id).delete();
+      await db.installations.where('project_id').equals(id).delete();
       await db.budgets.where('projectId').equals(id).delete();
       await db.files.where('projectId').equals(id).delete();
     });
@@ -27,7 +27,7 @@ export const StorageManagerDexie = {
 
   // -------- INSTALLATIONS ----------
   async getInstallationsByProject(projectId: string) {
-    return db.installations.where('projectId').equals(projectId).toArray();
+    return db.installations.where('project_id').equals(projectId).toArray();
   },
   async upsertInstallation(installation: Installation) {
     const withDates = { ...installation, updatedAt: now(), createdAt: (installation as any)?.createdAt ?? now() };
@@ -95,18 +95,47 @@ export const StorageManagerDexie = {
 (StorageManagerDexie as any).updateProject = StorageManagerDexie.upsertProject;
 (StorageManagerDexie as any).getProject = StorageManagerDexie.getProjectById;
 
+// Installations
 (StorageManagerDexie as any).getInstallations = StorageManagerDexie.getInstallationsByProject;
 (StorageManagerDexie as any).saveInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as any).updateInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as any).overwriteInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as any).importInstallations = async (projectId: string, installations: any[]) => {
+  const results = [];
+  for (const installation of installations) {
+    const result = await StorageManagerDexie.upsertInstallation({ ...installation, projectId });
+    results.push(result);
+  }
+  return results;
+};
 
+// Item Versions
 (StorageManagerDexie as any).getInstallationVersions = StorageManagerDexie.getItemVersions;
 (StorageManagerDexie as any).saveItemVersion = StorageManagerDexie.upsertItemVersion;
 
+// Contacts - with projectId filter support
 (StorageManagerDexie as any).getProjectContacts = StorageManagerDexie.getContacts;
+(StorageManagerDexie as any).getContacts = async (projectId?: string) => {
+  const allContacts = await db.contacts.toArray();
+  return projectId ? allContacts.filter(c => c.projetoId === projectId) : allContacts;
+};
 (StorageManagerDexie as any).saveProjectContact = StorageManagerDexie.upsertContact;
+(StorageManagerDexie as any).saveContact = async (projectId: string, contact: any) => {
+  return StorageManagerDexie.upsertContact({ ...contact, projetoId: projectId });
+};
+(StorageManagerDexie as any).updateContact = async (id: string, contact: any) => {
+  return StorageManagerDexie.upsertContact({ ...contact, id });
+};
 (StorageManagerDexie as any).deleteProjectContact = StorageManagerDexie.deleteContact;
+(StorageManagerDexie as any).deleteContact = StorageManagerDexie.deleteContact;
 
+// Budgets
 (StorageManagerDexie as any).getBudgets = StorageManagerDexie.getBudgetsByProject;
 (StorageManagerDexie as any).saveBudget = StorageManagerDexie.upsertBudget;
 
+// Files
 (StorageManagerDexie as any).saveFile = StorageManagerDexie.upsertFile;
+
+// Reports (mock for compatibility)
+(StorageManagerDexie as any).getReports = async () => [];
+(StorageManagerDexie as any).saveReport = async (report: any) => report;

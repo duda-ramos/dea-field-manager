@@ -31,7 +31,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     suppliers: [...project.suppliers]
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.client || !formData.city) {
       toast({
         title: "Erro",
@@ -41,7 +41,8 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
       return;
     }
 
-    const updatedProject = storage.updateProject(project.id, {
+    const updatedProject = await storage.upsertProject({
+      ...project,
       ...formData,
       suppliers: formData.suppliers.filter(s => s.trim() !== '')
     });

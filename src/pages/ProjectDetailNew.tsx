@@ -45,18 +45,25 @@ export default function ProjectDetailNew() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
+    loadProjectData();
+  }, [id, navigate]);
+
+  const loadProjectData = async () => {
     if (!id) return;
     
-    const projectData = storage.getProjects().find(p => p.id === id);
+    const projects = await storage.getProjects();
+    const projectData = projects.find(p => p.id === id);
     if (!projectData) {
       navigate('/');
       return;
     }
     
     setProject(projectData);
-    setInstallations(storage.getInstallations(id));
-    setReports(storage.getReports(id));
-  }, [id, navigate]);
+    const projectInstallations = await storage.getInstallationsByProject(id);
+    const projectReports = await storage.getReports();
+    setInstallations(projectInstallations);
+    setReports(projectReports);
+  };
 
   const handleProjectUpdated = (updatedProject: Project) => {
     setProject(updatedProject);
@@ -93,16 +100,18 @@ export default function ProjectDetailNew() {
   const installationsWithObservations = installations.filter(i => i.observacoes && i.observacoes.trim() !== "").length;
   const progressPercentage = installations.length > 0 ? (completedInstallations / installations.length) * 100 : 0;
 
-  const toggleInstallation = (installationId: string) => {
+  const toggleInstallation = async (installationId: string) => {
     const installation = installations.find(i => i.id === installationId);
     if (!installation) return;
 
-    const updated = storage.updateInstallation(installationId, {
+    const updated = await storage.upsertInstallation({
+      ...installation,
       installed: !installation.installed
     });
 
     if (updated) {
-      setInstallations(storage.getInstallations(project.id));
+      const updatedInstallations = await storage.getInstallationsByProject(project.id);
+      setInstallations(updatedInstallations);
       toast({
         title: updated.installed ? "Item instalado" : "Item desmarcado",
         description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
@@ -128,8 +137,9 @@ export default function ProjectDetailNew() {
         return;
       }
 
-      const importResult = storage.importInstallations(project.id, result.data);
-      setInstallations(storage.getInstallations(project.id));
+      const importResult = await storage.importInstallations(project.id, result.data);
+      const updatedInstallations = await storage.getInstallationsByProject(project.id);
+      setInstallations(updatedInstallations);
       
       // Show summary
       const summaryText = Object.entries(importResult.summary)
@@ -912,15 +922,20 @@ export default function ProjectDetailNew() {
   );
 
   // Calcular contadores de contatos
-  const contadores = (() => {
-    const contatos = storage.getContacts(id);
-    return {
-      cliente: contatos.filter(c => c.tipo === 'cliente').length,
-      obra: contatos.filter(c => c.tipo === 'obra').length,
-      fornecedor: contatos.filter(c => c.tipo === 'fornecedor').length,
-      total: contatos.length
+  const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
+  
+  useEffect(() => {
+    const loadContadores = async () => {
+      const contatos = await storage.getContacts(id);
+      setContadores({
+        cliente: contatos.filter(c => c.tipo === 'cliente').length,
+        obra: contatos.filter(c => c.tipo === 'obra').length,
+        fornecedor: contatos.filter(c => c.tipo === 'fornecedor').length,
+        total: contatos.length
+      });
     };
-  })();
+    if (id) loadContadores();
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1022,7 +1037,10 @@ export default function ProjectDetailNew() {
         projectId={id!}
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onUpdate={() => setInstallations(storage.getInstallations(id!))}
+        onUpdate={async () => {
+          const updatedInstallations = await storage.getInstallationsByProject(id!);
+          setInstallations(updatedInstallations);
+        }}
       />
 
       {/* Installation Detail Modal */}
@@ -1031,7 +1049,10 @@ export default function ProjectDetailNew() {
           installation={selectedInstallation}
           isOpen={!!selectedInstallation}
           onClose={() => setSelectedInstallation(null)}
-          onUpdate={() => setInstallations(storage.getInstallations(project.id))}
+          onUpdate={async () => {
+            const updatedInstallations = await storage.getInstallationsByProject(project.id);
+            setInstallations(updatedInstallations);
+          }}
         />
       )}
 
