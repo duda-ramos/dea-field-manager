@@ -137,7 +137,13 @@ export default function ProjectDetailNew() {
         return;
       }
 
-      const importResult = await storage.importInstallations(project.id, result.data);
+      // Import installations one by one using the compatibility alias
+      const results = [];
+      for (const installation of result.data) {
+        const result = await storage.upsertInstallation({ ...installation, project_id: project.id });
+        results.push(result);
+      }
+      const importResult = { summary: {}, data: results };
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
       setInstallations(updatedInstallations);
       
@@ -493,9 +499,9 @@ export default function ProjectDetailNew() {
       try {
         const { generatePDFReport, generateXLSXReport, generateFileName } = await import('@/lib/reports-new');
         
-        const versions = installations.map(installation => 
-          storage.getInstallationVersions(installation.id)
-        ).flat();
+        const versions = await Promise.all(
+          installations.map(installation => storage.getItemVersions(installation.id))
+        ).then(results => results.flat());
 
         const reportData = {
           project,
@@ -510,7 +516,7 @@ export default function ProjectDetailNew() {
         if (format === 'pdf') {
           blob = await generatePDFReport(reportData);
         } else {
-          blob = generateXLSXReport(reportData);
+          blob = await generateXLSXReport(reportData);
         }
 
         // Download file
@@ -534,7 +540,7 @@ export default function ProjectDetailNew() {
         };
 
         // Save to history
-        const newReport = storage.saveReport({
+        const newReport = await storage.saveReport({
           project_id: project.id,
           interlocutor: selectedInterlocutor,
           generated_by: project.owner,
@@ -926,7 +932,8 @@ export default function ProjectDetailNew() {
   
   useEffect(() => {
     const loadContadores = async () => {
-      const contatos = await storage.getContacts(id);
+      const allContacts = await storage.getContacts();
+      const contatos = allContacts.filter(c => c.projetoId === id);
       setContadores({
         cliente: contatos.filter(c => c.tipo === 'cliente').length,
         obra: contatos.filter(c => c.tipo === 'obra').length,

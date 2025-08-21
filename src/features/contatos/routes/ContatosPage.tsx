@@ -40,16 +40,31 @@ export default function ContatosPage() {
 
   const loadContatos = async () => {
     if (!id) return;
-    const allContatos = await storage.getContacts(id);
+    const allContacts = await storage.getContacts();
+    const allContatos = allContacts.filter(c => c.projetoId === id);
     setContatos(allContatos);
   };
 
   const handleSaveContato = async (contato: Contato) => {
-    if (editingContato) {
-      await storage.updateContact(contato.id, contato);
-    } else {
-      await storage.saveContact(id!, contato);
-    }
+    // Convert Contato to ProjectContact format
+    const contactData = {
+      id: editingContato?.id || `contato_${Date.now()}`,
+      project_id: id!,
+      projetoId: id!,
+      name: contato.nome,
+      role: contato.tipo,
+      phone: contato.telefone || '',
+      email: contato.email || '',
+      // Keep original fields for compatibility
+      tipo: contato.tipo,
+      nome: contato.nome,
+      empresa: contato.empresa,
+      telefone: contato.telefone,
+      criadoEm: contato.criadoEm || new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    };
+
+    await storage.upsertContact(contactData as any);
     
     await loadContatos();
     setIsFormOpen(false);

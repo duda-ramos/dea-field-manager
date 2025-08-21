@@ -380,20 +380,20 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items
   if (sections.pendencias.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name);
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name);
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name);
   }
 
   if (sections.emAndamento.length > 0) {
     const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name);
   }
 
   // Add footer to all pages
@@ -489,7 +489,7 @@ async function addPavimentoSummaryToPDF(
 }
 
 // Flat section rendering without subgroups
-function addEnhancedSectionToPDF(
+async function addEnhancedSectionToPDF(
   doc: jsPDF, 
   title: string, 
   items: Installation[], 
@@ -497,7 +497,7 @@ function addEnhancedSectionToPDF(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectName?: string
-): number {
+): Promise<number> {
   if (items.length === 0) return yPosition;
 
   // Check if new page needed for section title
@@ -524,7 +524,7 @@ function addEnhancedSectionToPDF(
     });
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = prepareFlatTableData(sortedItems, interlocutor, sectionType);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
 
     // Generate single flat table
     autoTable(doc, {
@@ -624,11 +624,11 @@ function addEnhancedSectionToPDF(
 }
 
 // Prepare flat table data for Pendencias and Em Revisao sections (includes Pavimento and Tipologia)
-function prepareFlatTableData(
+async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao'
-): { columns: string[], rows: any[][] } {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
 
@@ -664,7 +664,7 @@ function prepareFlatTableData(
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
     rows = items.map(item => {
-      const versions = storage.getInstallationVersions(item.id);
+      const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -735,11 +735,11 @@ function getAggregatedColumnStyles(): any {
 }
 
 // Prepare table data based on section type and interlocutor
-function prepareTableData(
+async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): { columns: string[], rows: any[][] } {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
 
@@ -769,7 +769,7 @@ function prepareTableData(
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
     rows = items.map(item => {
-      const versions = storage.getInstallationVersions(item.id);
+      const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -796,11 +796,11 @@ function prepareTableData(
 }
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
-function prepareCompactTableData(
+async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): { columns: string[], rows: any[][] } {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
 
@@ -826,7 +826,7 @@ function prepareCompactTableData(
   } else if (sectionType === 'revisao') {
     columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
     rows = items.map(item => {
-      const versions = storage.getInstallationVersions(item.id);
+      const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -964,7 +964,7 @@ function addSectionToPDF(
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
     rows = sortedItems.map(item => {
-      const versions = storage.getInstallationVersions(item.id);
+      const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -1010,7 +1010,7 @@ function getMotivoPtBr(motivo: string): string {
 }
 
 // Generate XLSX Report
-export function generateXLSXReport(data: ReportData): Blob {
+export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   const sections = calculateReportSections(data);
   const pavimentoSummary = calculatePavimentoSummary(sections);
   const workbook = XLSX.utils.book_new();
@@ -1070,7 +1070,7 @@ export function generateXLSXReport(data: ReportData): Blob {
 
   // Add sections only if they have items with flat formatting
   if (sections.pendencias.length > 0) {
-    addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
+    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
   }
 
   if (sections.concluidas.length > 0) {
@@ -1078,7 +1078,7 @@ export function generateXLSXReport(data: ReportData): Blob {
   }
 
   if (sections.emRevisao.length > 0) {
-    addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
+    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
   }
 
   if (sections.emAndamento.length > 0) {
@@ -1090,7 +1090,7 @@ export function generateXLSXReport(data: ReportData): Blob {
   return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
-function addSectionToXLSX(
+async function addSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -1133,7 +1133,7 @@ function addSectionToXLSX(
   } else if (sectionType === 'revisao') {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
     data = sortedItems.map(item => {
-      const versions = storage.getInstallationVersions(item.id);
+      const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -1162,7 +1162,7 @@ function addSectionToXLSX(
 }
 
 // Enhanced XLSX section with hierarchical structure (Pavimento → Tipologia → Items)
-function addEnhancedSectionToXLSX(
+async function addEnhancedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -1170,7 +1170,7 @@ function addEnhancedSectionToXLSX(
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
 ) {
   // Use compact columns (without Pavimento and Tipologia)
-  const { columns: compactColumns } = prepareCompactTableData([], interlocutor, sectionType);
+  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType);
   const allData: any[][] = [compactColumns]; // Headers
 
   // Group by pavimento
@@ -1233,7 +1233,7 @@ function addEnhancedSectionToXLSX(
       });
 
       // Add items data (compact format)
-      const { rows } = prepareCompactTableData(sortedItems, interlocutor, sectionType);
+      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType);
       allData.push(...rows);
     }
 
@@ -1252,7 +1252,7 @@ function addEnhancedSectionToXLSX(
 }
 
 // Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
-function addFlatSectionToXLSX(
+async function addFlatSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -1269,7 +1269,7 @@ function addFlatSectionToXLSX(
   });
 
   // Prepare flat table data (includes Pavimento and Tipologia)
-  const { columns, rows } = prepareFlatTableData(sortedItems, interlocutor, sectionType);
+  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
 
   const wsData = [columns, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);

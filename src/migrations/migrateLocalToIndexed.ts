@@ -162,12 +162,7 @@ export async function migrateLocalToIndexedIfNeeded() {
   // Escrita transacional no Dexie
   await db.transaction(
     'rw',
-    db.projects,
-    db.installations,
-    db.contacts,
-    db.budgets,
-    db.itemVersions,
-    db.files,
+    [db.projects, db.installations, db.contacts, db.budgets, db.itemVersions, db.files],
     async () => {
       if (projects.length) await db.projects.bulkPut(projects);
       if (installations.length) await db.installations.bulkPut(installations);

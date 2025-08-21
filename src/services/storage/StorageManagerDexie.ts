@@ -103,7 +103,7 @@ export const StorageManagerDexie = {
 (StorageManagerDexie as any).importInstallations = async (projectId: string, installations: any[]) => {
   const results = [];
   for (const installation of installations) {
-    const result = await StorageManagerDexie.upsertInstallation({ ...installation, projectId });
+    const result = await StorageManagerDexie.upsertInstallation({ ...installation, project_id: projectId });
     results.push(result);
   }
   return results;
