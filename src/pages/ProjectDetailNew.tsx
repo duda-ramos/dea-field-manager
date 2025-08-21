@@ -137,13 +137,26 @@ export default function ProjectDetailNew() {
         return;
       }
 
-      // Import installations one by one using the compatibility alias
+      // Import installations one by one  
       const results = [];
       for (const installation of result.data) {
-        const result = await storage.upsertInstallation({ ...installation, project_id: project.id });
-        results.push(result);
+        // Create a properly typed Installation
+        const installationData = {
+          ...installation,
+          id: `install_${Date.now()}_${Math.random()}`,
+          project_id: project.id,
+          tipologia: installation.tipologia || 'Tipo Padrão',
+          codigo: installation.codigo || 0,
+          descricao: installation.descricao || 'Descrição padrão',
+          quantidade: installation.quantidade || 1,
+          installed: false,
+          photos: [],
+          revisao: 1
+        };
+        const installResult = await storage.upsertInstallation(installationData);
+        results.push(installResult);
       }
-      const importResult = { summary: {}, data: results };
+      const importResult = { summary: { total: results.length }, data: results };
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
       setInstallations(updatedInstallations);
       

@@ -663,7 +663,7 @@ async function prepareFlatTableData(
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = items.map(item => {
+    rows = await Promise.all(items.map(async item => {
       const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -676,7 +676,7 @@ async function prepareFlatTableData(
         item.revisao.toString(),
         motivo
       ];
-    });
+    }));
   }
 
   return { columns, rows };
@@ -768,7 +768,7 @@ async function prepareTableData(
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = items.map(item => {
+    rows = await Promise.all(items.map(async item => {
       const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -781,7 +781,7 @@ async function prepareTableData(
         item.revisao.toString(),
         motivo
       ];
-    });
+    }));
   } else {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
     rows = items.map(item => [
@@ -825,7 +825,7 @@ async function prepareCompactTableData(
     }
   } else if (sectionType === 'revisao') {
     columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = items.map(item => {
+    rows = await Promise.all(items.map(async item => {
       const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -836,7 +836,7 @@ async function prepareCompactTableData(
         item.revisao.toString(),
         motivo
       ];
-    });
+    }));
   } else {
     columns = ['Código', 'Descrição'];
     rows = items.map(item => [
@@ -909,14 +909,14 @@ function getCompactColumnStyles(columns: string[]): any {
   return styles;
 }
 
-function addSectionToPDF(
+async function addSectionToPDF(
   doc: jsPDF, 
   title: string, 
   items: Installation[], 
   yPosition: number, 
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): number {
+): Promise<number> {
   // Add new page if needed
   if (yPosition > 250) {
     doc.addPage();
@@ -963,7 +963,7 @@ function addSectionToPDF(
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = sortedItems.map(item => {
+    rows = await Promise.all(sortedItems.map(async item => {
       const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -976,7 +976,7 @@ function addSectionToPDF(
         item.revisao.toString(),
         motivo
       ];
-    });
+    }));
   } else {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
     rows = sortedItems.map(item => [
@@ -1132,7 +1132,7 @@ async function addSectionToXLSX(
     }
   } else if (sectionType === 'revisao') {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    data = sortedItems.map(item => {
+    data = await Promise.all(sortedItems.map(async item => {
       const versions = await storage.getItemVersions(item.id);
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
@@ -1145,7 +1145,7 @@ async function addSectionToXLSX(
         item.revisao,
         motivo
       ];
-    });
+    }));
   } else {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
     data = sortedItems.map(item => [
