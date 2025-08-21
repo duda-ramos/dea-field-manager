@@ -1,18 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { RefreshCw, Loader2, Wifi, WifiOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { fullSync } from '@/services/sync/sync';
 import { supabase } from '@/integrations/supabase/client';
+import { syncStateManager, type SyncState } from '@/services/sync/syncState';
 
 export function SyncButton() {
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState());
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = syncStateManager.subscribe(setSyncState);
+    return unsubscribe;
+  }, []);
 
   const handleSync = async () => {
     try {
-      setIsSyncing(true);
-      
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -24,11 +30,24 @@ export function SyncButton() {
         return;
       }
 
-      await fullSync();
+      if (!syncState.isOnline) {
+        toast({
+          title: "Sem Conexão",
+          description: "Conecte-se à internet para sincronizar os dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const result = await fullSync();
       
+      const totalPushed = Object.values(result.pushMetrics.pushed).reduce((sum, count) => sum + count, 0);
+      const totalPulled = Object.values(result.pullMetrics.pulled).reduce((sum, count) => sum + count, 0);
+      const totalDeleted = Object.values(result.pushMetrics.deleted).reduce((sum, count) => sum + count, 0);
+
       toast({
         title: "Sincronização Concluída",
-        description: "Dados sincronizados com sucesso!"
+        description: `Enviados: ${totalPushed} | Recebidos: ${totalPulled} | Removidos: ${totalDeleted}`
       });
     } catch (error) {
       console.error('Sync error:', error);
@@ -37,24 +56,89 @@ export function SyncButton() {
         description: error instanceof Error ? error.message : "Erro desconhecido ao sincronizar dados.",
         variant: "destructive"
       });
-    } finally {
-      setIsSyncing(false);
+    }
+  };
+
+  const getStatusIcon = () => {
+    if (!syncState.isOnline) return <WifiOff className="h-4 w-4" />;
+    if (syncState.status === 'syncing') return <Loader2 className="h-4 w-4 animate-spin" />;
+    if (syncState.status === 'error') return <AlertCircle className="h-4 w-4" />;
+    return <RefreshCw className="h-4 w-4" />;
+  };
+
+  const getStatusText = () => {
+    switch (syncState.status) {
+      case 'offline': return 'Offline';
+      case 'syncing': return 'Sincronizando...';
+      case 'error': return 'Erro';
+      default: return 'Sincronizar';
+    }
+  };
+
+  const getStatusVariant = () => {
+    switch (syncState.status) {
+      case 'offline': return 'secondary';
+      case 'syncing': return 'default';
+      case 'error': return 'destructive';
+      default: return 'outline';
     }
   };
 
   return (
-    <Button 
-      onClick={handleSync} 
-      disabled={isSyncing}
-      variant="outline"
-      size="sm"
-    >
-      {isSyncing ? (
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : (
-        <RefreshCw className="h-4 w-4 mr-2" />
+    <div className="flex items-center gap-2">
+      {/* Status indicator */}
+      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+        {syncState.isOnline ? (
+          <Wifi className="h-4 w-4 text-green-500" />
+        ) : (
+          <WifiOff className="h-4 w-4 text-red-500" />
+        )}
+        
+        {syncState.lastSyncAt && (
+          <span className="text-xs">
+            {new Date(syncState.lastSyncAt).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {/* Pending changes badge */}
+      {syncState.pendingPush > 0 && (
+        <Badge variant="secondary" className="px-2 py-1 text-xs">
+          {syncState.pendingPush} pendentes
+        </Badge>
       )}
-      {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-    </Button>
+
+      {/* Sync button */}
+      <Button 
+        onClick={handleSync} 
+        disabled={syncState.status === 'syncing' || !syncState.isOnline}
+        variant={getStatusVariant()}
+        size="sm"
+        className="min-w-[120px]"
+      >
+        {getStatusIcon()}
+        <span className="ml-2">{getStatusText()}</span>
+      </Button>
+
+      {/* Progress indicator */}
+      {syncState.progress && (
+        <div className="flex items-center gap-2 text-sm">
+          <Progress 
+            value={(syncState.progress.current / syncState.progress.total) * 100} 
+            className="w-20 h-2"
+          />
+          <span className="text-xs text-muted-foreground">
+            {syncState.progress.operation}
+          </span>
+        </div>
+      )}
+
+      {/* Error indicator */}
+      {syncState.status === 'error' && syncState.lastError && (
+        <div className="text-xs text-red-500 max-w-48 truncate" title={syncState.lastError}>
+          {syncState.lastError}
+        </div>
+      )}
+    </div>
   );
 }

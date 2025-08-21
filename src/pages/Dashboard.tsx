@@ -11,6 +11,7 @@ import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lu
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { SyncButton } from "@/components/sync-button";
+import { SyncStatusBar } from "@/components/sync-status-bar";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -174,6 +175,9 @@ export default function Dashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Sync Status Bar */}
+        <SyncStatusBar />
+
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard title="Total de Projetos" value={totalProjects} icon={FolderOpen} variant="default" />
