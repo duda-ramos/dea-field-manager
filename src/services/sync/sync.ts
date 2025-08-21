@@ -4,9 +4,12 @@ import { getLastPulledAt, setLastPulledAt, setSyncStatus } from './localFlags';
 import { withRetry, createBatches, createEmptyMetrics, logSyncMetrics, type SyncMetrics } from './utils';
 import { syncStateManager } from './syncState';
 import { fileSyncService } from './fileSync';
+import { rateLimiter } from './rateLimiter';
+import { logger } from '@/services/logger';
+import { getFeatureFlag } from '@/config/featureFlags';
 import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
 
 // Timestamp normalization helpers
