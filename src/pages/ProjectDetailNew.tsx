@@ -60,7 +60,7 @@ export default function ProjectDetailNew() {
     
     setProject(projectData);
     const projectInstallations = await storage.getInstallationsByProject(id);
-    const projectReports = await storage.getReports();
+    const projectReports = await (storage as any).getReports();
     setInstallations(projectInstallations);
     setReports(projectReports);
   };
@@ -137,24 +137,23 @@ export default function ProjectDetailNew() {
         return;
       }
 
-      // Import installations one by one  
+      // Import installations - handle the data structure properly
       const results = [];
-      for (const installation of result.data) {
-        // Create a properly typed Installation
-        const installationData = {
-          ...installation,
-          id: `install_${Date.now()}_${Math.random()}`,
-          project_id: project.id,
-          tipologia: installation.tipologia || 'Tipo Padrão',
-          codigo: installation.codigo || 0,
-          descricao: installation.descricao || 'Descrição padrão',
-          quantidade: installation.quantidade || 1,
-          installed: false,
-          photos: [],
-          revisao: 1
-        };
-        const installResult = await storage.upsertInstallation(installationData);
-        results.push(installResult);
+      for (const importData of result.data) {
+        // importData should have structure like { pavimento: string, items: Installation[] }
+        if (importData.items && Array.isArray(importData.items)) {
+          for (const installation of importData.items) {
+            const installationData = {
+              ...installation,
+              id: installation.id || `install_${Date.now()}_${Math.random()}`,
+              project_id: project.id,
+              updated_at: new Date().toISOString(),
+              revisado: false
+            };
+            const installResult = await storage.upsertInstallation(installationData);
+            results.push(installResult);
+          }
+        }
       }
       const importResult = { summary: { total: results.length }, data: results };
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
@@ -553,7 +552,7 @@ export default function ProjectDetailNew() {
         };
 
         // Save to history
-        const newReport = await storage.saveReport({
+        const newReport = await (storage as any).saveReport({
           project_id: project.id,
           interlocutor: selectedInterlocutor,
           generated_by: project.owner,
