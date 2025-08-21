@@ -141,8 +141,8 @@ export function SyncButton() {
 
       {/* Error indicator */}
       {syncState.status === 'error' && syncState.lastError && (
-        <div className="text-xs text-red-500 max-w-48 truncate" title={syncState.lastError}>
-          {syncState.lastError}
+        <div className="text-xs text-red-500 max-w-48 truncate" title={syncState.lastError.message}>
+          {syncState.lastError.message}
         </div>
       )}
     </div>

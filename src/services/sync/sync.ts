@@ -624,6 +624,8 @@ export async function syncPush(): Promise<SyncMetrics> {
   const metrics = createEmptyMetrics();
   console.log('🚀 Starting push sync...');
   
+  syncStateManager.setSyncing('push');
+  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
@@ -648,6 +650,8 @@ export async function syncPush(): Promise<SyncMetrics> {
 export async function syncPull(): Promise<SyncMetrics> {
   const metrics = createEmptyMetrics();
   console.log('🚀 Starting pull sync...');
+  
+  syncStateManager.setSyncing('pull');
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -678,7 +682,7 @@ export async function syncPull(): Promise<SyncMetrics> {
 export async function fullSync(): Promise<{ pushMetrics: SyncMetrics; pullMetrics: SyncMetrics }> {
   console.log('🔄 Starting full sync...');
   
-  syncStateManager.setSyncing();
+  syncStateManager.setSyncing('full');
   
   try {
     if (!navigator.onLine) {
@@ -702,7 +706,17 @@ export async function fullSync(): Promise<{ pushMetrics: SyncMetrics; pullMetric
     logSyncMetrics(totalMetrics);
     console.log('✅ Full sync completed successfully');
     
-    syncStateManager.setIdle();
+    syncStateManager.setIdle({
+      tablesProcessed: {
+        projects: pushMetrics.pushed.projects + pullMetrics.pulled.projects,
+        installations: pushMetrics.pushed.installations + pullMetrics.pulled.installations,
+        contacts: pushMetrics.pushed.contacts + pullMetrics.pulled.contacts,
+        budgets: pushMetrics.pushed.budgets + pullMetrics.pulled.budgets,
+        itemVersions: pushMetrics.pushed.itemVersions + pullMetrics.pulled.itemVersions,
+        files: pushMetrics.pushed.files + pullMetrics.pulled.files
+      }
+    });
+    
     return { pushMetrics, pullMetrics };
   } catch (error) {
     console.error('❌ Full sync failed:', error);

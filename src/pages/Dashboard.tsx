@@ -12,6 +12,7 @@ import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { SyncButton } from "@/components/sync-button";
 import { SyncStatusBar } from "@/components/sync-status-bar";
+import { SyncStatusPanel } from "@/components/sync-status-panel";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,6 +178,11 @@ export default function Dashboard() {
       <div className="container mx-auto px-4 py-8">
         {/* Sync Status Bar */}
         <SyncStatusBar />
+
+        {/* Sync Status Panel */}
+        <div className="mb-8">
+          <SyncStatusPanel />
+        </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
