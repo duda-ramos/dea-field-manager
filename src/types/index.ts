@@ -109,10 +109,12 @@ export interface ProjectReport {
 export interface ProjectFile {
   id: string;
   project_id: string;
+  installation_id?: string;
   name: string;
   size: number;
   type: string;
-  url: string;
+  url: string; // Legacy blob URLs or empty for storage-based files
+  storage_path?: string; // Path in Supabase Storage
   uploaded_at: string;
   // Local timestamp for compatibility
   updatedAt?: number;

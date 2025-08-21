@@ -3,6 +3,7 @@ import { db } from '@/db/indexedDb';
 import { getLastPulledAt, setLastPulledAt, setSyncStatus } from './localFlags';
 import { withRetry, createBatches, createEmptyMetrics, logSyncMetrics, type SyncMetrics } from './utils';
 import { syncStateManager } from './syncState';
+import { fileSyncService } from './fileSync';
 import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
 
 const BATCH_SIZE = 500;

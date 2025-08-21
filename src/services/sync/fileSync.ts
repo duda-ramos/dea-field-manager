@@ -1,0 +1,198 @@
+import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/db/indexedDb';
+import { storageService } from '@/services/storage';
+import type { ProjectFile } from '@/types';
+
+/**
+ * Sync files with Supabase Storage
+ */
+export class FileSyncService {
+  /**
+   * Push local files to Supabase (metadata to DB, files to Storage)
+   */
+  async pushFiles(): Promise<{ pushed: number; errors: string[] }> {
+    const dirtyFiles = await db.files.where('_dirty').equals(1).toArray();
+    const errors: string[] = [];
+    let pushed = 0;
+
+    for (const file of dirtyFiles) {
+      try {
+        if (file._deleted) {
+          // Handle deletion
+          await this.handleFileDeletion(file);
+        } else {
+          // Handle upsert
+          await this.handleFileUpsert(file);
+        }
+        
+        // Clear dirty flag
+        await db.files.update(file.id, { _dirty: 0 });
+        pushed++;
+      } catch (error) {
+        console.error(`Failed to sync file ${file.id}:`, error);
+        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return { pushed, errors };
+  }
+
+  /**
+   * Pull files metadata from Supabase DB
+   */
+  async pullFiles(lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
+    const { data: remoteFiles, error } = await supabase
+      .from('files')
+      .select('*')
+      .gt('updated_at', new Date(lastPulledAt).toISOString())
+      .order('updated_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to pull files: ${error.message}`);
+    }
+
+    const errors: string[] = [];
+    let pulled = 0;
+
+    for (const remoteFile of remoteFiles || []) {
+      try {
+        const localFile = await db.files.get(remoteFile.id);
+        
+        if (!localFile || this.shouldUpdateLocal(localFile, remoteFile)) {
+          // Convert remote file to local format
+          const fileRecord: ProjectFile = {
+            id: remoteFile.id,
+            project_id: remoteFile.project_id,
+            installation_id: remoteFile.installation_id,
+            name: remoteFile.name,
+            size: remoteFile.size,
+            type: remoteFile.type,
+            url: remoteFile.url || '',
+            storage_path: remoteFile.storage_path,
+            uploaded_at: remoteFile.created_at,
+            updatedAt: new Date(remoteFile.updated_at).getTime(),
+            createdAt: new Date(remoteFile.created_at).getTime(),
+            _dirty: 0,
+            _deleted: 0
+          };
+
+          await db.files.put(fileRecord);
+          pulled++;
+        }
+      } catch (error) {
+        console.error(`Failed to process remote file ${remoteFile.id}:`, error);
+        errors.push(`${remoteFile.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return { pulled, errors };
+  }
+
+  /**
+   * Upload pending files to Storage (for offline uploads)
+   */
+  async uploadPendingFiles(): Promise<{ uploaded: number; errors: string[] }> {
+    // Find files that have blob URLs but no storage_path (offline uploads)
+    const pendingFiles = await db.files
+      .where('storage_path')
+      .equals(undefined)
+      .and(file => file.url.startsWith('blob:') && !file._deleted)
+      .toArray();
+
+    const errors: string[] = [];
+    let uploaded = 0;
+
+    for (const file of pendingFiles) {
+      try {
+        // Convert blob URL back to File object
+        const response = await fetch(file.url);
+        const blob = await response.blob();
+        const fileObject = new File([blob], file.name, { type: file.type });
+
+        // Upload to storage
+        const { storagePath } = await storageService.uploadFile(
+          fileObject,
+          file.project_id,
+          file.installation_id
+        );
+
+        // Update record with storage path and mark as dirty for next push
+        await db.files.update(file.id, {
+          storage_path: storagePath,
+          url: '', // Clear blob URL
+          _dirty: 1 // Mark for push to sync metadata
+        });
+
+        // Clean up blob URL
+        URL.revokeObjectURL(file.url);
+        
+        uploaded++;
+      } catch (error) {
+        console.error(`Failed to upload pending file ${file.id}:`, error);
+        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return { uploaded, errors };
+  }
+
+  private async handleFileDeletion(file: ProjectFile): Promise<void> {
+    // Delete from storage if it exists
+    if (file.storage_path) {
+      try {
+        await storageService.deleteFile(file.storage_path);
+      } catch (error) {
+        // Storage deletion failed, but continue with DB deletion
+        console.warn(`Failed to delete file from storage: ${error}`);
+      }
+    }
+
+    // Delete metadata from Supabase DB
+    const { error } = await supabase
+      .from('files')
+      .delete()
+      .eq('id', file.id);
+
+    if (error) {
+      throw new Error(`Failed to delete file metadata: ${error.message}`);
+    }
+
+    // Remove from local DB
+    await db.files.delete(file.id);
+  }
+
+  private async handleFileUpsert(file: ProjectFile): Promise<void> {
+    // Get current user for user_id
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Prepare data for Supabase (remove local-only fields)
+    const { updatedAt, createdAt, _dirty, _deleted, ...fileData } = file;
+    
+    const supabaseFile = {
+      ...fileData,
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+      created_at: fileData.uploaded_at // Use uploaded_at as created_at
+    };
+
+    // Upsert metadata to Supabase DB
+    const { error } = await supabase
+      .from('files')
+      .upsert(supabaseFile);
+
+    if (error) {
+      throw new Error(`Failed to upsert file metadata: ${error.message}`);
+    }
+  }
+
+  private shouldUpdateLocal(localFile: ProjectFile, remoteFile: any): boolean {
+    const localTimestamp = localFile.updatedAt || 0;
+    const remoteTimestamp = new Date(remoteFile.updated_at).getTime();
+    
+    // Update if remote is newer (last-write-wins)
+    return remoteTimestamp > localTimestamp;
+  }
+}
+
+export const fileSyncService = new FileSyncService();

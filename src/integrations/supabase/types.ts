@@ -107,9 +107,10 @@ export type Database = {
           name: string
           project_id: string | null
           size: number
+          storage_path: string | null
           type: string
           updated_at: string
-          url: string
+          url: string | null
           user_id: string
         }
         Insert: {
@@ -119,9 +120,10 @@ export type Database = {
           name: string
           project_id?: string | null
           size: number
+          storage_path?: string | null
           type: string
           updated_at?: string
-          url: string
+          url?: string | null
           user_id: string
         }
         Update: {
@@ -131,9 +133,10 @@ export type Database = {
           name?: string
           project_id?: string | null
           size?: number
+          storage_path?: string | null
           type?: string
           updated_at?: string
-          url?: string
+          url?: string | null
           user_id?: string
         }
         Relationships: [

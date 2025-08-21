@@ -4,23 +4,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, File, X, Download, Trash2, Eye } from 'lucide-react';
+import { Upload, File, X, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
+import { storageService } from '@/services/storage';
+import type { ProjectFile } from '@/types';
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  url: string;
+interface UploadedFile extends ProjectFile {
   uploadedAt: Date;
-  projectId: string;
 }
 
 interface FileUploadProps {
   projectId: string;
+  installationId?: string;
   onFilesChange?: (files: UploadedFile[]) => void;
   acceptedTypes?: string[];
   maxFileSize?: number; // in MB
@@ -28,7 +25,8 @@ interface FileUploadProps {
 }
 
 export function FileUpload({ 
-  projectId, 
+  projectId,
+  installationId,
   onFilesChange, 
   acceptedTypes = ['.pdf', '.xlsx', '.xls', '.doc', '.docx', '.png', '.jpg', '.jpeg'],
   maxFileSize = 10,
@@ -39,6 +37,9 @@ export function FileUpload({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [currentPreviewFile, setCurrentPreviewFile] = useState<UploadedFile | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -68,44 +69,41 @@ export function FileUpload({
   const uploadFile = async (file: File): Promise<UploadedFile> => {
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Simulate upload progress
     setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
 
-    // Create blob URL for local storage
-    const url = URL.createObjectURL(file);
+    try {
+      let uploadedFileRecord: ProjectFile;
 
-    // Simulate upload progress
-    for (let progress = 0; progress <= 100; progress += 10) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      setUploadProgress(prev => ({ ...prev, [fileId]: progress }));
+      if (isOnline) {
+        // Upload to Supabase Storage
+        setUploadProgress(prev => ({ ...prev, [fileId]: 25 }));
+        uploadedFileRecord = await storageService.uploadAndSaveFile(file, projectId, installationId);
+        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
+      } else {
+        // Queue for offline upload
+        setUploadProgress(prev => ({ ...prev, [fileId]: 50 }));
+        uploadedFileRecord = await storageService.queueOfflineUpload(file, projectId, installationId);
+        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
+      }
+
+      const uploadedFile: UploadedFile = {
+        ...uploadedFileRecord,
+        uploadedAt: new Date(uploadedFileRecord.uploaded_at)
+      };
+
+      setUploadProgress(prev => {
+        const { [fileId]: _, ...rest } = prev;
+        return rest;
+      });
+
+      return uploadedFile;
+    } catch (error) {
+      setUploadProgress(prev => {
+        const { [fileId]: _, ...rest } = prev;
+        return rest;
+      });
+      throw error;
     }
-
-    const uploadedFile: UploadedFile = {
-      id: fileId,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      url,
-      uploadedAt: new Date(),
-      projectId
-    };
-
-    await Storage.upsertFile({
-      id: fileId,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      url,
-      uploadedAt: uploadedFile.uploadedAt.toISOString(),
-      projectId
-    } as any);
-
-    setUploadProgress(prev => {
-      const { [fileId]: _, ...rest } = prev;
-      return rest;
-    });
-
-    return uploadedFile;
   };
 
   const handleFiles = async (fileList: FileList | File[]) => {
@@ -169,32 +167,79 @@ export function FileUpload({
   };
 
   const removeFile = async (fileId: string) => {
-    setFiles(prev => {
-      const updated = prev.filter(f => f.id !== fileId);
-      onFilesChange?.(updated);
-      return updated;
-    });
+    try {
+      setFiles(prev => {
+        const updated = prev.filter(f => f.id !== fileId);
+        onFilesChange?.(updated);
+        return updated;
+      });
 
-    await Storage.deleteFile(fileId);
+      if (isOnline) {
+        await storageService.deleteFileCompletely(fileId);
+      } else {
+        // Mark for deletion when online
+        await Storage.deleteFile(fileId);
+      }
 
-    toast({
-      title: "Arquivo removido",
-      description: "O arquivo foi removido com sucesso."
-    });
+      toast({
+        title: "Arquivo removido",
+        description: isOnline ? "O arquivo foi removido com sucesso." : "Arquivo marcado para remoção. Será removido quando online."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao remover arquivo",
+        description: "Houve um problema ao remover o arquivo. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const downloadFile = (file: UploadedFile) => {
-    const a = document.createElement('a');
-    a.href = file.url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const downloadFile = async (file: UploadedFile) => {
+    try {
+      let downloadUrl = file.url;
+      
+      if (file.storage_path && isOnline) {
+        downloadUrl = await storageService.getFilePreviewUrl(file);
+      }
+      
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      toast({
+        title: "Erro no download",
+        description: "Não foi possível baixar o arquivo. Verifique sua conexão.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const openPreview = (file: UploadedFile) => {
+  const openPreview = async (file: UploadedFile) => {
     setCurrentPreviewFile(file);
     setIsPreviewOpen(true);
+    setIsLoadingPreview(true);
+    
+    try {
+      let url = file.url;
+      
+      if (file.storage_path && isOnline) {
+        url = await storageService.getFilePreviewUrl(file);
+      }
+      
+      setPreviewUrl(url);
+    } catch (error) {
+      toast({
+        title: "Erro na prévia",
+        description: "Não foi possível carregar a prévia. Verifique sua conexão.",
+        variant: "destructive"
+      });
+      setPreviewUrl('');
+    } finally {
+      setIsLoadingPreview(false);
+    }
   };
 
   const getFileExtension = (filename: string) => {
@@ -209,12 +254,40 @@ export function FileUpload({
   const renderFilePreview = () => {
     if (!currentPreviewFile) return null;
 
+    if (isLoadingPreview) {
+      return (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando prévia...</p>
+        </div>
+      );
+    }
+
+    if (!previewUrl) {
+      return (
+        <div className="text-center py-12">
+          <File className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Preview não disponível</h3>
+          <p className="text-muted-foreground">
+            {!isOnline ? "Conecte-se à internet para ver a prévia." : "Erro ao carregar prévia."}
+          </p>
+          <Button 
+            className="mt-4" 
+            onClick={() => downloadFile(currentPreviewFile)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Baixar arquivo
+          </Button>
+        </div>
+      );
+    }
+
     const extension = getFileExtension(currentPreviewFile.name);
 
     if (extension === 'pdf') {
       return (
         <iframe
-          src={currentPreviewFile.url}
+          src={previewUrl}
           className="w-full h-[600px] border rounded"
           title={currentPreviewFile.name}
         />
@@ -224,7 +297,7 @@ export function FileUpload({
     if (['png', 'jpg', 'jpeg'].includes(extension)) {
       return (
         <img
-          src={currentPreviewFile.url}
+          src={previewUrl}
           alt={currentPreviewFile.name}
           className="max-w-full max-h-[600px] object-contain mx-auto"
         />
@@ -249,23 +322,61 @@ export function FileUpload({
     );
   };
 
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Load files from IndexedDB on component mount
   useEffect(() => {
     const load = async () => {
-      const storedFiles = await Storage.getFilesByProject(projectId);
-      const filesWithDates = storedFiles.map((file: any) => ({
+      let storedFiles: ProjectFile[];
+      
+      if (installationId) {
+        storedFiles = await Storage.getFilesByInstallation(installationId);
+      } else {
+        storedFiles = await Storage.getFilesByProject(projectId);
+      }
+      
+      const filesWithDates = storedFiles.map((file: ProjectFile) => ({
         ...file,
-        uploadedAt: new Date(file.uploadedAt),
-        projectId
-      }));
+        uploadedAt: new Date(file.uploaded_at)
+      })) as UploadedFile[];
+      
       setFiles(filesWithDates);
       onFilesChange?.(filesWithDates);
     };
     load();
-  }, [projectId, onFilesChange]);
+  }, [projectId, installationId, onFilesChange]);
 
   return (
     <div className={cn("space-y-4", className)}>
+      {/* Network Status */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <>
+              <Wifi className="h-4 w-4 text-green-500" />
+              <span className="text-sm text-green-500">Online</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-4 w-4 text-orange-500" />
+              <span className="text-sm text-orange-500">Offline - arquivos serão sincronizados quando conectar</span>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Upload Area */}
       <Card>
         <CardContent className="p-6">
@@ -280,9 +391,13 @@ export function FileUpload({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
           >
-            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            {isOnline ? (
+              <CloudUpload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            ) : (
+              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            )}
             <h3 className="text-lg font-semibold mb-2">
-              Enviar arquivos de orçamento
+              {isOnline ? "Enviar arquivos para nuvem" : "Adicionar arquivos localmente"}
             </h3>
             <p className="text-muted-foreground mb-4">
               Arraste e solte os arquivos aqui ou clique para selecionar
@@ -295,6 +410,8 @@ export function FileUpload({
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
               Tipos aceitos: {acceptedTypes.join(', ')} | Tamanho máximo: {maxFileSize}MB
+              {!isOnline && <br />}
+              {!isOnline && "⚠️ Arquivos serão enviados à nuvem quando voltar online"}
             </p>
           </div>
           
@@ -341,13 +458,26 @@ export function FileUpload({
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <File className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      <File className="h-5 w-5 text-muted-foreground" />
+                      {file.storage_path ? (
+                        <CloudUpload className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <div className="h-3 w-3 rounded-full bg-orange-500" />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{file.name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{formatFileSize(file.size)}</span>
                         <span>•</span>
                         <span>{file.uploadedAt.toLocaleDateString('pt-BR')}</span>
+                        {!file.storage_path && !isOnline && (
+                          <>
+                            <span>•</span>
+                            <span className="text-orange-500">Pendente upload</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
