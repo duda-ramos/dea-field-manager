@@ -47,14 +47,20 @@ jobs:
         env:
           NODE_OPTIONS: --dns-result-order=ipv4first
 
-      - name: Install dependencies (retry + registry fallback, include dev)
+      - name: Install deps (prefer npm ci, retry + fallback)
         if: steps.degraded.outputs.degraded == 'false'
         shell: bash
         env:
           NPM_CONFIG_PRODUCTION: "false"
         run: |
           set -e
-          attempt() { npm i --no-audit --no-fund --include=dev; }
+          attempt() {
+            if [ -f package-lock.json ]; then
+              npm ci --no-audit --no-fund
+            else
+              npm i --no-audit --no-fund --include=dev
+            fi
+          }
           fallback_registry() {
             echo "⚠️ switching registry to npmmirror fallback..."
             npm config set registry https://registry.npmmirror.com
@@ -62,35 +68,15 @@ jobs:
           }
           for i in 1 2 3; do
             if attempt; then
-              echo "Dependencies installed on attempt $i (npmjs)"
-              break
+              echo "Dependencies installed on attempt $i ($(npm config get registry))"; break
             fi
-            echo "npm install attempt $i failed on npmjs; retrying in $((i*10))s..."
+            echo "install attempt $i failed; retry in $((i*10))s"
             npm cache clean --force || true
             sleep $((i*10))
             if [ "$i" -eq 3 ]; then
               fallback_registry
             fi
           done
-          if [ "$(npm config get registry)" = "https://registry.npmmirror.com" ]; then
-            for j in 1 2; do
-              if attempt; then
-                echo "Dependencies installed on attempt $j (npmmirror)"
-                break
-              fi
-              echo "npm install attempt $j failed on npmmirror; retrying in $((j*10))s..."
-              npm cache clean --force || true
-              sleep $((j*10))
-              if [ "$j" -eq 2 ]; then
-                echo "Final attempt failed."; exit 1
-              fi
-            done
-          fi
-
-          echo "----- INSTALLED TOP-LEVEL -----"
-          npm ls --depth=0 || true
-          echo "----- CHECK VITE BIN -----"
-          test -f node_modules/vite/bin/vite.js && echo "vite bin OK" || echo "vite bin MISSING"
 
       - name: Diagnose install
         if: steps.degraded.outputs.degraded == 'false'
@@ -210,14 +196,20 @@ jobs:
         env:
           NODE_OPTIONS: --dns-result-order=ipv4first
 
-      - name: Install dependencies (retry + registry fallback, include dev)
+      - name: Install deps (prefer npm ci, retry + fallback)
         if: steps.degraded.outputs.degraded == 'false'
         shell: bash
         env:
           NPM_CONFIG_PRODUCTION: "false"
         run: |
           set -e
-          attempt() { npm i --no-audit --no-fund --include=dev; }
+          attempt() {
+            if [ -f package-lock.json ]; then
+              npm ci --no-audit --no-fund
+            else
+              npm i --no-audit --no-fund --include=dev
+            fi
+          }
           fallback_registry() {
             echo "⚠️ switching registry to npmmirror fallback..."
             npm config set registry https://registry.npmmirror.com
@@ -225,35 +217,15 @@ jobs:
           }
           for i in 1 2 3; do
             if attempt; then
-              echo "Dependencies installed on attempt $i (npmjs)"
-              break
+              echo "Dependencies installed on attempt $i ($(npm config get registry))"; break
             fi
-            echo "npm install attempt $i failed on npmjs; retrying in $((i*10))s..."
+            echo "install attempt $i failed; retry in $((i*10))s"
             npm cache clean --force || true
             sleep $((i*10))
             if [ "$i" -eq 3 ]; then
               fallback_registry
             fi
           done
-          if [ "$(npm config get registry)" = "https://registry.npmmirror.com" ]; then
-            for j in 1 2; do
-              if attempt; then
-                echo "Dependencies installed on attempt $j (npmmirror)"
-                break
-              fi
-              echo "npm install attempt $j failed on npmmirror; retrying in $((j*10))s..."
-              npm cache clean --force || true
-              sleep $((j*10))
-              if [ "$j" -eq 2 ]; then
-                echo "Final attempt failed."; exit 1
-              fi
-            done
-          fi
-
-          echo "----- INSTALLED TOP-LEVEL -----"
-          npm ls --depth=0 || true
-          echo "----- CHECK VITE BIN -----"
-          test -f node_modules/vite/bin/vite.js && echo "vite bin OK" || echo "vite bin MISSING"
 
       - name: Diagnose install
         if: steps.degraded.outputs.degraded == 'false'
