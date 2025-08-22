@@ -62,13 +62,17 @@ export class FileSyncService {
           // Convert remote file to local format
           const fileRecord: ProjectFile = {
             id: remoteFile.id,
+            projectId: remoteFile.project_id,
             project_id: remoteFile.project_id,
+            installationId: remoteFile.installation_id,
             installation_id: remoteFile.installation_id,
             name: remoteFile.name,
             size: remoteFile.size,
             type: remoteFile.type,
             url: remoteFile.url || '',
+            storagePath: remoteFile.storage_path,
             storage_path: remoteFile.storage_path,
+            uploadedAt: remoteFile.created_at,
             uploaded_at: remoteFile.created_at,
             updatedAt: new Date(remoteFile.updated_at).getTime(),
             createdAt: new Date(remoteFile.created_at).getTime(),
@@ -119,6 +123,7 @@ export class FileSyncService {
         // Update record with storage path and mark as dirty for next push
         await db.files.update(file.id, {
           storage_path: storagePath,
+          storagePath: storagePath,
           url: '', // Clear blob URL
           _dirty: 1 // Mark for push to sync metadata
         });
@@ -167,13 +172,24 @@ export class FileSyncService {
     if (!user) throw new Error('User not authenticated');
 
     // Prepare data for Supabase (remove local-only fields)
-    const { updatedAt, createdAt, _dirty, _deleted, ...fileData } = file;
-    
+    const {
+      updatedAt,
+      createdAt,
+      _dirty,
+      _deleted,
+      projectId,
+      installationId,
+      storagePath,
+      uploadedAt,
+      needsUpload,
+      ...fileData
+    } = file;
+
     const supabaseFile = {
       ...fileData,
       user_id: user.id,
       updated_at: new Date().toISOString(),
-      created_at: fileData.uploaded_at // Use uploaded_at as created_at
+      created_at: fileData.uploaded_at || uploadedAt // Use uploaded_at as created_at
     };
 
     // Upsert metadata to Supabase DB

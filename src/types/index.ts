@@ -106,20 +106,25 @@ export interface ProjectReport {
   observacoes?: string;
 }
 
-export interface ProjectFile {
+export interface FileAttachment {
   id: string;
-  project_id: string;
+  projectId?: string;
+  project_id?: string;
+  installationId?: string;
   installation_id?: string;
   name: string;
   size: number;
   type: string;
-  url: string; // Legacy blob URLs or empty for storage-based files
-  storage_path?: string; // Path in Supabase Storage
-  uploaded_at: string;
-  // Local timestamp for compatibility
-  updatedAt?: number;
+  url?: string; // Legacy blob URLs or empty for storage-based files
+  storagePath?: string; // Path in Supabase Storage
+  storage_path?: string; // Legacy path in Supabase Storage
+  uploadedAt?: string; // ISO string
+  uploaded_at?: string; // Legacy field
+  updatedAt?: number; // epoch ms for sync
   createdAt?: number;
-  // Sync flags
   _dirty?: number;
   _deleted?: number;
+  needsUpload?: number;
 }
+
+export type ProjectFile = FileAttachment;

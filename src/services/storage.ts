@@ -92,16 +92,21 @@ export class SupabaseStorageService {
     const { storagePath } = await this.uploadFile(file, projectId, installationId);
 
     // Save metadata to Dexie
+    const timestamp = new Date().toISOString();
     const fileRecord: ProjectFile = {
       id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      projectId,
       project_id: projectId,
+      installationId,
       installation_id: installationId,
       name: file.name,
       size: file.size,
       type: file.type,
       url: '', // No longer storing URLs, only storage paths
+      storagePath,
       storage_path: storagePath,
-      uploaded_at: new Date().toISOString(),
+      uploadedAt: timestamp,
+      uploaded_at: timestamp,
       updatedAt: Date.now(),
       createdAt: Date.now(),
       _dirty: 1,
@@ -180,7 +185,14 @@ export class SupabaseStorageService {
       // Update record
       const updatedFile: ProjectFile = {
         ...file,
+        projectId: file.projectId ?? file.project_id,
+        project_id: file.project_id,
+        installationId: file.installationId ?? file.installation_id,
+        installation_id: file.installation_id,
+        storagePath,
         storage_path: storagePath,
+        uploadedAt: file.uploadedAt ?? file.uploaded_at,
+        uploaded_at: file.uploaded_at ?? file.uploadedAt,
         url: '', // Clear old blob URL
         _dirty: 1
       };
@@ -212,15 +224,19 @@ export class SupabaseStorageService {
     // Create local blob URL for immediate preview
     const blobUrl = URL.createObjectURL(file);
 
+    const timestamp = new Date().toISOString();
     const fileRecord: ProjectFile = {
       id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      projectId,
       project_id: projectId,
+      installationId,
       installation_id: installationId,
       name: file.name,
       size: file.size,
       type: file.type,
       url: blobUrl,
-      uploaded_at: new Date().toISOString(),
+      uploadedAt: timestamp,
+      uploaded_at: timestamp,
       updatedAt: Date.now(),
       createdAt: Date.now(),
       _dirty: 1, // Will be synced when online

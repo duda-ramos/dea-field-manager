@@ -7,6 +7,7 @@ import { fileSyncService } from './fileSync';
 import { rateLimiter } from './rateLimiter';
 import { logger } from '@/services/logger';
 import { getFeatureFlag } from '@/config/featureFlags';
+import { uploadToStorage } from '@/services/storage/filesStorage';
 import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
@@ -264,6 +265,72 @@ function transformRecordForLocal(record: any, entityName: string): any {
   }
 }
 
+async function prePushFiles(): Promise<{ tentados: number; sucesso: number; falhas: number }> {
+  const pending = await db.files
+    .where('needsUpload')
+    .equals(1)
+    .and(f => f._deleted !== 1)
+    .toArray();
+
+  if (!navigator.onLine) {
+    return { tentados: 0, sucesso: 0, falhas: pending.length };
+  }
+
+  let tentados = 0;
+  let sucesso = 0;
+  let falhas = 0;
+
+  for (const file of pending as ProjectFile[]) {
+    tentados++;
+    try {
+      let fileObj: File | null = null;
+      if (file.url && file.url.startsWith('blob:')) {
+        try {
+          const response = await fetch(file.url);
+          const blob = await response.blob();
+          fileObj = new File([blob], file.name, { type: file.type });
+        } catch (err) {
+          logger.warn(`prePushFiles: failed to retrieve blob for ${file.id}`, err);
+        }
+      }
+
+      if (!fileObj) {
+        logger.warn(`prePushFiles: missing blob for ${file.id}, skipping`);
+        falhas++;
+        continue;
+      }
+
+      const { storagePath, uploadedAtISO } = await uploadToStorage(fileObj, {
+        projectId: file.projectId,
+        installationId: file.installationId,
+        id: file.id
+      });
+
+      await db.files.update(file.id, {
+        storagePath,
+        storage_path: storagePath,
+        uploadedAt: uploadedAtISO,
+        uploaded_at: uploadedAtISO,
+        updatedAt: Date.now(),
+        needsUpload: undefined,
+        _dirty: 1,
+        _deleted: 0
+      } as any);
+
+      if (file.url && file.url.startsWith('blob:')) {
+        URL.revokeObjectURL(file.url);
+      }
+
+      sucesso++;
+    } catch (error) {
+      falhas++;
+      logger.warn(`prePushFiles: failed to upload ${file.id}`, error);
+    }
+  }
+
+  return { tentados, sucesso, falhas };
+}
+
 export async function syncPush(): Promise<LegacySyncMetrics> {
   const startTime = logger.syncStart('push');
   const metrics = createEmptyMetrics();
@@ -275,13 +342,16 @@ export async function syncPush(): Promise<LegacySyncMetrics> {
     // Rate limiting check
     await rateLimiter.waitForLimit('sync_push');
 
-    // First upload pending files to storage
-    const fileUploadResult = await fileSyncService.uploadPendingFiles();
-    if (fileUploadResult.uploaded > 0) {
-      logger.debug(`📁 Uploaded ${fileUploadResult.uploaded} pending files to storage`);
-    }
-    if (fileUploadResult.errors.length > 0) {
-      logger.warn('⚠️ File upload errors', fileUploadResult.errors);
+    const prePushStats = await prePushFiles();
+    metrics.prePushFiles = prePushStats;
+    if (prePushStats.tentados > 0) {
+      logger.debug(
+        `📁 Pre-push: ${prePushStats.sucesso}/${prePushStats.tentados} uploads, ${prePushStats.falhas} falhas`
+      );
+      syncStateManager.addLog(
+        'info',
+        `Pre-upload de arquivos: ${prePushStats.sucesso}/${prePushStats.tentados} sucesso(s), ${prePushStats.falhas} falha(s)`
+      );
     }
 
     // Push all entity types

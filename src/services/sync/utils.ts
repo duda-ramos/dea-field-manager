@@ -81,6 +81,7 @@ export interface LegacySyncMetrics {
   success: boolean;
   duration: number;
   error?: string;
+  prePushFiles?: { tentados: number; sucesso: number; falhas: number };
   push: {
     projects?: { pushed: number; deleted: number; errors: string[] };
     installations?: { pushed: number; deleted: number; errors: string[] };
@@ -103,6 +104,7 @@ export function createEmptyMetrics(): LegacySyncMetrics {
   return {
     success: false,
     duration: 0,
+    prePushFiles: { tentados: 0, sucesso: 0, falhas: 0 },
     push: {},
     pull: {}
   };
@@ -130,9 +132,14 @@ export function logSyncMetrics(operation: string, metrics: LegacySyncMetrics): v
     });
     console.groupEnd();
   }
-  
+
   if (metrics.error) {
     console.error('❌ Error:', metrics.error);
+  }
+
+  if (metrics.prePushFiles && metrics.prePushFiles.tentados > 0) {
+    const m = metrics.prePushFiles;
+    console.log(`📁 Pre-push files: ${m.sucesso}/${m.tentados} uploaded, ${m.falhas} failed`);
   }
   
   console.groupEnd();
