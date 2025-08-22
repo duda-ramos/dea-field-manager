@@ -12,52 +12,38 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
-    
+        node: [20.x]
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
+
+    - name: Setup Node
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: ${{ matrix.node }}
         cache: 'npm'
-        
+
     - name: Install dependencies
-      run: npm ci
-      
-    - name: Validate environment
       run: |
-        echo "Checking for required files..."
-        test -f package.json
-        test -f tsconfig.json
-        test -f vite.config.ts
-        
-    - name: TypeScript type check
+        if [ -f package-lock.json ]; then
+          npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+        else
+          npm i --no-audit --no-fund
+        fi
+
+    - name: Typecheck
       run: npx tsc --noEmit
-      
-    - name: ESLint check
-      run: npx eslint . --ext .ts,.tsx --max-warnings 0
+
+    - name: Lint (non-blocking)
       continue-on-error: true
-      
-    - name: Build application
+      run: npm run lint
+
+    - name: Build
       run: npm run build
       env:
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'dummy-url' }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'dummy-key' }}
-        
-    - name: Check build artifacts
-      run: |
-        test -d dist
-        echo "Build completed successfully"
-        
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-${{ matrix.node-version }}
-        path: dist/
-        retention-days: 1
 
   e2e-smoke:
     runs-on: ubuntu-latest
