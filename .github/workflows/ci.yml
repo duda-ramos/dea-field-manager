@@ -9,83 +9,290 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
         node: [20.x]
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node }}
-        cache: 'npm'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          check-latest: true
 
-    - name: Install dependencies
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci --no-audit --no-fund || npm i --no-audit --no-fund
-        else
-          npm i --no-audit --no-fund
-        fi
+      - name: Harden npm config
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+          npm config set fetch-retries 5
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set fetch-retry-mintimeout 20000
+          npm config set prefer-online true
+          npm cache clean --force
+          node -v
+          npm -v
+          npm config list
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first
 
-    - name: Typecheck
-      run: npx tsc --noEmit
+      - name: Install dependencies (retry + registry fallback, include dev)
+        shell: bash
+        env:
+          NPM_CONFIG_PRODUCTION: "false"
+        run: |
+          set -e
+          attempt() { npm i --no-audit --no-fund --include=dev; }
+          fallback_registry() {
+            echo "⚠️ switching registry to npmmirror fallback..."
+            npm config set registry https://registry.npmmirror.com
+            npm cache clean --force || true
+          }
+          for i in 1 2 3; do
+            if attempt; then
+              echo "Dependencies installed on attempt $i (npmjs)"
+              break
+            fi
+            echo "npm install attempt $i failed on npmjs; retrying in $((i*10))s..."
+            npm cache clean --force || true
+            sleep $((i*10))
+            if [ "$i" -eq 3 ]; then
+              fallback_registry
+            fi
+          done
+          if [ "$(npm config get registry)" = "https://registry.npmmirror.com" ]; then
+            for j in 1 2; do
+              if attempt; then
+                echo "Dependencies installed on attempt $j (npmmirror)"
+                break
+              fi
+              echo "npm install attempt $j failed on npmmirror; retrying in $((j*10))s..."
+              npm cache clean --force || true
+              sleep $((j*10))
+              if [ "$j" -eq 2 ]; then
+                echo "Final attempt failed."; exit 1
+              fi
+            done
+          fi
 
-    - name: Lint (non-blocking)
-      continue-on-error: true
-      run: npm run lint
+          echo "----- INSTALLED TOP-LEVEL -----"
+          npm ls --depth=0 || true
+          echo "----- CHECK VITE BIN -----"
+          test -f node_modules/vite/bin/vite.js && echo "vite bin OK" || echo "vite bin MISSING"
 
-    - name: Build
-      run: npm run build
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'dummy-url' }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'dummy-key' }}
+      - name: Diagnose install
+        shell: bash
+        run: |
+          echo "----- NODE / NPM VERSIONS -----"
+          node -v
+          npm -v
+          echo "----- CURRENT REGISTRY -----"
+          npm config get registry
+          echo "----- PACKAGE.JSON KEYS -----"
+          node -e "const p=require('./package.json'); console.log('has devDeps.vite?', !!(p.devDependencies && p.devDependencies.vite)); console.log(Object.keys(p.dependencies||{}).length+' deps, '+Object.keys(p.devDependencies||{}).length+' devDeps')"
+          echo "----- NODE_MODULES CHECK -----"
+          if [ ! -d node_modules ] || [ ! \"$(ls -A node_modules 2>/dev/null)\" ]; then
+            echo '❌ node_modules está vazio/ausente'
+            echo 'Forçando reinstalação com mirror e --force...'
+            npm config set registry https://registry.npmmirror.com
+            npm cache clean --force || true
+            npm i --no-audit --no-fund --include=dev --legacy-peer-deps --force
+          else
+            echo '✅ node_modules presente'
+          fi
+          echo "----- TOP LEVEL LIST -----"
+          npm ls --depth=0 || true
+
+      - name: Ensure Vite present (retry if missing)
+        shell: bash
+        env:
+          NPM_CONFIG_PRODUCTION: "false"
+        run: |
+          if [ ! -f node_modules/vite/bin/vite.js ]; then
+            echo "Vite binary not found. Installing vite as devDependency (retry with force)..."
+            for k in 1 2 3; do
+              if npm i -D vite@^5 --no-audit --no-fund --include=dev --legacy-peer-deps --force; then
+                break
+              fi
+              echo "vite install attempt $k failed; retrying..."
+              npm cache clean --force || true
+              sleep $((k*10))
+              if [ "$k" -eq 3 ]; then
+                echo "Cannot install vite locally; will try npx at build time."
+              fi
+            done
+          fi
+          if [ -f node_modules/vite/bin/vite.js ]; then
+            echo "✅ vite bin OK"
+          else
+            echo "⚠️ vite local ausente; build tentará npx como último recurso"
+          fi
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint (non-blocking)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build
+        shell: bash
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'dummy-url' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'dummy-key' }}
+        run: |
+          if [ -f node_modules/vite/bin/vite.js ]; then
+            node node_modules/vite/bin/vite.js build
+          else
+            echo "⚠️ vite local não encontrado; tentando npx com registry atual..."
+            npx --yes vite@^5 build
+          fi
 
   e2e-smoke:
     runs-on: ubuntu-latest
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Install Playwright
-      run: npx playwright install --with-deps chromium
-      
-    - name: Build application
-      run: npm run build
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'dummy-url' }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'dummy-key' }}
-        
-    - name: Start preview server
-      run: npm run preview &
-      
-    - name: Wait for server
-      run: npx wait-on http://localhost:4173 --timeout 60000
-      
-    - name: Run E2E smoke tests
-      run: npx playwright test
-      continue-on-error: true
-      
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: e2e-results
-        path: playwright-report/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: npm
+          check-latest: true
+
+      - name: Harden npm config
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+          npm config set fetch-retries 5
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set fetch-retry-mintimeout 20000
+          npm config set prefer-online true
+          npm cache clean --force
+          node -v
+          npm -v
+          npm config list
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first
+
+      - name: Install dependencies (retry + registry fallback, include dev)
+        shell: bash
+        env:
+          NPM_CONFIG_PRODUCTION: "false"
+        run: |
+          set -e
+          attempt() { npm i --no-audit --no-fund --include=dev; }
+          fallback_registry() {
+            echo "⚠️ switching registry to npmmirror fallback..."
+            npm config set registry https://registry.npmmirror.com
+            npm cache clean --force || true
+          }
+          for i in 1 2 3; do
+            if attempt; then
+              echo "Dependencies installed on attempt $i (npmjs)"
+              break
+            fi
+            echo "npm install attempt $i failed on npmjs; retrying in $((i*10))s..."
+            npm cache clean --force || true
+            sleep $((i*10))
+            if [ "$i" -eq 3 ]; then
+              fallback_registry
+            fi
+          done
+          if [ "$(npm config get registry)" = "https://registry.npmmirror.com" ]; then
+            for j in 1 2; do
+              if attempt; then
+                echo "Dependencies installed on attempt $j (npmmirror)"
+                break
+              fi
+              echo "npm install attempt $j failed on npmmirror; retrying in $((j*10))s..."
+              npm cache clean --force || true
+              sleep $((j*10))
+              if [ "$j" -eq 2 ]; then
+                echo "Final attempt failed."; exit 1
+              fi
+            done
+          fi
+
+          echo "----- INSTALLED TOP-LEVEL -----"
+          npm ls --depth=0 || true
+          echo "----- CHECK VITE BIN -----"
+          test -f node_modules/vite/bin/vite.js && echo "vite bin OK" || echo "vite bin MISSING"
+
+      - name: Diagnose install
+        shell: bash
+        run: |
+          echo "----- NODE / NPM VERSIONS -----"
+          node -v
+          npm -v
+          echo "----- CURRENT REGISTRY -----"
+          npm config get registry
+          echo "----- PACKAGE.JSON KEYS -----"
+          node -e "const p=require('./package.json'); console.log('has devDeps.vite?', !!(p.devDependencies && p.devDependencies.vite)); console.log(Object.keys(p.dependencies||{}).length+' deps, '+Object.keys(p.devDependencies||{}).length+' devDeps')"
+          echo "----- NODE_MODULES CHECK -----"
+          if [ ! -d node_modules ] || [ ! \"$(ls -A node_modules 2>/dev/null)\" ]; then
+            echo '❌ node_modules está vazio/ausente'
+            echo 'Forçando reinstalação com mirror e --force...'
+            npm config set registry https://registry.npmmirror.com
+            npm cache clean --force || true
+            npm i --no-audit --no-fund --include=dev --legacy-peer-deps --force
+          else
+            echo '✅ node_modules presente'
+          fi
+          echo "----- TOP LEVEL LIST -----"
+          npm ls --depth=0 || true
+      - name: Ensure Vite present (retry if missing)
+        shell: bash
+        env:
+          NPM_CONFIG_PRODUCTION: "false"
+        run: |
+          if [ ! -f node_modules/vite/bin/vite.js ]; then
+            echo "Vite binary not found. Installing vite as devDependency (retry with force)..."
+            for k in 1 2 3; do
+              if npm i -D vite@^5 --no-audit --no-fund --include=dev --legacy-peer-deps --force; then
+                break
+              fi
+              echo "vite install attempt $k failed; retrying..."
+              npm cache clean --force || true
+              sleep $((k*10))
+              if [ "$k" -eq 3 ]; then
+                echo "Cannot install vite locally; will try npx at build time."
+              fi
+            done
+          fi
+          if [ -f node_modules/vite/bin/vite.js ]; then
+            echo "✅ vite bin OK"
+          else
+            echo "⚠️ vite local ausente; build tentará npx como último recurso"
+          fi
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        shell: bash
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'dummy-url' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'dummy-key' }}
+        run: |
+          if [ -f node_modules/vite/bin/vite.js ]; then
+            node node_modules/vite/bin/vite.js build
+          else
+            echo "⚠️ vite local não encontrado; tentando npx com registry atual..."
+            npx --yes vite@^5 build
+          fi
+
+      - name: Start preview server
+        run: npm run preview &
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:4173 --timeout 60000
+
+      - name: Run E2E smoke tests
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: playwright-report/
+          retention-days: 7
