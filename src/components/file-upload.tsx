@@ -4,11 +4,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, File, X, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
+import { Upload, File, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
-import { storageService } from '@/services/storage';
+import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
 
 interface UploadedFile extends ProjectFile {
@@ -67,55 +67,63 @@ export function FileUpload({
   };
 
   const uploadFile = async (file: File): Promise<UploadedFile> => {
-    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = crypto.randomUUID();
+    setUploadProgress(prev => ({ ...prev, [id]: 0 }));
 
-    setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
+    let storagePath: string | undefined;
+    let uploadedAtISO = new Date().toISOString();
+    let needsUpload = 0;
 
     try {
-      let uploadedFileRecord: ProjectFile;
-
-      if (isOnline) {
-        // Upload to Supabase Storage
-        setUploadProgress(prev => ({ ...prev, [fileId]: 25 }));
-        uploadedFileRecord = await storageService.uploadAndSaveFile(file, projectId, installationId);
-        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
-      } else {
-        // Queue for offline upload
-        setUploadProgress(prev => ({ ...prev, [fileId]: 50 }));
-        uploadedFileRecord = await storageService.queueOfflineUpload(file, projectId, installationId);
-        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
-      }
-
-      const uploadedFile: UploadedFile = {
-        ...uploadedFileRecord,
-        uploadedAt: new Date(uploadedFileRecord.uploaded_at)
-      };
-
-      setUploadProgress(prev => {
-        const { [fileId]: _, ...rest } = prev;
-        return rest;
-      });
-
-      return uploadedFile;
-    } catch (error) {
-      setUploadProgress(prev => {
-        const { [fileId]: _, ...rest } = prev;
-        return rest;
-      });
-      throw error;
+      const res = await uploadToStorage(file, { projectId, installationId, id });
+      storagePath = res.storagePath;
+      uploadedAtISO = res.uploadedAtISO;
+    } catch (err) {
+      needsUpload = 1;
     }
+
+    await Storage.upsertFile({
+      id,
+      projectId,
+      installationId,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      storagePath,
+      uploadedAt: uploadedAtISO,
+      updatedAt: Date.now(),
+      needsUpload
+    } as any);
+
+    setUploadProgress(prev => ({ ...prev, [id]: 100 }));
+    setUploadProgress(prev => {
+      const { [id]: _, ...rest } = prev;
+      return rest;
+    });
+
+    return {
+      id,
+      projectId,
+      installationId,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      storagePath,
+      uploadedAt: new Date(uploadedAtISO),
+      needsUpload
+    } as UploadedFile;
   };
 
   const handleFiles = async (fileList: FileList | File[]) => {
     const filesToUpload = Array.from(fileList);
-    
+
     for (const file of filesToUpload) {
       const validationError = validateFile(file);
       if (validationError) {
         toast({
-          title: "Erro no upload",
+          title: 'Erro no upload',
           description: `${file.name}: ${validationError}`,
-          variant: "destructive"
+          variant: 'destructive'
         });
         continue;
       }
@@ -127,16 +135,18 @@ export function FileUpload({
           onFilesChange?.(updated);
           return updated;
         });
-        
+
         toast({
-          title: "Arquivo enviado",
-          description: `${file.name} foi enviado com sucesso.`
+          title: uploadedFile.needsUpload ? 'Arquivo adicionado' : 'Arquivo enviado',
+          description: uploadedFile.needsUpload
+            ? `${file.name} será enviado quando online.`
+            : `${file.name} foi enviado com sucesso.`
         });
-      } catch (error) {
+      } catch {
         toast({
-          title: "Erro no upload",
+          title: 'Erro no upload',
           description: `Falha ao enviar ${file.name}`,
-          variant: "destructive"
+          variant: 'destructive'
         });
       }
     }
@@ -166,53 +176,130 @@ export function FileUpload({
     }
   };
 
-  const removeFile = async (fileId: string) => {
+  const removeFile = async (file: UploadedFile) => {
     try {
       setFiles(prev => {
-        const updated = prev.filter(f => f.id !== fileId);
+        const updated = prev.filter(f => f.id !== file.id);
         onFilesChange?.(updated);
         return updated;
       });
 
-      if (isOnline) {
-        await storageService.deleteFileCompletely(fileId);
-      } else {
-        // Mark for deletion when online
-        await Storage.deleteFile(fileId);
+      if (navigator.onLine && file.storagePath) {
+        await deleteFromStorage(file.storagePath);
       }
 
+      await Storage.deleteFile(file.id);
+
       toast({
-        title: "Arquivo removido",
-        description: isOnline ? "O arquivo foi removido com sucesso." : "Arquivo marcado para remoção. Será removido quando online."
+        title: 'Arquivo removido',
+        description: navigator.onLine
+          ? 'O arquivo foi removido com sucesso.'
+          : 'Arquivo marcado para remoção. Será removido quando online.'
       });
     } catch (error) {
       toast({
-        title: "Erro ao remover arquivo",
-        description: "Houve um problema ao remover o arquivo. Tente novamente.",
-        variant: "destructive"
+        title: 'Erro ao remover arquivo',
+        description: 'Houve um problema ao remover o arquivo. Tente novamente.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const migrateFile = async (file: UploadedFile) => {
+    try {
+      if (!file.url) {
+        toast({
+          title: 'Arquivo indisponível',
+          description: 'Não foi possível localizar o arquivo original. Reenvie manualmente.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const response = await fetch(file.url);
+      if (!response.ok) throw new Error('blob');
+      const blob = await response.blob();
+      const fileObj = new File([blob], file.name, { type: file.type });
+
+      try {
+        const { storagePath, uploadedAtISO } = await uploadToStorage(fileObj, { projectId, installationId, id: file.id });
+
+        await Storage.upsertFile({
+          ...file,
+          storagePath,
+          uploadedAt: uploadedAtISO,
+          updatedAt: Date.now(),
+          needsUpload: 0,
+          url: undefined
+        } as any);
+
+        setFiles(prev =>
+          prev.map(f =>
+            f.id === file.id
+              ? { ...f, storagePath, uploadedAt: new Date(uploadedAtISO), needsUpload: 0, url: undefined }
+              : f
+          )
+        );
+
+        if (file.url && file.url.startsWith('blob:')) {
+          URL.revokeObjectURL(file.url);
+        }
+
+        toast({
+          title: 'Arquivo migrado',
+          description: `${file.name} enviado para a nuvem.`
+        });
+      } catch (err: any) {
+        if (err.code === 'OFFLINE') {
+          await Storage.upsertFile({
+            ...file,
+            uploadedAt: file.uploadedAt instanceof Date ? file.uploadedAt.toISOString() : file.uploadedAt,
+            updatedAt: Date.now(),
+            needsUpload: 1
+          } as any);
+          setFiles(prev =>
+            prev.map(f =>
+              f.id === file.id ? { ...f, needsUpload: 1 } : f
+            )
+          );
+          toast({
+            title: 'Arquivo pendente',
+            description: `${file.name} será enviado quando online.`
+          });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error) {
+      toast({
+        title: 'Falha na migração',
+        description: 'Não foi possível migrar o arquivo. Reenvie manualmente.',
+        variant: 'destructive'
       });
     }
   };
 
   const downloadFile = async (file: UploadedFile) => {
     try {
-      let downloadUrl = file.url;
-      
-      if (file.storage_path && isOnline) {
-        downloadUrl = await storageService.getFilePreviewUrl(file);
+      let url: string | undefined;
+      if (file.storagePath) {
+        ({ url } = await getSignedUrl(file.storagePath));
+      } else if (file.url) {
+        url = file.url;
       }
-      
+      if (!url) throw new Error('Arquivo não disponível');
+
       const a = document.createElement('a');
-      a.href = downloadUrl;
+      a.href = url;
       a.download = file.name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     } catch (error) {
       toast({
-        title: "Erro no download",
-        description: "Não foi possível baixar o arquivo. Verifique sua conexão.",
-        variant: "destructive"
+        title: 'Erro no download',
+        description: 'Não foi possível baixar o arquivo. Verifique sua conexão.',
+        variant: 'destructive'
       });
     }
   };
@@ -221,20 +308,21 @@ export function FileUpload({
     setCurrentPreviewFile(file);
     setIsPreviewOpen(true);
     setIsLoadingPreview(true);
-    
+
     try {
-      let url = file.url;
-      
-      if (file.storage_path && isOnline) {
-        url = await storageService.getFilePreviewUrl(file);
+      if (file.storagePath) {
+        const { url } = await getSignedUrl(file.storagePath);
+        setPreviewUrl(url);
+      } else if (file.url) {
+        setPreviewUrl(file.url);
+      } else {
+        throw new Error('Arquivo não disponível');
       }
-      
-      setPreviewUrl(url);
     } catch (error) {
       toast({
-        title: "Erro na prévia",
-        description: "Não foi possível carregar a prévia. Verifique sua conexão.",
-        variant: "destructive"
+        title: 'Erro na prévia',
+        description: 'Não foi possível carregar a prévia. Verifique sua conexão.',
+        variant: 'destructive'
       });
       setPreviewUrl('');
     } finally {
@@ -349,7 +437,7 @@ export function FileUpload({
       
       const filesWithDates = storedFiles.map((file: ProjectFile) => ({
         ...file,
-        uploadedAt: new Date(file.uploaded_at)
+        uploadedAt: new Date(file.uploadedAt ?? Date.now())
       })) as UploadedFile[];
       
       setFiles(filesWithDates);
@@ -460,7 +548,7 @@ export function FileUpload({
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       <File className="h-5 w-5 text-muted-foreground" />
-                      {file.storage_path ? (
+                      {file.storagePath ? (
                         <CloudUpload className="h-3 w-3 text-green-500" />
                       ) : (
                         <div className="h-3 w-3 rounded-full bg-orange-500" />
@@ -472,20 +560,37 @@ export function FileUpload({
                         <span>{formatFileSize(file.size)}</span>
                         <span>•</span>
                         <span>{file.uploadedAt.toLocaleDateString('pt-BR')}</span>
-                        {!file.storage_path && !isOnline && (
+                        {!file.storagePath && (
                           <>
                             <span>•</span>
-                            <span className="text-orange-500">Pendente upload</span>
+                            <Badge variant="outline" className="text-blue-500 border-blue-500">Migrar</Badge>
+                          </>
+                        )}
+                        {file.needsUpload === 1 && (
+                          <>
+                            <span>•</span>
+                            <span className="text-orange-500">Pendente</span>
                           </>
                         )}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-1">
                     <Badge variant="secondary" className="text-xs">
                       {file.name.split('.').pop()?.toUpperCase()}
                     </Badge>
+                    {!file.storagePath && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => migrateFile(file)}
+                        className="h-8 w-8 p-0"
+                        title="Enviar para nuvem"
+                      >
+                        <CloudUpload className="h-4 w-4" />
+                      </Button>
+                    )}
                     {isPreviewable(file) && (
                       <Button
                         variant="ghost"
@@ -509,7 +614,7 @@ export function FileUpload({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeFile(file.id)}
+                      onClick={() => removeFile(file)}
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                       title="Remover arquivo"
                     >

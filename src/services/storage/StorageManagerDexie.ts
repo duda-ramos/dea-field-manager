@@ -151,25 +151,46 @@ export const StorageManagerDexie = {
 
   // -------- FILES / ATTACHMENTS ----------
   async getFilesByProject(projectId: string) {
-    return db.files.where('projectId').equals(projectId).toArray();
+    const files = await db.files
+      .where('projectId')
+      .equals(projectId)
+      .and(f => f._deleted !== 1)
+      .toArray();
+    return files.sort((a, b) => {
+      const aTime = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+      const bTime = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+      return bTime - aTime;
+    });
   },
   async getFilesByInstallation(installationId: string) {
-    return db.files.where('installationId').equals(installationId).toArray();
+    const files = await db.files
+      .where('installationId')
+      .equals(installationId)
+      .and(f => f._deleted !== 1)
+      .toArray();
+    return files.sort((a, b) => {
+      const aTime = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+      const bTime = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+      return bTime - aTime;
+    });
   },
   async upsertFile(file: ProjectFile) {
-    const withFlags = { ...file, _dirty: 1, _deleted: 0 };
-    await db.files.put(withFlags);
-    
+    const metaAtualizado: ProjectFile = {
+      ...file,
+      updatedAt: Date.now(),
+      uploadedAt: file.uploadedAt ?? new Date().toISOString(),
+      _dirty: 1,
+      _deleted: 0
+    };
+    await db.files.put(metaAtualizado);
+
     // Trigger debounced auto-sync
     autoSyncManager.triggerDebouncedSync();
-    
-    return withFlags;
+
+    return metaAtualizado;
   },
   async deleteFile(id: string) {
-    const existing = await db.files.get(id);
-    if (existing) {
-      await db.files.put({ ...existing, _deleted: 1, _dirty: 1 });
-    }
+    await db.files.put({ id, _deleted: 1, _dirty: 1, updatedAt: Date.now() } as any);
   }
 };
 
