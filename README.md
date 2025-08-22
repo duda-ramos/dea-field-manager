@@ -71,3 +71,9 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## CI Degradado (bypass temporário)
+
+- Defina o secret de repositório **DEGRADED_CI=true** para que o pipeline **pule instalação/build/test** e marque os jobs como sucesso controlado.
+- Use somente quando houver bloqueio de rede (403 nos registries).
+- Para restaurar o fluxo normal, **remova** o secret ou defina `DEGRADED_CI=false`.
