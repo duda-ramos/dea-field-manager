@@ -13,6 +13,8 @@ import { storage } from "@/lib/storage";
 import { SyncButton } from "@/components/sync-button";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import { SyncStatusPanel } from "@/components/sync-status-panel";
+import { UserMenu } from "@/components/auth/UserMenu";
+import { useAuth } from "@/hooks/useAuth";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,9 +28,8 @@ export default function Dashboard() {
     project_files_link: "",
     suppliers: [""]
   });
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  const { user } = useAuth();
   useEffect(() => {
     loadProjects();
   }, []);
@@ -98,13 +99,14 @@ export default function Dashboard() {
               <h1 className="mb-2 text-[#00ff00] font-bold text-3xl">DEA Manager</h1>
               <p className="text-orange-50">Sistema de Gestão de Projetos e Instalações</p>
             </div>
-            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-              <DialogTrigger asChild>
-                <Button variant="secondary" size="lg" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Novo Projeto
-                </Button>
-              </DialogTrigger>
+            <div className="flex items-center gap-4">
+              <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" size="lg" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Novo Projeto
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Criar Novo Projeto</DialogTitle>
@@ -170,7 +172,10 @@ export default function Dashboard() {
                   </Button>
                 </div>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+              
+              <UserMenu />
+            </div>
           </div>
         </div>
       </div>

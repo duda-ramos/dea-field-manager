@@ -21,8 +21,8 @@ export function SyncButton() {
   const handleSync = async () => {
     try {
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         toast({
           title: "Erro de Autenticação",
           description: "Você precisa estar logado para sincronizar os dados.",

@@ -27,8 +27,9 @@ const denormalizeTimestamps = (obj: any) => ({
 
 // Generic push/pull operations
 async function pushEntityType(entityName: string, tableName: string): Promise<{ pushed: number; deleted: number; errors: string[] }> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error('User not authenticated');
+  const user = session.user;
 
   const tableMap: Record<string, string> = {
     'projects': 'projects',
@@ -82,8 +83,9 @@ async function pushEntityType(entityName: string, tableName: string): Promise<{ 
 }
 
 async function pullEntityType(entityName: string, tableName: string, lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error('User not authenticated');
+  const user = session.user;
 
   let hasMore = true;
   let page = 0;
