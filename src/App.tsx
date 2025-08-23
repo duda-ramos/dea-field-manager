@@ -3,9 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ThemeProvider } from "@/providers/theme-provider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicRoute } from "@/components/auth/PublicRoute";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
+
+// Pages
 import Dashboard from "./pages/Dashboard";
 import ProjectDetailNew from "./pages/ProjectDetailNew";
 import { ContatosPage } from "./features/contatos";
@@ -16,70 +22,100 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <AppHeader />
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/auth/login" element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            } />
-            <Route path="/auth/register" element={
-              <PublicRoute>
-                <RegisterPage />
-              </PublicRoute>
-            } />
-            <Route path="/auth/forgot-password" element={
-              <PublicRoute>
-                <ForgotPasswordPage />
-              </PublicRoute>
-            } />
-            
-            {/* Protected routes */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/projeto/:id" element={
-              <ProtectedRoute>
-                <ProjectDetailNew />
-              </ProtectedRoute>
-            } />
-            <Route path="/projeto/:id/pecas" element={
-              <ProtectedRoute>
-                <ProjectDetailNew />
-              </ProtectedRoute>
-            } />
-            <Route path="/projeto/:id/relatorios" element={
-              <ProtectedRoute>
-                <ProjectDetailNew />
-              </ProtectedRoute>
-            } />
-            <Route path="/projeto/:id/orcamentos" element={
-              <ProtectedRoute>
-                <ProjectDetailNew />
-              </ProtectedRoute>
-            } />
-            <Route path="/projeto/:id/contatos" element={
-              <ProtectedRoute>
-                <ContatosPage />
-              </ProtectedRoute>
-            } />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ThemeProvider defaultTheme="system" storageKey="dea-theme">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/auth/login" element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              } />
+              <Route path="/auth/register" element={
+                <PublicRoute>
+                  <RegisterPage />
+                </PublicRoute>
+              } />
+              <Route path="/auth/forgot-password" element={
+                <PublicRoute>
+                  <ForgotPasswordPage />
+                </PublicRoute>
+              } />
+              
+              {/* Protected routes */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/pecas" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/relatorios" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/orcamentos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/contatos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ContatosPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

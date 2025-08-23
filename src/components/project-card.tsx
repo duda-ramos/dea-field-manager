@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CalendarDays, MapPin, User, ArrowRight } from "lucide-react";
+import { CalendarDays, MapPin, User, ArrowRight, Building, Code } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
@@ -39,14 +39,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+    <Card className="card-modern group cursor-pointer" onClick={handleViewProject}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <CardTitle className="text-lg group-hover:text-primary transition-colors">
+          <div className="space-y-2 flex-1">
+            <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2">
               {project.name}
             </CardTitle>
-            <Badge variant={statusConfig[project.status].variant}>
+            <Badge variant={statusConfig[project.status].variant} className="w-fit">
               {statusConfig[project.status].label}
             </Badge>
           </div>
@@ -54,41 +54,53 @@ export function ProjectCard({ project }: ProjectCardProps) {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center text-sm text-muted-foreground">
-            <User className="h-4 w-4 mr-2" />
-            {project.client}
+            <Building className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{project.client}</span>
           </div>
           <div className="flex items-center text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 mr-2" />
-            {project.city}
+            <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{project.city}</span>
           </div>
+          {project.code && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Code className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate font-mono">{project.code}</span>
+            </div>
+          )}
           {project.installation_date && (
             <div className="flex items-center text-sm text-muted-foreground">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              {new Date(project.installation_date).toLocaleDateString('pt-BR')}
+              <CalendarDays className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>{new Date(project.installation_date).toLocaleDateString('pt-BR')}</span>
             </div>
           )}
         </div>
 
         {totalInstallations > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Progresso das Instalações</span>
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Instalações</span>
               <span className="font-medium">
                 {completedInstallations}/{totalInstallations}
               </span>
             </div>
             <Progress value={progressPercentage} className="h-2" />
+            <div className="text-xs text-muted-foreground">
+              {Math.round(progressPercentage)}% concluído
+            </div>
           </div>
         )}
 
         <Button 
-          onClick={handleViewProject}
-          className="w-full group/btn"
-          variant="outline"
+          className="w-full group/btn mt-4"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewProject();
+          }}
         >
-          Ver Projeto
+          <span>Ver Projeto</span>
           <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
         </Button>
       </CardContent>
