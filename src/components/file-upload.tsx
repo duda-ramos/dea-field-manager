@@ -4,14 +4,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, File, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
+import { Upload, File as FileIcon, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
 
-interface UploadedFile extends ProjectFile {
+interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
   uploadedAt: Date;
 }
 
@@ -217,7 +217,7 @@ export function FileUpload({
       }
 
       const response = await fetch(file.url);
-      if (!response.ok) throw new Error('blob');
+      if (!response.ok) throw new Error('Failed to fetch file');
       const blob = await response.blob();
       const fileObj = new File([blob], file.name, { type: file.type });
 
@@ -354,7 +354,7 @@ export function FileUpload({
     if (!previewUrl) {
       return (
         <div className="text-center py-12">
-          <File className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <FileIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Preview não disponível</h3>
           <p className="text-muted-foreground">
             {!isOnline ? "Conecte-se à internet para ver a prévia." : "Erro ao carregar prévia."}
@@ -394,7 +394,7 @@ export function FileUpload({
 
     return (
       <div className="text-center py-12">
-        <File className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+        <FileIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-semibold mb-2">Preview não disponível</h3>
         <p className="text-muted-foreground">
           Este tipo de arquivo não pode ser visualizado no navegador.
@@ -437,7 +437,7 @@ export function FileUpload({
       
       const filesWithDates = storedFiles.map((file: ProjectFile) => ({
         ...file,
-        uploadedAt: new Date(file.uploadedAt ?? Date.now())
+        uploadedAt: new Date(file.uploadedAt ?? file.uploaded_at ?? Date.now())
       })) as UploadedFile[];
       
       setFiles(filesWithDates);
@@ -547,7 +547,7 @@ export function FileUpload({
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <File className="h-5 w-5 text-muted-foreground" />
+                      <FileIcon className="h-5 w-5 text-muted-foreground" />
                       {file.storagePath ? (
                         <CloudUpload className="h-3 w-3 text-green-500" />
                       ) : (
