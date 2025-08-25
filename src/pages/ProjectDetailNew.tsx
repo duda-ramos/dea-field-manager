@@ -22,6 +22,7 @@ import { importExcelFile } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
+import { logger } from '@/services/logger';
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();

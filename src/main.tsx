@@ -4,6 +4,7 @@ import './index.css'
 import { migrateLocalToIndexedIfNeeded } from '@/migrations/migrateLocalToIndexed'
 import { db } from '@/db/indexedDb'
 import { autoSyncManager } from '@/services/sync/autoSync'
+import { logger } from '@/services/logger'
 
 // Debug helper (somente em DEV)
 if (import.meta.env.DEV) {

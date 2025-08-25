@@ -1,6 +1,7 @@
 import { syncPush, syncPull } from './sync';
 import { syncStateManager } from './syncState';
 import { getSyncPreferences } from '@/lib/preferences';
+import { logger } from '@/services/logger';
 
 class AutoSyncManager {
   private periodicTimer: NodeJS.Timeout | null = null;

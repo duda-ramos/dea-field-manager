@@ -1,4 +1,4 @@
-// Network detection utilities
+import { logger } from '@/services/logger';
 export function isOnline(): boolean {
   return navigator.onLine;
 }
@@ -113,34 +113,30 @@ export function createEmptyMetrics(): LegacySyncMetrics {
 export function logSyncMetrics(operation: string, metrics: LegacySyncMetrics): void {
   const duration = metrics.duration || 0;
   
-  console.group(`📊 ${operation} Sync Metrics`);
-  console.log(`⏱️ Duration: ${duration}ms`);
-  console.log(`✅ Success: ${metrics.success}`);
+  logger.info(`📊 ${operation} Sync Metrics - Duration: ${duration}ms, Success: ${metrics.success}`);
   
   if (metrics.push && Object.keys(metrics.push).length > 0) {
-    console.group('📤 Pushed');
     Object.entries(metrics.push).forEach(([table, data]) => {
-      if (data && data.pushed > 0) console.log(`  ${table}: ${data.pushed} pushed, ${data.deleted} deleted`);
+      if (data && data.pushed > 0) {
+        logger.info(`📤 Pushed ${table}: ${data.pushed} pushed, ${data.deleted} deleted`);
+      }
     });
-    console.groupEnd();
   }
-  
+
   if (metrics.pull && Object.keys(metrics.pull).length > 0) {
-    console.group('📥 Pulled');
     Object.entries(metrics.pull).forEach(([table, data]) => {
-      if (data && data.pulled > 0) console.log(`  ${table}: ${data.pulled}`);
+      if (data && data.pulled > 0) {
+        logger.info(`📥 Pulled ${table}: ${data.pulled}`);
+      }
     });
-    console.groupEnd();
   }
 
   if (metrics.error) {
-    console.error('❌ Error:', metrics.error);
+    logger.error(`❌ Sync Error: ${metrics.error}`);
   }
 
   if (metrics.prePushFiles && metrics.prePushFiles.tentados > 0) {
     const m = metrics.prePushFiles;
-    console.log(`📁 Pre-push files: ${m.sucesso}/${m.tentados} uploaded, ${m.falhas} failed`);
+    logger.info(`📁 Pre-push files: ${m.sucesso}/${m.tentados} uploaded, ${m.falhas} failed`);
   }
-  
-  console.groupEnd();
 }

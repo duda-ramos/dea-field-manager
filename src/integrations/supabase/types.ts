@@ -57,9 +57,12 @@ export type Database = {
       }
       contacts: {
         Row: {
+          access_count: number | null
           created_at: string
+          data_classification: string | null
           email: string
           id: string
+          last_accessed_at: string | null
           name: string
           phone: string
           project_id: string
@@ -68,9 +71,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_count?: number | null
           created_at?: string
+          data_classification?: string | null
           email: string
           id?: string
+          last_accessed_at?: string | null
           name: string
           phone: string
           project_id: string
@@ -79,9 +85,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_count?: number | null
           created_at?: string
+          data_classification?: string | null
           email?: string
           id?: string
+          last_accessed_at?: string | null
           name?: string
           phone?: string
           project_id?: string
