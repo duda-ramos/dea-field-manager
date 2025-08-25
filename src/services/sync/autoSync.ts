@@ -1,6 +1,7 @@
+// src/services/sync/autoSync.ts - Versão corrigida compatível com código existente
 import { syncPull, syncPush } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
-import { setSyncState } from './syncState';
+import { syncState } from './syncState';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -16,7 +17,7 @@ class AutoSyncManager {
     
     // Initial pull if enabled
     const prefs = getSyncPreferences();
-    if (prefs.pullOnBoot) {
+    if (prefs.autoPullOnBoot) {
       await this.handleBootPull();
     }
     
@@ -62,7 +63,7 @@ class AutoSyncManager {
 
   private async handleBackgroundSync() {
     const prefs = getSyncPreferences();
-    if (prefs.pushOnUnload && this.isOnline) {
+    if (prefs.autoPushOnUnload && this.isOnline) {
       try {
         // Non-blocking background sync
         void syncPush();
@@ -74,38 +75,28 @@ class AutoSyncManager {
 
   private async handlePageUnload() {
     const prefs = getSyncPreferences();
-    if (prefs.pushOnUnload && this.isOnline) {
+    if (prefs.autoPushOnUnload && this.isOnline) {
       try {
-        // Use sendBeacon API for reliable unload sync
-        const syncData = await this.prepareSyncData();
-        if (syncData && navigator.sendBeacon) {
-          navigator.sendBeacon('/api/sync', JSON.stringify(syncData));
-        }
+        // Simple push without blocking
+        void syncPush();
       } catch (error) {
         console.log('Unload sync failed (expected):', error);
       }
     }
   }
 
-  private async prepareSyncData() {
-    // Prepare minimal sync data for sendBeacon
-    // This is a simplified version for unload scenarios
-    return null; // Implement based on your sync needs
-  }
-
   private handleOnlineStatusChange() {
-    setSyncState(prev => ({
-      ...prev,
-      isOnline: this.isOnline
-    }));
+    // Update sync state
+    syncState.isOnline = this.isOnline;
 
     if (this.isOnline) {
       // Back online - trigger debounced push if needed
-      this.debouncedPush();
+      this.triggerDebouncedSync();
     }
   }
 
-  debouncedPush() {
+  // Method compatible with existing StorageManagerDexie calls
+  triggerDebouncedSync() {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
@@ -125,34 +116,22 @@ class AutoSyncManager {
 
   private async handleBootPull() {
     try {
-      setSyncState(prev => ({ 
-        ...prev, 
-        status: 'Atualizando dados...' 
-      }));
+      syncState.status = 'Atualizando dados...';
       
       console.log('📥 Auto-pull on start...');
       await syncPull();
       
-      setSyncState(prev => ({ 
-        ...prev, 
-        status: 'Dados atualizados' 
-      }));
+      syncState.status = 'Dados atualizados';
       
       // Clear status after 2s
       setTimeout(() => {
-        setSyncState(prev => ({ 
-          ...prev, 
-          status: 'Pronto' 
-        }));
+        syncState.status = 'Pronto';
       }, 2000);
       
       console.log('✅ Auto-pull completed');
     } catch (error) {
       console.error('Auto-pull failed:', error);
-      setSyncState(prev => ({ 
-        ...prev, 
-        status: 'Erro na sincronização' 
-      }));
+      syncState.status = 'Erro na sincronização';
     }
   }
 
@@ -163,12 +142,12 @@ class AutoSyncManager {
     }
 
     const prefs = getSyncPreferences();
-    if (!prefs.periodicSync || !prefs.periodicInterval) {
+    if (!prefs.periodicPull || !prefs.periodicPullInterval) {
       return;
     }
 
-    const intervalMs = prefs.periodicInterval * 60 * 1000;
-    console.log(`⏰ Periodic pull scheduled every ${prefs.periodicInterval} minutes`);
+    const intervalMs = prefs.periodicPullInterval * 60 * 1000;
+    console.log(`⏰ Periodic pull scheduled every ${prefs.periodicPullInterval} minutes`);
 
     this.periodicTimer = setInterval(async () => {
       // Only run when page is visible and online
@@ -182,6 +161,11 @@ class AutoSyncManager {
         }
       }
     }, intervalMs);
+  }
+
+  // Method compatible with existing sync-preferences component
+  updatePeriodicSync() {
+    this.setupPeriodicSync();
   }
 
   cleanup() {
