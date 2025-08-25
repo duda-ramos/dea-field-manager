@@ -910,7 +910,7 @@ export default function ProjectDetailNew() {
             maxFileSize={10}
             onFilesChange={(files) => {
               // Handle files change if needed
-              console.log('Files updated:', files);
+              logger.debug('Files updated:', files);
             }}
           />
         </CardContent>

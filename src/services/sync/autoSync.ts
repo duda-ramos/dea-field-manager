@@ -12,7 +12,7 @@ class AutoSyncManager {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
-    console.log('🔄 Initializing auto-sync manager...');
+    logger.info('🔄 Initializing auto-sync manager...');
     this.isInitialized = true;
 
     // Setup event listeners
@@ -25,7 +25,7 @@ class AutoSyncManager {
     // Setup periodic pull if enabled
     this.setupPeriodicPull();
     
-    console.log('✅ Auto-sync manager initialized');
+    logger.info('✅ Auto-sync manager initialized');
   }
 
   private async handleInitialPull(): Promise<void> {
@@ -33,7 +33,7 @@ class AutoSyncManager {
     if (!preferences.autoPullOnStart) return;
 
     try {
-      console.log('📥 Auto-pull on start...');
+      logger.info('📥 Auto-pull on start...');
       syncStateManager.updateState({ 
         status: 'syncing', 
         progress: { current: 1, total: 1, operation: 'Atualizando dados...' }
@@ -41,7 +41,7 @@ class AutoSyncManager {
 
       await syncPull();
       
-      console.log('✅ Auto-pull completed');
+      logger.info('✅ Auto-pull completed');
       // Brief success message
       setTimeout(() => {
         syncStateManager.updateState({
@@ -55,7 +55,7 @@ class AutoSyncManager {
       }, 500);
       
     } catch (error) {
-      console.error('❌ Auto-pull failed:', error);
+      logger.error('❌ Auto-pull failed:', error);
       syncStateManager.setError('Falha ao atualizar dados iniciais');
       
       // Clear error after 5 seconds
@@ -106,16 +106,16 @@ class AutoSyncManager {
 
     this.pushOnUnloadTimer = setTimeout(async () => {
       try {
-        console.log('📤 Auto-push on unload...');
+        logger.info('📤 Auto-push on unload...');
         
         // Quick push without waiting for completion
         syncPush().catch(error => {
-          console.error('Auto-push failed (non-blocking):', error);
+          logger.error('Auto-push failed (non-blocking):', error);
           // Failures are OK, data stays dirty for next sync
         });
         
       } catch (error) {
-        console.error('Auto-push setup failed:', error);
+        logger.error('Auto-push setup failed:', error);
       }
     }, 2500); // 2.5s debounce
   }
@@ -136,16 +136,16 @@ class AutoSyncManager {
       if (currentState.status === 'syncing') return; // Skip if already syncing
 
       try {
-        console.log('📥 Periodic auto-pull...');
+        logger.info('📥 Periodic auto-pull...');
         await syncPull();
-        console.log('✅ Periodic auto-pull completed');
+        logger.info('✅ Periodic auto-pull completed');
       } catch (error) {
-        console.error('❌ Periodic auto-pull failed:', error);
+        logger.error('❌ Periodic auto-pull failed:', error);
         // Don't show error for background sync
       }
     }, intervalMs);
     
-    console.log(`⏰ Periodic pull scheduled every ${preferences.periodicPullInterval} minutes`);
+    logger.info(`⏰ Periodic pull scheduled every ${preferences.periodicPullInterval} minutes`);
   }
 
   private clearPeriodicTimer(): void {
@@ -172,11 +172,11 @@ class AutoSyncManager {
       if (currentState.pendingPush === 0) return; // No changes to sync
 
       try {
-        console.log('📤 Debounced auto-push...');
+        logger.info('📤 Debounced auto-push...');
         await syncPush();
-        console.log('✅ Debounced auto-push completed');
+        logger.info('✅ Debounced auto-push completed');
       } catch (error) {
-        console.error('❌ Debounced auto-push failed:', error);
+        logger.error('❌ Debounced auto-push failed:', error);
         // Silently fail, data stays dirty
       }
     }, 3000); // 3s debounce

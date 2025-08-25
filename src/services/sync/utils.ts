@@ -58,7 +58,7 @@ export async function withRetry<T>(
       }
       
       const delay = Math.min(opts.baseDelay * Math.pow(2, attempt - 1), opts.maxDelay);
-      console.log(`Sync attempt ${attempt} failed, retrying in ${delay}ms:`, error);
+      logger.warn(`Sync attempt ${attempt} failed, retrying in ${delay}ms:`, error);
       
       await new Promise(resolve => setTimeout(resolve, delay));
     }

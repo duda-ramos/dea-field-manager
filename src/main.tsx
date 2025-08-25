@@ -9,12 +9,12 @@ import { autoSyncManager } from '@/services/sync/autoSync'
 if (import.meta.env.DEV) {
   (window as any).__db = db;
   
-  // Gravação de teste para garantir criação do banco
+  // Initialize IndexedDB for development
   db.projects.count().then(count => {
     if (count === 0) {
-      console.log('Initializing IndexedDB for development...');
+      logger.info('Initializing IndexedDB for development...');
     }
-  }).catch(console.error);
+  }).catch(error => logger.error('IndexedDB initialization failed:', error));
 }
 
 // Initialize app

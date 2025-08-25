@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
+import { authRateLimiter } from '@/services/auth/rateLimiter';
 
 interface Profile {
   id: string;
@@ -102,6 +103,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    // Check rate limit
+    const rateCheck = authRateLimiter.checkLimit('signup', email);
+    if (!rateCheck.allowed) {
+      const error = new Error(`Too many signup attempts. Try again in ${rateCheck.retryAfter} seconds.`);
+      return { error };
+    }
+
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -113,6 +121,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     });
     
+    // Record rate limit attempt
+    authRateLimiter.recordAttempt('signup', email, !error);
+    
     if (error) {
       logger.error('Sign up error:', error);
     }
@@ -121,10 +132,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Check rate limit
+    const rateCheck = authRateLimiter.checkLimit('login', email);
+    if (!rateCheck.allowed) {
+      const error = new Error(`Too many login attempts. Try again in ${rateCheck.retryAfter} seconds.`);
+      return { error };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    
+    // Record rate limit attempt
+    authRateLimiter.recordAttempt('login', email, !error);
     
     if (error) {
       logger.error('Sign in error:', error);
@@ -144,11 +165,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
+    // Check rate limit
+    const rateCheck = authRateLimiter.checkLimit('reset', email);
+    if (!rateCheck.allowed) {
+      const error = new Error(`Too many password reset attempts. Try again in ${rateCheck.retryAfter} seconds.`);
+      return { error };
+    }
+
     const redirectUrl = `${window.location.origin}/auth/reset-password`;
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
     });
+    
+    // Record rate limit attempt
+    authRateLimiter.recordAttempt('reset', email, !error);
     
     if (error) {
       logger.error('Password reset error:', error);
