@@ -2,6 +2,7 @@
 import { syncPull, syncPush } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
 import { syncStateManager } from './syncState';
+import { logger } from '@/services/logger';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -10,7 +11,7 @@ class AutoSyncManager {
   private isVisible = !document.hidden;
 
   async initialize() {
-    console.log('🔄 Initializing auto-sync manager...');
+    logger.info('🔄 Initializing auto-sync manager...');
     
     // Setup event listeners
     this.setupEventListeners();
@@ -24,7 +25,7 @@ class AutoSyncManager {
     // Setup periodic sync
     this.setupPeriodicSync();
     
-    console.log('✅ Auto-sync manager initialized');
+    logger.info('✅ Auto-sync manager initialized');
   }
 
   private setupEventListeners() {
@@ -68,7 +69,7 @@ class AutoSyncManager {
         // Non-blocking background sync
         void syncPush();
       } catch (error) {
-        console.log('Background sync failed (non-critical):', error);
+        logger.debug('Background sync failed (non-critical):', error);
       }
     }
   }
@@ -80,7 +81,7 @@ class AutoSyncManager {
         // Simple push without blocking
         void syncPush();
       } catch (error) {
-        console.log('Unload sync failed (expected):', error);
+        logger.debug('Unload sync failed (expected):', error);
       }
     }
   }
@@ -104,11 +105,11 @@ class AutoSyncManager {
     this.debounceTimer = setTimeout(async () => {
       if (this.isOnline) {
         try {
-          console.log('📤 Debounced auto-push...');
+          logger.info('📤 Debounced auto-push...');
           await syncPush();
-          console.log('✅ Debounced auto-push completed');
+          logger.info('✅ Debounced auto-push completed');
         } catch (error) {
-          console.error('Debounced push failed:', error);
+          logger.error('Debounced push failed:', error);
         }
       }
     }, 3000);
@@ -118,14 +119,14 @@ class AutoSyncManager {
     try {
       syncStateManager.setSyncing('pull');
       
-      console.log('📥 Auto-pull on start...');
+      logger.info('📥 Auto-pull on start...');
       await syncPull();
       
       syncStateManager.setIdle();
       
-      console.log('✅ Auto-pull completed');
+      logger.info('✅ Auto-pull completed');
     } catch (error) {
-      console.error('Auto-pull failed:', error);
+      logger.error('Auto-pull failed:', error);
       syncStateManager.setError('Erro na sincronização automática');
     }
   }
@@ -142,17 +143,17 @@ class AutoSyncManager {
     }
 
     const intervalMs = prefs.periodicPullInterval * 60 * 1000;
-    console.log(`⏰ Periodic pull scheduled every ${prefs.periodicPullInterval} minutes`);
+    logger.info(`⏰ Periodic pull scheduled every ${prefs.periodicPullInterval} minutes`);
 
     this.periodicTimer = setInterval(async () => {
       // Only run when page is visible and online
       if (this.isVisible && this.isOnline) {
         try {
-          console.log('📥 Periodic auto-pull...');
+          logger.info('📥 Periodic auto-pull...');
           await syncPull();
-          console.log('✅ Periodic auto-pull completed');
+          logger.info('✅ Periodic auto-pull completed');
         } catch (error) {
-          console.error('Periodic pull failed:', error);
+          logger.error('Periodic pull failed:', error);
         }
       }
     }, intervalMs);

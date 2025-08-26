@@ -52,12 +52,14 @@ export interface Installation {
 
 export interface ItemVersion {
   id: string;
+  installationId: string;
   itemId: string;
   snapshot: Omit<Installation, 'id' | 'revisado' | 'revisao'>;
   revisao: number;
   motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros';
   descricao_motivo?: string;
   criadoEm: string;
+  createdAt?: number;
   // Sync flags
   _dirty?: number;
   _deleted?: number;
@@ -65,7 +67,8 @@ export interface ItemVersion {
 
 export interface ProjectBudget {
   id: string;
-  project_id: string;
+  project_id?: string;
+  projectId?: string; // Legacy field for compatibility
   supplier: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
@@ -80,11 +83,16 @@ export interface ProjectBudget {
 
 export interface ProjectContact {
   id: string;
-  project_id: string;
-  name: string;
-  role: string;
-  phone: string;
-  email: string;
+  project_id?: string;
+  projetoId?: string; // Legacy field for compatibility
+  name?: string;
+  nome?: string; // Legacy field
+  role?: string;
+  tipo?: string; // Legacy field  
+  phone?: string;
+  telefone?: string; // Legacy field
+  email?: string;
+  atualizadoEm?: string; // Legacy field
   // Sync flags
   _dirty?: number;
   _deleted?: number;

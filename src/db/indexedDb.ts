@@ -50,8 +50,29 @@ class DeaFieldManagerDB extends Dexie {
         files: 'id, projectId, installationId, uploadedAt, _dirty, _deleted',
         meta: 'key'
       });
+
+      // Version 4 - Add needsUpload index for files to fix sync errors
+      this.version(4).stores({
+        projects: 'id, updatedAt, name, _dirty, _deleted',
+        installations: 'id, project_id, updatedAt, status, _dirty, _deleted',  
+        contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+        budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+        itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
+        files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+        meta: 'key'
+      });
+
+      // Version 5 - Final stable schema with all required indexes
+      this.version(5).stores({
+        projects: 'id, updatedAt, name, _dirty, _deleted',
+        installations: 'id, project_id, updatedAt, status, _dirty, _deleted',
+        contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+        budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+        itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
+        files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+        meta: 'key'
+      });
   }
 }
 
 export const db = new DeaFieldManagerDB();
-
