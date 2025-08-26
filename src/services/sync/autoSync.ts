@@ -1,7 +1,7 @@
 // src/services/sync/autoSync.ts - Versão corrigida compatível com código existente
 import { syncPull, syncPush } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
-import { syncState } from './syncState';
+import { syncStateManager } from './syncState';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -17,7 +17,7 @@ class AutoSyncManager {
     
     // Initial pull if enabled
     const prefs = getSyncPreferences();
-    if (prefs.autoPullOnBoot) {
+    if (prefs.autoPullOnStart) {
       await this.handleBootPull();
     }
     
@@ -63,7 +63,7 @@ class AutoSyncManager {
 
   private async handleBackgroundSync() {
     const prefs = getSyncPreferences();
-    if (prefs.autoPushOnUnload && this.isOnline) {
+    if (prefs.autoPushOnExit && this.isOnline) {
       try {
         // Non-blocking background sync
         void syncPush();
@@ -75,7 +75,7 @@ class AutoSyncManager {
 
   private async handlePageUnload() {
     const prefs = getSyncPreferences();
-    if (prefs.autoPushOnUnload && this.isOnline) {
+    if (prefs.autoPushOnExit && this.isOnline) {
       try {
         // Simple push without blocking
         void syncPush();
@@ -87,7 +87,7 @@ class AutoSyncManager {
 
   private handleOnlineStatusChange() {
     // Update sync state
-    syncState.isOnline = this.isOnline;
+    syncStateManager.updateState({ isOnline: this.isOnline });
 
     if (this.isOnline) {
       // Back online - trigger debounced push if needed
@@ -116,22 +116,17 @@ class AutoSyncManager {
 
   private async handleBootPull() {
     try {
-      syncState.status = 'Atualizando dados...';
+      syncStateManager.setSyncing('pull');
       
       console.log('📥 Auto-pull on start...');
       await syncPull();
       
-      syncState.status = 'Dados atualizados';
-      
-      // Clear status after 2s
-      setTimeout(() => {
-        syncState.status = 'Pronto';
-      }, 2000);
+      syncStateManager.setIdle();
       
       console.log('✅ Auto-pull completed');
     } catch (error) {
       console.error('Auto-pull failed:', error);
-      syncState.status = 'Erro na sincronização';
+      syncStateManager.setError('Erro na sincronização automática');
     }
   }
 
@@ -142,7 +137,7 @@ class AutoSyncManager {
     }
 
     const prefs = getSyncPreferences();
-    if (!prefs.periodicPull || !prefs.periodicPullInterval) {
+    if (!prefs.periodicPullEnabled || !prefs.periodicPullInterval) {
       return;
     }
 
