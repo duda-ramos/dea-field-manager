@@ -66,12 +66,14 @@ export const LoginPage = () => {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="email"
               />
             </div>
             
@@ -80,6 +82,7 @@ export const LoginPage = () => {
               <div className="relative">
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Digite sua senha"
                   value={password}
@@ -87,6 +90,7 @@ export const LoginPage = () => {
                   required
                   disabled={loading}
                   className="pr-10"
+                  autoComplete="current-password"
                 />
                 <Button
                   type="button"
@@ -95,6 +99,7 @@ export const LoginPage = () => {
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />

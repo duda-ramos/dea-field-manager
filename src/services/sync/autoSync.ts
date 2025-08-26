@@ -16,16 +16,18 @@ class AutoSyncManager {
     // Setup event listeners
     this.setupEventListeners();
     
-    // Initial pull if enabled
+    // Setup periodic sync (no initial pull to avoid auth errors)
+    this.setupPeriodicSync();
+    
+    logger.info('✅ Auto-sync manager initialized');
+  }
+
+  async initializeWithAuth() {
+    // Initial pull if enabled and user is authenticated
     const prefs = getSyncPreferences();
     if (prefs.autoPullOnStart) {
       await this.handleBootPull();
     }
-    
-    // Setup periodic sync
-    this.setupPeriodicSync();
-    
-    logger.info('✅ Auto-sync manager initialized');
   }
 
   private setupEventListeners() {

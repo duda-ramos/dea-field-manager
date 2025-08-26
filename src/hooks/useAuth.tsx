@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
 import { authRateLimiter } from '@/services/auth/rateLimiter';
+import { autoSyncManager } from '@/services/sync/autoSync';
 
 interface Profile {
   id: string;
@@ -64,6 +65,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
+    let hasInitialized = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -77,6 +80,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setTimeout(() => {
             fetchProfile(session.user.id);
           }, 0);
+          
+          // Initialize auto-sync when user logs in
+          if (!hasInitialized) {
+            hasInitialized = true;
+            setTimeout(() => {
+              autoSyncManager.initialize().then(() => {
+                autoSyncManager.initializeWithAuth();
+              });
+            }, 100);
+          }
         } else {
           setProfile(null);
         }
@@ -94,6 +107,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setTimeout(() => {
           fetchProfile(session.user.id);
         }, 0);
+        
+        // Initialize auto-sync for existing session
+        if (!hasInitialized) {
+          hasInitialized = true;
+          setTimeout(() => {
+            autoSyncManager.initialize().then(() => {
+              autoSyncManager.initializeWithAuth();
+            });
+          }, 100);
+        }
       }
       
       setLoading(false);

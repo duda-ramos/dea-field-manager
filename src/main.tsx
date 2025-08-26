@@ -32,10 +32,7 @@ async function initializeApp() {
     // Run migration first
     await migrateLocalToIndexedIfNeeded();
     
-    // Initialize auto-sync after migration
-    await autoSyncManager.initialize();
-    
-    // Render app
+    // Render app first, then initialize auto-sync after auth is ready
     createRoot(document.getElementById("root")!).render(<App />);
   } catch (error) {
     console.error('Failed to initialize app:', error);
