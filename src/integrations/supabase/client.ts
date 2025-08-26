@@ -5,6 +5,12 @@ import type { Database } from './types';
 const url = 'https://yfyousmorhjgoclxidwm.supabase.co';
 const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmeW91c21vcmhqZ29jbHhpZHdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTUxMzksImV4cCI6MjA3MTI5MTEzOX0.KtwC99ck8Gs84v4ynJPC947PaZ0ABah5tm7mzCXu62I';
 
+// Detect environment for proper redirect handling
+const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+const siteUrl = isProduction 
+  ? 'https://dea-field-manager.lovable.app'
+  : typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080';
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,5 +19,9 @@ export const supabase = createClient<Database>(url, key, {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    // Set the site URL dynamically
+    redirectTo: siteUrl
   }
 });
