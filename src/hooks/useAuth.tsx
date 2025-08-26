@@ -42,11 +42,10 @@ interface AuthProviderProps {
 // Helper function to get the correct redirect URL based on environment
 const getRedirectUrl = (path = '/') => {
   const isProduction = window.location.hostname !== 'localhost';
-  const baseUrl = isProduction 
-    ? 'https://dea-field-manager.lovable.app'
-    : window.location.origin;
-  
-  return `${baseUrl}${path}`;
+  if (isProduction) {
+    return `https://dea-field-manager.lovable.app${path}`;
+  }
+  return `${window.location.origin}${path}`;
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -68,7 +67,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      setProfile(data);
+      if (data) {
+        setProfile(data);
+      }
     } catch (error) {
       logger.error('Unexpected error fetching profile:', error);
     }
@@ -230,19 +231,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { error: new Error('No user logged in') };
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
 
-    if (error) {
-      logger.error('Profile update error:', error);
-    } else {
+      if (error) {
+        logger.error('Profile update error:', error);
+        return { error };
+      }
+
       // Refresh profile data
       await fetchProfile(user.id);
+      return { error: null };
+    } catch (error) {
+      logger.error('Profile update exception:', error);
+      return { error };
     }
-
-    return { error };
   };
 
   const value = {
