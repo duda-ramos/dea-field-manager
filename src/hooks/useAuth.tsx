@@ -39,6 +39,16 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to get the correct redirect URL based on environment
+const getRedirectUrl = (path = '/') => {
+  const isProduction = window.location.hostname !== 'localhost';
+  const baseUrl = isProduction 
+    ? 'https://dea-field-manager.lovable.app'
+    : window.location.origin;
+  
+  return `${baseUrl}${path}`;
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -87,6 +97,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setTimeout(() => {
               autoSyncManager.initialize().then(() => {
                 autoSyncManager.initializeWithAuth();
+              }).catch(error => {
+                console.error('Auto-sync initialization failed:', error);
               });
             }, 100);
           }
@@ -114,6 +126,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setTimeout(() => {
             autoSyncManager.initialize().then(() => {
               autoSyncManager.initializeWithAuth();
+            }).catch(error => {
+              console.error('Auto-sync initialization failed:', error);
             });
           }, 100);
         }
@@ -133,7 +147,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { error };
     }
 
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getRedirectUrl('/');
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -195,7 +209,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { error };
     }
 
-    const redirectUrl = `${window.location.origin}/auth/reset-password`;
+    const redirectUrl = getRedirectUrl('/auth/reset-password');
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
