@@ -9,7 +9,7 @@ const isProd = !isDev;
 export const FeatureFlags = {
   // Auto-sync behavior
   AUTO_PULL_ON_BOOT: true,
-  AUTO_PUSH_ON_UNLOAD: true,
+  AUTO_PUSH_ON_PAGE_HIDE: true, // Modern replacement for unload events
   AUTO_SYNC_PERIODIC: isDev, // Only in dev by default
   
   // Logging levels
