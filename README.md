@@ -32,7 +32,10 @@ cd <YOUR_PROJECT_NAME>
 # Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Copy environment variables
+cp .env.example .env
+
+# Step 5: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
@@ -59,6 +62,46 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+## API Proxy Configuration
+
+This project includes a BFF (Backend for Frontend) proxy to handle external API calls and prevent CORS issues.
+
+### Environment Variables
+
+Configure the following variables in your `.env` file:
+
+- `VITE_LOVABLE_ALLOWED_ORIGIN`: CORS allowed origin (use `*` for development, specific domain for production)
+- `VITE_OAUTH_CLIENT_ID`: OAuth client ID for API authentication
+
+### Development
+
+The Vite development server automatically proxies `/api/lovable/*` requests to `https://lovable-api.com`.
+
+### Production
+
+For production deployments, ensure your hosting platform supports API proxying or implement a server-side proxy.
+
+### Chrome Extension
+
+The project includes Chrome extension files for enhanced integration:
+- `public/manifest.json`: Extension manifest
+- `public/background.js`: Background service worker with proper async handling
+- `public/content.js`: Content script with helper functions
+
+### API Usage
+
+Use the centralized API helper instead of direct external calls:
+
+```javascript
+import { apiFetch, getToken } from '@/lib/api';
+
+// Instead of: fetch('https://lovable-api.com/projects')
+const projects = await apiFetch('/projects');
+
+// OAuth token with proper format
+const token = await getToken({ username, password, clientId });
+```
 
 ## How can I deploy this project?
 

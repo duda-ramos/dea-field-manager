@@ -9,6 +9,22 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      "/api/lovable": {
+        target: "https://lovable-api.com",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/api\/lovable/, ""),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Force application/x-www-form-urlencoded for OAuth endpoints
+            if (req.url?.includes('/oauth') || req.url?.includes('/token')) {
+              proxyReq.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+            }
+          });
+        }
+      },
+    },
   },
   plugins: [
     react(),
