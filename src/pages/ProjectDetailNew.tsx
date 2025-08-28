@@ -22,6 +22,7 @@ import { importExcelFile } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
+import { FileManager } from "@/components/file-manager/FileManager";
 import { logger } from '@/services/logger';
 
 export default function ProjectDetailNew() {
@@ -76,6 +77,7 @@ export default function ProjectDetailNew() {
   const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
                         location.pathname.includes('/relatorios') ? 'relatorios' :
                         location.pathname.includes('/orcamentos') ? 'orcamentos' :
+                        location.pathname.includes('/arquivos') ? 'arquivos' :
                         location.pathname.includes('/contatos') ? 'contatos' :
                         'info';
 
@@ -1013,6 +1015,12 @@ export default function ProjectDetailNew() {
               Orçamentos
             </Button>
             <Button 
+              variant={currentSection === 'arquivos' ? 'default' : 'outline'}
+              onClick={() => navigate(`/projeto/${id}/arquivos`)}
+            >
+              Arquivos
+            </Button>
+            <Button 
               variant={currentSection === 'contatos' ? 'default' : 'outline'}
               onClick={() => navigate(`/projeto/${id}/contatos`)}
             >
@@ -1049,6 +1057,7 @@ export default function ProjectDetailNew() {
         {currentSection === 'pecas' && renderPecasSection()}
         {currentSection === 'relatorios' && renderRelatoriosSection()}
         {currentSection === 'orcamentos' && renderOrcamentosSection()}
+        {currentSection === 'arquivos' && <FileManager projectId={project.id} />}
         {currentSection === 'contatos' && renderContatosSection()}
       </div>
 

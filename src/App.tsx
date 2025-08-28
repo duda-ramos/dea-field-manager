@@ -14,6 +14,8 @@ import { AppHeader } from "@/components/app-header";
 // Pages
 import Dashboard from "./pages/Dashboard";
 import ProjectDetailNew from "./pages/ProjectDetailNew";
+import ProjectsPage from "./pages/ProjectsPage";
+import ReportsPage from "./pages/ReportsPage";
 import { ContatosPage } from "./features/contatos";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
@@ -97,6 +99,27 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/arquivos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projetos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/relatorios" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ReportsPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />
