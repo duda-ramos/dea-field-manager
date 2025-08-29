@@ -45,42 +45,87 @@ export default function BudgetPage() {
   });
 
   useEffect(() => {
-    if (id) {
+    console.log('BudgetPage useEffect - id:', id, 'user:', user?.id);
+    if (id && user) {
       loadProjectData();
       loadBudgets();
     }
   }, [id, user]);
 
   const loadProjectData = async () => {
-    if (!id || !user) return;
-    
-    const { data: projectData, error } = await supabase
-      .from('projects')
-      .select('id, name, client')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (error || !projectData) {
-      navigate('/projetos');
+    console.log('loadProjectData called - id:', id, 'user:', user?.id);
+    if (!id || !user) {
+      console.log('Missing id or user, returning early');
       return;
     }
     
-    setProject(projectData);
+    try {
+      const { data: projectData, error } = await supabase
+        .from('projects')
+        .select('id, name, client')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading project:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar projeto",
+          variant: "destructive"
+        });
+        navigate('/projetos');
+        return;
+      }
+
+      if (!projectData) {
+        toast({
+          title: "Projeto não encontrado",
+          description: "Projeto não foi encontrado ou você não tem acesso a ele",
+          variant: "destructive"
+        });
+        navigate('/projetos');
+        return;
+      }
+      
+      setProject(projectData);
+    } catch (error) {
+      console.error('Unexpected error loading project:', error);
+      navigate('/projetos');
+    }
   };
 
   const loadBudgets = async () => {
     if (!id || !user) return;
 
-    const { data: budgetsData, error } = await supabase
-      .from('budgets')
-      .select('*')
-      .eq('project_id', id)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data: budgetsData, error } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('project_id', id)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (!error && budgetsData) {
-      setBudgets(budgetsData as Budget[]);
+      if (error) {
+        console.error('Error loading budgets:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar orçamentos",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (budgetsData) {
+        setBudgets(budgetsData as Budget[]);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading budgets:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar orçamentos",
+        variant: "destructive"
+      });
     }
   };
 
@@ -202,7 +247,31 @@ export default function BudgetPage() {
   const approvedAmount = budgets.filter(b => b.status === 'approved').reduce((sum, budget) => sum + budget.amount, 0);
   const pendingAmount = budgets.filter(b => b.status === 'pending').reduce((sum, budget) => sum + budget.amount, 0);
 
-  if (!project) return null;
+  if (!user) {
+    return (
+      <div className="container-modern py-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Acesso negado</h3>
+            <p className="text-muted-foreground">Você precisa estar logado para acessar esta página</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="container-modern py-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando projeto...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container-modern py-8 space-y-8">
