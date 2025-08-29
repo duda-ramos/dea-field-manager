@@ -45,10 +45,26 @@ export default function ProjectDetailNew() {
   const [reportFilter, setReportFilter] = useState<'all' | 'pendentes' | 'emAndamento' | 'instalados'>('all');
   const [reportPavimentoFilter, setReportPavimentoFilter] = useState<string>('all');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Calcular contadores de contatos
+  const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
 
   useEffect(() => {
     loadProjectData();
   }, [id, navigate]);
+
+  useEffect(() => {
+    const loadContadores = async () => {
+      const allContacts = await storage.getContacts();
+      const contatos = allContacts.filter(c => c.projetoId === id);
+      setContadores({
+        cliente: contatos.filter(c => c.tipo === 'cliente').length,
+        obra: contatos.filter(c => c.tipo === 'obra').length,
+        fornecedor: contatos.filter(c => c.tipo === 'fornecedor').length,
+        total: contatos.length
+      });
+    };
+    if (id) loadContadores();
+  }, [id]);
 
   const loadProjectData = async () => {
     if (!id) return;
@@ -942,22 +958,6 @@ export default function ProjectDetailNew() {
     </div>
   );
 
-  // Calcular contadores de contatos
-  const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
-  
-  useEffect(() => {
-    const loadContadores = async () => {
-      const allContacts = await storage.getContacts();
-      const contatos = allContacts.filter(c => c.projetoId === id);
-      setContadores({
-        cliente: contatos.filter(c => c.tipo === 'cliente').length,
-        obra: contatos.filter(c => c.tipo === 'obra').length,
-        fornecedor: contatos.filter(c => c.tipo === 'fornecedor').length,
-        total: contatos.length
-      });
-    };
-    if (id) loadContadores();
-  }, [id]);
 
   return (
     <div className="min-h-screen bg-background">
