@@ -8,7 +8,8 @@ import {
   BarChart3,
   FileText,
   HelpCircle,
-  Plus
+  Plus,
+  DollarSign
 } from "lucide-react"
 
 import {
@@ -42,6 +43,11 @@ const navigationItems = [
     title: "Contatos",
     url: "/contatos",
     icon: Users,
+  },
+  {
+    title: "Orçamentos",
+    url: "/orcamentos",
+    icon: DollarSign,
   },
   {
     title: "Relatórios",

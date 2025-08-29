@@ -16,6 +16,8 @@ import Dashboard from "./pages/Dashboard";
 import ProjectDetailNew from "./pages/ProjectDetailNew";
 import ProjectsPage from "./pages/ProjectsPage";
 import ReportsPage from "./pages/ReportsPage";
+import BudgetPage from "./pages/BudgetPage";
+import BudgetsListPage from "./pages/BudgetsListPage";
 import { ContatosPage } from "./features/contatos";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
@@ -98,7 +100,14 @@ const App = () => (
               <Route path="/projeto/:id/orcamentos" element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <ProjectDetailNew />
+                    <BudgetPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/contatos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ContatosPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />
@@ -126,7 +135,14 @@ const App = () => (
               <Route path="/contatos" element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <ContatosPage />
+                    <div>Contatos page - Coming soon</div>
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/orcamentos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <BudgetsListPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />
