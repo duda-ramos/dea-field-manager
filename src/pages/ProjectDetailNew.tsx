@@ -166,6 +166,7 @@ export default function ProjectDetailNew() {
               ...installation,
               id: installation.id || `install_${Date.now()}_${Math.random()}`,
               project_id: project.id,
+              pavimento: importData.pavimento, // IMPORTANTE: Atribuir o pavimento do nome da aba
               updated_at: new Date().toISOString(),
               revisado: false
             };
