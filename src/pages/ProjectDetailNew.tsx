@@ -916,22 +916,21 @@ export default function ProjectDetailNew() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Gestão de Arquivos de Orçamentos</CardTitle>
+          <CardTitle>Orçamentos do Projeto</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground mb-6">
-            Faça upload e gerencie os arquivos relacionados aos orçamentos do projeto. Você pode arrastar e soltar os arquivos ou usar o botão para navegar e selecionar.
-          </p>
-          
-          <FileUpload 
-            projectId={project.id}
-            acceptedTypes={['.pdf', '.xlsx', '.xls', '.doc', '.docx', '.png', '.jpg', '.jpeg']}
-            maxFileSize={10}
-            onFilesChange={(files) => {
-              // Handle files change if needed
-              logger.debug('Files updated:', files);
-            }}
-          />
+          <div className="text-center py-12">
+            <div className="text-lg font-semibold mb-2">Gestão de Orçamentos</div>
+            <p className="text-muted-foreground mb-4">
+              Acesse a página dedicada de orçamentos para gerenciar fornecedores, valores e status dos orçamentos.
+            </p>
+            <Button 
+              onClick={() => navigate(`/projeto/${id}/orcamentos`)}
+              size="lg"
+            >
+              Gerenciar Orçamentos
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
