@@ -45,17 +45,37 @@ export default function BudgetPage() {
   });
 
   useEffect(() => {
-    console.log('BudgetPage useEffect - id:', id, 'user:', user?.id);
+    console.log('BudgetPage useEffect - Raw params:', { id });
+    console.log('BudgetPage useEffect - user exists:', !!user);
+    console.log('BudgetPage useEffect - user id:', user?.id);
+    
     if (id && user) {
+      console.log('About to load project data with id:', id);
       loadProjectData();
       loadBudgets();
+    } else {
+      console.log('Missing prerequisites - id:', id, 'user:', !!user);
     }
   }, [id, user]);
 
   const loadProjectData = async () => {
-    console.log('loadProjectData called - id:', id, 'user:', user?.id);
+    console.log('loadProjectData called - raw id:', id, 'typeof:', typeof id);
+    console.log('loadProjectData called - user:', user?.id);
+    
     if (!id || !user) {
-      console.log('Missing id or user, returning early');
+      console.log('Missing id or user, returning early - id:', id, 'user:', !!user);
+      return;
+    }
+
+    // Additional validation for id
+    if (id === ':id' || id.includes(':')) {
+      console.error('Invalid ID detected:', id);
+      toast({
+        title: "Erro de navegação",
+        description: "ID do projeto inválido",
+        variant: "destructive"
+      });
+      navigate('/projetos');
       return;
     }
     
