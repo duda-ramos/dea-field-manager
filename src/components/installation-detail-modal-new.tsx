@@ -31,6 +31,8 @@ export function InstallationDetailModalNew({
   const [installed, setInstalled] = useState(installation.installed);
   const [currentObservation, setCurrentObservation] = useState("");
   const [observationHistory, setObservationHistory] = useState<string[]>([]);
+  const [currentSupplierComment, setCurrentSupplierComment] = useState("");
+  const [supplierCommentHistory, setSupplierCommentHistory] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>(installation.photos);
   const [versions, setVersions] = useState<ItemVersion[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -55,18 +57,38 @@ export function InstallationDetailModalNew({
     } else {
       setObservationHistory([]);
     }
+    
+    // Parse existing supplier comments as history
+    if (installation.comentarios_fornecedor && installation.comentarios_fornecedor.trim() !== "") {
+      setSupplierCommentHistory(installation.comentarios_fornecedor.split('\n---\n').filter(comment => comment.trim() !== ""));
+    } else {
+      setSupplierCommentHistory([]);
+    }
   }, [installation]);
 
   const handleSave = async () => {
     let newObservations = observationHistory.join('\n---\n');
+    let newSupplierComments = supplierCommentHistory.join('\n---\n');
     
     // Add new observation if provided
     if (currentObservation.trim() !== "") {
       const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
       newObservations = newObservations ? `${newObservations}\n---\n${timestampedObservation}` : timestampedObservation;
     }
+    
+    // Add new supplier comment if provided
+    if (currentSupplierComment.trim() !== "") {
+      const timestampedComment = `[${new Date().toLocaleString('pt-BR')}] ${currentSupplierComment.trim()}`;
+      newSupplierComments = newSupplierComments ? `${newSupplierComments}\n---\n${timestampedComment}` : timestampedComment;
+    }
 
-    const updatedInstallation = { ...installation, installed, observacoes: newObservations || undefined, photos };
+    const updatedInstallation = { 
+      ...installation, 
+      installed, 
+      observacoes: newObservations || undefined, 
+      comentarios_fornecedor: newSupplierComments || undefined,
+      photos 
+    };
     const updated = await storage.upsertInstallation(updatedInstallation);
 
     if (updated) {
@@ -85,6 +107,14 @@ export function InstallationDetailModalNew({
     const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
     setObservationHistory([...observationHistory, timestampedObservation]);
     setCurrentObservation("");
+  };
+
+  const addSupplierComment = () => {
+    if (currentSupplierComment.trim() === "") return;
+    
+    const timestampedComment = `[${new Date().toLocaleString('pt-BR')}] ${currentSupplierComment.trim()}`;
+    setSupplierCommentHistory([...supplierCommentHistory, timestampedComment]);
+    setCurrentSupplierComment("");
   };
 
   const handleAddRevision = () => {
@@ -208,13 +238,40 @@ export function InstallationDetailModalNew({
             </div>
 
             {/* Comments for supplier */}
-            <div>
+            <div className="space-y-4">
               <Label>Comentários para o Fornecedor</Label>
-              <Textarea 
-                value={installation.comentarios_fornecedor || "Nenhum comentário para o fornecedor"} 
-                readOnly 
-                className="bg-muted min-h-[80px]" 
-              />
+              
+              {/* Add new supplier comment */}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Adicionar novo comentário para o fornecedor..."
+                  value={currentSupplierComment}
+                  onChange={(e) => setCurrentSupplierComment(e.target.value)}
+                  className="flex-1"
+                  rows={3}
+                />
+                <Button 
+                  onClick={addSupplierComment}
+                  disabled={currentSupplierComment.trim() === ""}
+                  className="self-start"
+                >
+                  Adicionar
+                </Button>
+              </div>
+              
+              {/* Supplier comment history */}
+              {supplierCommentHistory.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Histórico de Comentários:</Label>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {supplierCommentHistory.map((comment, index) => (
+                      <div key={index} className="p-3 bg-muted rounded-md text-sm">
+                        {comment}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Installation Status */}
