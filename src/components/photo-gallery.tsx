@@ -5,14 +5,17 @@ import { Camera, X, Plus, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PhotoGalleryProps {
-  photos: string[];
+  photos?: string[]; // Made optional to handle undefined
   onPhotosChange: (photos: string[]) => void;
   className?: string;
 }
 
-export function PhotoGallery({ photos, onPhotosChange, className }: PhotoGalleryProps) {
+export function PhotoGallery({ photos = [], onPhotosChange, className }: PhotoGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+
+  // Ensure photos is always an array
+  const safePhotos = photos || [];
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -22,21 +25,21 @@ export function PhotoGallery({ photos, onPhotosChange, className }: PhotoGallery
       const reader = new FileReader();
       reader.onload = (e) => {
         const photoUrl = e.target?.result as string;
-        onPhotosChange([...photos, photoUrl]);
+        onPhotosChange([...safePhotos, photoUrl]);
       };
       reader.readAsDataURL(file);
     });
   };
 
   const removePhoto = (index: number) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
+    const newPhotos = safePhotos.filter((_, i) => i !== index);
     onPhotosChange(newPhotos);
   };
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <h4 className="font-medium">Fotos ({photos.length})</h4>
+        <h4 className="font-medium">Fotos ({safePhotos.length})</h4>
         <div className="relative">
           <input
             type="file"
@@ -53,14 +56,14 @@ export function PhotoGallery({ photos, onPhotosChange, className }: PhotoGallery
         </div>
       </div>
 
-      {photos.length === 0 ? (
+      {safePhotos.length === 0 ? (
         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
           <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Nenhuma foto adicionada</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
-          {photos.map((photo, index) => (
+          {safePhotos.map((photo, index) => (
             <div key={index} className="relative group">
               <img
                 src={photo}
