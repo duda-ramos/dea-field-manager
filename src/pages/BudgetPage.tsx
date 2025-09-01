@@ -45,17 +45,23 @@ export default function BudgetPage() {
   });
 
   useEffect(() => {
-    console.log('BudgetPage useEffect - Raw params:', { id });
-    console.log('BudgetPage useEffect - user exists:', !!user);
-    console.log('BudgetPage useEffect - user id:', user?.id);
+    console.log('=== BudgetPage Debug ===');
+    console.log('Current location:', window.location.pathname);
+    console.log('Raw params from useParams:', { id });
+    console.log('User exists:', !!user);
+    console.log('User id:', user?.id);
+    console.log('ID type:', typeof id, 'Value:', id);
     
     if (id && user) {
-      console.log('About to load project data with id:', id);
+      console.log('Prerequisites met - loading data with id:', id);
       loadProjectData();
       loadBudgets();
     } else {
       console.log('Missing prerequisites - id:', id, 'user:', !!user);
+      if (!id) console.log('ERROR: No ID parameter found!');
+      if (!user) console.log('ERROR: No user found!');
     }
+    console.log('========================');
   }, [id, user]);
 
   const loadProjectData = async () => {
