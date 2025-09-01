@@ -14,6 +14,55 @@ export const StorageManagerDexie = {
     return db.projects.get(id);
   },
   async upsertProject(project: Project) {
+    // Se é um projeto novo (sem ID válido ou ID vazio), criar diretamente no Supabase
+    if (!project.id || project.id === '' || project.id.startsWith('project_')) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      // Obter o usuário atual do Supabase
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
+          name: project.name,
+          client: project.client,
+          city: project.city,
+          code: project.code,
+          status: project.status,
+          installation_date: project.installation_date || null,
+          inauguration_date: project.inauguration_date || null,
+          owner_name: project.owner,
+          suppliers: project.suppliers,
+          project_files_link: project.project_files_link || null,
+          user_id: user.id
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao criar projeto no Supabase:', error);
+        throw error;
+      }
+
+      // Salvar no IndexedDB com o ID real do Supabase
+      const withDates = { 
+        ...project,
+        id: data.id,
+        updatedAt: now(), 
+        createdAt: now(),
+        _dirty: 0, // Não está dirty pois já foi salvo no Supabase
+        _deleted: 0
+      };
+      await db.projects.put(withDates);
+      
+      return withDates;
+    }
+
+    // Para projetos existentes, apenas atualizar localmente
     const withDates = { 
       ...project, 
       updatedAt: now(), 

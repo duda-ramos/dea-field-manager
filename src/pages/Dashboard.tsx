@@ -57,7 +57,7 @@ export default function Dashboard() {
 
     const project = await storage.upsertProject({
       ...newProject,
-      id: `project_${Date.now()}`,
+      id: '', // Temporário - será substituído pelo UUID do Supabase
       status: 'planning' as const,
       suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
       created_at: new Date().toISOString(),
