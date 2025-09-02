@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, DollarSign, FileText, Calendar, Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { storage } from "@/lib/storage";
 
 interface Budget {
   id: string;
@@ -86,6 +87,21 @@ export default function BudgetPage() {
     }
     
     try {
+      // Primeiro tenta carregar do storage local
+      const projects = await storage.getProjects();
+      const localProject = projects.find(p => p.id === id);
+      
+      if (localProject) {
+        console.log('Project found in local storage:', localProject);
+        setProject({
+          id: localProject.id,
+          name: localProject.name,
+          client: localProject.client
+        });
+        return;
+      }
+
+      // Se não encontrou localmente, tenta carregar do Supabase
       const { data: projectData, error } = await supabase
         .from('projects')
         .select('id, name, client')
@@ -94,7 +110,7 @@ export default function BudgetPage() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading project:', error);
+        console.error('Error loading project from Supabase:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar projeto",
