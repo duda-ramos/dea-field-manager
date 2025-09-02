@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CalendarDays, MapPin, User, ArrowRight, Building, Code } from "lucide-react";
+import { CalendarDays, MapPin, User, ArrowRight, Building, Code, RefreshCw } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProjectCardProps {
   project: Project;
@@ -14,7 +16,9 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [installations, setInstallations] = useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const loadInstallations = async () => {
@@ -28,6 +32,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const totalInstallations = installations.length;
   const progressPercentage = totalInstallations > 0 ? (completedInstallations / totalInstallations) * 100 : 0;
 
+  // Verificar se o projeto já foi sincronizado
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const isLocalProject = !uuidRegex.test(project.id);
+
   const statusConfig = {
     planning: { label: "Planejamento", variant: "secondary" as const },
     "in-progress": { label: "Em Andamento", variant: "default" as const },
@@ -38,6 +46,71 @@ export function ProjectCard({ project }: ProjectCardProps) {
     navigate(`/projeto/${project.id}`);
   };
 
+  const handleSyncProject = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSyncing(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar logado para sincronizar",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Criar projeto no Supabase
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
+          name: project.name,
+          client: project.client,
+          city: project.city,
+          code: project.code,
+          status: project.status,
+          installation_date: project.installation_date || null,
+          inauguration_date: project.inauguration_date || null,
+          owner_name: project.owner,
+          suppliers: project.suppliers,
+          project_files_link: project.project_files_link || null,
+          user_id: user.id
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      // Atualizar o projeto local com o ID do Supabase
+      await storage.upsertProject({
+        ...project,
+        id: data.id,
+        _dirty: 0
+      });
+
+      toast({
+        title: "Projeto sincronizado",
+        description: "Projeto foi sincronizado com sucesso. Agora você pode criar orçamentos.",
+      });
+
+      // Recarregar a página para atualizar a lista
+      window.location.reload();
+
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <Card className="card-modern group cursor-pointer" onClick={handleViewProject}>
       <CardHeader className="pb-3">
@@ -46,9 +119,16 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2">
               {project.name}
             </CardTitle>
-            <Badge variant={statusConfig[project.status].variant} className="w-fit">
-              {statusConfig[project.status].label}
-            </Badge>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant={statusConfig[project.status].variant} className="w-fit">
+                {statusConfig[project.status].label}
+              </Badge>
+              {isLocalProject && (
+                <Badge variant="outline" className="w-fit text-orange-600 border-orange-200">
+                  Não sincronizado
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -92,17 +172,40 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
         )}
 
-        <Button 
-          className="w-full group/btn mt-4"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewProject();
-          }}
-        >
-          <span>Ver Projeto</span>
-          <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-        </Button>
+        <div className="flex gap-2 mt-4">
+          {isLocalProject && (
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleSyncProject}
+              disabled={isSyncing}
+              className="flex-1"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sincronizar
+                </>
+              )}
+            </Button>
+          )}
+          <Button 
+            className="flex-1 group/btn"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewProject();
+            }}
+          >
+            <span>Ver Projeto</span>
+            <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
