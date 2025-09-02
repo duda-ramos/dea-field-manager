@@ -140,6 +140,15 @@ export default function BudgetPage() {
   const loadBudgets = async () => {
     if (!id || !user) return;
 
+    // Verificar se o ID é um UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
+    if (!uuidRegex.test(id)) {
+      console.log('Project uses local ID, no Supabase budgets to load:', id);
+      setBudgets([]); // Projetos locais não têm orçamentos no Supabase ainda
+      return;
+    }
+
     try {
       const { data: budgetsData, error } = await supabase
         .from('budgets')
@@ -181,6 +190,18 @@ export default function BudgetPage() {
       return;
     }
 
+    // Verificar se o projeto precisa ser sincronizado primeiro
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
+    if (!uuidRegex.test(id)) {
+      toast({
+        title: "Projeto não sincronizado",
+        description: "Este projeto precisa ser sincronizado com o servidor antes de criar orçamentos. Acesse a página de projetos e clique em sincronizar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('budgets')
       .insert([{
@@ -194,22 +215,24 @@ export default function BudgetPage() {
       .single();
 
     if (error) {
+      console.error('Error creating budget:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao criar orçamento",
+        title: "Erro ao criar orçamento",
+        description: error.message,
         variant: "destructive"
       });
       return;
     }
 
-    await loadBudgets();
-    setIsCreateModalOpen(false);
-    setNewBudget({ supplier: "", amount: "", status: "pending" });
-    
-    toast({
-      title: "Orçamento criado",
-      description: `Orçamento de ${newBudget.supplier} foi criado com sucesso`
-    });
+    if (data) {
+      setBudgets([data as Budget, ...budgets]);
+      setNewBudget({ supplier: '', amount: '', status: 'pending' });
+      setIsCreateModalOpen(false);
+      toast({
+        title: "Orçamento criado",
+        description: `Orçamento de ${newBudget.supplier} foi criado com sucesso.`,
+      });
+    }
   };
 
   const handleUpdateBudget = async (budget: Budget) => {
