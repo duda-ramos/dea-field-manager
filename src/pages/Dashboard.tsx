@@ -14,6 +14,8 @@ import { SyncStatusPanel } from "@/components/sync-status-panel";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
+import { ProjectProgressCharts } from "@/components/dashboard/ProjectProgressCharts";
+import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
@@ -33,6 +35,11 @@ export default function Dashboard() {
   });
   const { toast } = useToast();
   const { user } = useAuth();
+  const { 
+    showOnboarding, 
+    markOnboardingComplete, 
+    closeOnboarding 
+  } = useOnboarding();
 
   useEffect(() => {
     loadProjects();
@@ -250,13 +257,18 @@ export default function Dashboard() {
         <SyncStatusPanel />
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total de Projetos" value={totalProjects} icon={FolderOpen} variant="default" />
-        <StatsCard title="Concluídos" value={completedProjects} icon={CheckCircle2} variant="success" />
-        <StatsCard title="Em Andamento" value={inProgressProjects} icon={Clock} variant="warning" />
-        <StatsCard title="Planejamento" value={planningProjects} icon={AlertTriangle} variant="default" />
-      </div>
+        {/* Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard title="Total de Projetos" value={totalProjects} icon={FolderOpen} variant="default" />
+          <StatsCard title="Concluídos" value={completedProjects} icon={CheckCircle2} variant="success" />
+          <StatsCard title="Em Andamento" value={inProgressProjects} icon={Clock} variant="warning" />
+          <StatsCard title="Planejamento" value={planningProjects} icon={AlertTriangle} variant="default" />
+        </div>
+
+        {/* Progress Charts */}
+        {projects.length > 0 && (
+          <ProjectProgressCharts projects={projects} />
+        )}
 
       {/* Search */}
       <div className="flex items-center gap-4">
@@ -296,6 +308,13 @@ export default function Dashboard() {
          </div>
        )}
      </div>
+
+     {/* Onboarding Flow */}
+     <OnboardingFlow
+       isOpen={showOnboarding}
+       onClose={closeOnboarding}
+       onComplete={markOnboardingComplete}
+     />
    </LoadingBoundary>
  );
 }
