@@ -19,6 +19,7 @@ import ReportsPage from "./pages/ReportsPage";
 import BudgetPage from "./pages/BudgetPage";
 import BudgetsListPage from "./pages/BudgetsListPage";
 import { ContatosPage } from "./features/contatos";
+import GlobalContactsPage from "./pages/GlobalContactsPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
@@ -135,7 +136,7 @@ const App = () => (
               <Route path="/contatos" element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div>Contatos page - Coming soon</div>
+                    <GlobalContactsPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />

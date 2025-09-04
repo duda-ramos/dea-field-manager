@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
+import { errorMonitoring } from '@/services/errorMonitoring';
 import { authRateLimiter } from '@/services/auth/rateLimiter';
 import { autoSyncManager } from '@/services/sync/autoSync';
 
@@ -71,7 +72,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setProfile(data);
       }
     } catch (error) {
-      logger.error('Unexpected error fetching profile:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Unexpected error fetching profile:', err);
+      errorMonitoring.captureError(err, {
+        action: 'fetch_profile',
+        userId: userId
+      });
     }
   };
 
@@ -164,6 +170,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (error) {
       logger.error('Sign up error:', error);
+      errorMonitoring.captureError(error, {
+        action: 'auth_signup',
+        component: 'AuthProvider'
+      });
     }
     
     return { error };
@@ -187,6 +197,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (error) {
       logger.error('Sign in error:', error);
+      errorMonitoring.captureError(error, {
+        action: 'auth_signin', 
+        component: 'AuthProvider'
+      });
     }
     
     return { error };

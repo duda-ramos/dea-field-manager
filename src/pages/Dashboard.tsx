@@ -11,12 +11,17 @@ import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import { SyncStatusPanel } from "@/components/sync-status-panel";
+import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
+import { LoadingBoundary } from "@/components/loading-boundary";
+import { errorMonitoring } from "@/services/errorMonitoring";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [newProject, setNewProject] = useState({
     name: "",
     client: "",
@@ -34,8 +39,26 @@ export default function Dashboard() {
   }, []);
 
   const loadProjects = async () => {
-    const projects = await storage.getProjects();
-    setProjects(projects);
+    try {
+      setLoading(true);
+      const projects = await storage.getProjects();
+      setProjects(projects);
+    } catch (error) {
+      errorMonitoring.captureError(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          action: 'load_projects',
+          component: 'Dashboard'
+        }
+      );
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os projetos.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredProjects = projects.filter(project =>
@@ -55,31 +78,50 @@ export default function Dashboard() {
       return;
     }
 
-    const project = await storage.upsertProject({
-      ...newProject,
-      id: '', // Temporário - será substituído pelo UUID do Supabase
-      status: 'planning' as const,
-      suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
+    try {
+      setCreating(true);
+      const project = await storage.upsertProject({
+        ...newProject,
+        id: '', // Temporário - será substituído pelo UUID do Supabase
+        status: 'planning' as const,
+        suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
 
-    await loadProjects();
-    setIsCreateModalOpen(false);
-    setNewProject({
-      name: "",
-      client: "",
-      city: "",
-      code: "",
-      owner: "",
-      project_files_link: "",
-      suppliers: [""]
-    });
+      await loadProjects();
+      setIsCreateModalOpen(false);
+      setNewProject({
+        name: "",
+        client: "",
+        city: "",
+        code: "",
+        owner: "",
+        project_files_link: "",
+        suppliers: [""]
+      });
 
-    toast({
-      title: "Projeto criado",
-      description: `Projeto "${project.name}" foi criado com sucesso`
-    });
+      toast({
+        title: "Projeto criado",
+        description: `Projeto "${project.name}" foi criado com sucesso`
+      });
+    } catch (error) {
+      errorMonitoring.captureError(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          action: 'create_project',
+          component: 'Dashboard',
+          metadata: { projectName: newProject.name }
+        }
+      );
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o projeto. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setCreating(false);
+    }
   };
 
   const addSupplierField = () => {
@@ -103,13 +145,14 @@ export default function Dashboard() {
   const planningProjects = projects.filter(p => p.status === 'planning').length;
 
   return (
-    <div className="container-modern py-8 space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral dos seus projetos e instalações</p>
-        </div>
+    <LoadingBoundary isLoading={loading} loadingMessage="Carregando projetos...">
+      <div className="container-modern py-8 space-y-8">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral dos seus projetos e instalações</p>
+          </div>
         
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
@@ -193,8 +236,8 @@ export default function Dashboard() {
                   Adicionar Fornecedor
                 </Button>
               </div>
-              <Button onClick={handleCreateProject} className="w-full">
-                Criar Projeto
+              <Button onClick={handleCreateProject} className="w-full" disabled={creating}>
+                {creating ? <LoadingState message="Criando projeto..." size="sm" /> : "Criar Projeto"}
               </Button>
             </div>
           </DialogContent>
@@ -244,14 +287,15 @@ export default function Dashboard() {
               Criar Primeiro Projeto
             </Button>
           )}
-        </div>
-      ) : (
-        <div className="grid-projects">
-          {filteredProjects.map(project => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+         </div>
+       ) : (
+         <div className="grid-projects">
+           {filteredProjects.map(project => (
+             <ProjectCard key={project.id} project={project} />
+           ))}
+         </div>
+       )}
+     </div>
+   </LoadingBoundary>
+ );
 }
