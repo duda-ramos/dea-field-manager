@@ -12,9 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ProjectCardProps {
   project: Project;
+  isSelected?: boolean;
+  onSelectionChange?: (selected: boolean) => void;
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, isSelected = false, onSelectionChange }: ProjectCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [installations, setInstallations] = useState<any[]>([]);
@@ -112,9 +114,22 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   return (
-    <Card className="card-modern group cursor-pointer" onClick={handleViewProject}>
+    <Card className={`card-modern group cursor-pointer ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}`} onClick={handleViewProject}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
+          {onSelectionChange && (
+            <div className="mr-3 pt-1">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onSelectionChange(e.target.checked);
+                }}
+                className="h-4 w-4 rounded border-2 border-primary"
+              />
+            </div>
+          )}
           <div className="space-y-2 flex-1">
             <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2">
               {project.name}

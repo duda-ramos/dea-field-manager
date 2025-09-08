@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Users } from 'lucide-react';
 import { ContatoForm } from '../components/ContatoForm';
 import { ContatoList } from '../components/ContatoList';
+import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPanel';
 import { Contato } from '../index';
 import { storage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ export default function ContatosPage() {
   
   const [project, setProject] = useState<any>(null);
   const [contatos, setContatos] = useState<Contato[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"cliente" | "obra" | "fornecedor">("cliente");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingContato, setEditingContato] = useState<Contato | null>(null);
@@ -155,6 +157,18 @@ export default function ContatosPage() {
               </TabsTrigger>
             </TabsList>
 
+            {/* Bulk Operations Panel */}
+            {selectedContacts.length > 0 && (
+              <BulkOperationPanel
+                items={contatos.filter(c => selectedContacts.includes(c.id))}
+                itemType="contacts"
+                onItemsChange={(updatedItems) => {
+                  loadContatos();
+                  setSelectedContacts([]);
+                }}
+              />
+            )}
+
             <TabsContent value="cliente" className="mt-6">
               <ContatoList
                 contatos={getContatosByTipo("cliente")}
@@ -162,6 +176,14 @@ export default function ContatosPage() {
                 onEdit={handleEditContato}
                 onDelete={handleDeleteContato}
                 onAdd={() => handleAddContato("cliente")}
+                selectedContacts={selectedContacts}
+                onSelectionChange={(contactId, selected) => {
+                  if (selected) {
+                    setSelectedContacts(prev => [...prev, contactId]);
+                  } else {
+                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
+                  }
+                }}
               />
             </TabsContent>
 
@@ -172,6 +194,14 @@ export default function ContatosPage() {
                 onEdit={handleEditContato}
                 onDelete={handleDeleteContato}
                 onAdd={() => handleAddContato("obra")}
+                selectedContacts={selectedContacts}
+                onSelectionChange={(contactId, selected) => {
+                  if (selected) {
+                    setSelectedContacts(prev => [...prev, contactId]);
+                  } else {
+                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
+                  }
+                }}
               />
             </TabsContent>
 
@@ -182,6 +212,14 @@ export default function ContatosPage() {
                 onEdit={handleEditContato}
                 onDelete={handleDeleteContato}
                 onAdd={() => handleAddContato("fornecedor")}
+                selectedContacts={selectedContacts}
+                onSelectionChange={(contactId, selected) => {
+                  if (selected) {
+                    setSelectedContacts(prev => [...prev, contactId]);
+                  } else {
+                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
+                  }
+                }}
               />
             </TabsContent>
           </Tabs>

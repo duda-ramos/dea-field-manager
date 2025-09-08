@@ -14,6 +14,8 @@ interface ContatoListProps {
   onEdit: (contato: Contato) => void;
   onDelete: (contato: Contato) => void;
   onAdd: () => void;
+  selectedContacts?: string[];
+  onSelectionChange?: (contactId: string, selected: boolean) => void;
 }
 
 export function ContatoList({ 
@@ -21,7 +23,9 @@ export function ContatoList({
   tipo, 
   onEdit, 
   onDelete, 
-  onAdd 
+  onAdd,
+  selectedContacts = [],
+  onSelectionChange
 }: ContatoListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteContato, setDeleteContato] = useState<Contato | null>(null);
@@ -141,10 +145,11 @@ export function ContatoList({
           <div className="space-y-2">
             {/* Header da tabela */}
             <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-muted/50 rounded-lg text-sm font-medium">
-              <div className="col-span-3">Nome</div>
+              {onSelectionChange && <div className="col-span-1">Seleção</div>}
+              <div className={onSelectionChange ? "col-span-3" : "col-span-3"}>Nome</div>
               <div className="col-span-3">Empresa</div>
               <div className="col-span-2">Telefone</div>
-              <div className="col-span-3">Email</div>
+              <div className="col-span-2">Email</div>
               <div className="col-span-1">Ações</div>
             </div>
 
@@ -152,8 +157,19 @@ export function ContatoList({
             {filteredContatos.map((contato) => (
               <div
                 key={contato.id}
-                className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors ${selectedContacts.includes(contato.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
               >
+                {/* Selection checkbox for desktop */}
+                {onSelectionChange && (
+                  <div className="hidden md:flex items-center col-span-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedContacts.includes(contato.id)}
+                      onChange={(e) => onSelectionChange(contato.id, e.target.checked)}
+                      className="h-4 w-4 rounded border-2 border-primary"
+                    />
+                  </div>
+                )}
                 {/* Mobile: Layout vertical */}
                 <div className="md:hidden space-y-2">
                   <div className="font-medium">{contato.nome}</div>

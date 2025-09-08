@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPanel';
 import { Users, Search, Mail, Phone, Building2, User, Truck } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,7 @@ interface GlobalContact {
 export default function GlobalContactsPage() {
   const [contacts, setContacts] = useState<GlobalContact[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'cliente' | 'obra' | 'fornecedor'>('all');
@@ -222,6 +224,18 @@ export default function GlobalContactsPage() {
                 Fornecedor ({counts.fornecedor})
               </TabsTrigger>
             </TabsList>
+            
+            {/* Bulk Operations Panel */}
+            {selectedContacts.length > 0 && (
+              <BulkOperationPanel
+                items={contacts.filter(c => selectedContacts.includes(c.id))}
+                itemType="contacts"
+                onItemsChange={(updatedItems) => {
+                  loadContacts();
+                  setSelectedContacts([]);
+                }}
+              />
+            )}
 
             <TabsContent value={activeTab} className="mt-6">
               {filteredContacts.length === 0 ? (
@@ -239,11 +253,23 @@ export default function GlobalContactsPage() {
                 </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredContacts.map((contact) => (
-                    <Card key={contact.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
+                   {filteredContacts.map((contact) => (
+                     <Card key={contact.id} className={`hover:shadow-md transition-shadow ${selectedContacts.includes(contact.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
+                       <CardHeader className="pb-3">
+                         <div className="flex items-start justify-between">
+                           <div className="flex items-center gap-3">
+                             <input
+                               type="checkbox"
+                               checked={selectedContacts.includes(contact.id)}
+                               onChange={(e) => {
+                                 if (e.target.checked) {
+                                   setSelectedContacts(prev => [...prev, contact.id]);
+                                 } else {
+                                   setSelectedContacts(prev => prev.filter(id => id !== contact.id));
+                                 }
+                               }}
+                               className="h-4 w-4 rounded border-2 border-primary"
+                             />
                             <Avatar>
                               <AvatarFallback>
                                 {contact.name.substring(0, 2).toUpperCase()}

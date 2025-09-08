@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { EditProjectModal } from "@/components/edit-project-modal";
+import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
 import { importExcelFile } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
@@ -33,6 +34,7 @@ export default function ProjectDetailNew() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
+  const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
@@ -324,6 +326,18 @@ export default function ProjectDetailNew() {
           </div>
         </div>
 
+        {/* Bulk Operations Panel */}
+        {selectedInstallations.length > 0 && (
+          <BulkOperationPanel
+            items={installations.filter(i => selectedInstallations.includes(i.id))}
+            itemType="installations"
+            onItemsChange={(updatedItems) => {
+              loadProjectData();
+              setSelectedInstallations([]);
+            }}
+          />
+        )}
+
         {/* Installations List - Grouped by Tipologia */}
         <div className="space-y-4">
           {Object.keys(groupedInstallations).length === 0 ? (
@@ -360,13 +374,26 @@ export default function ProjectDetailNew() {
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-3">
-                                    <input
-                                      type="checkbox"
-                                      checked={installation.installed}
-                                      onChange={() => toggleInstallation(installation.id)}
-                                      className="h-5 w-5 rounded border-2 border-primary"
-                                    />
+                                   <div className="flex items-center gap-3">
+                                     <input
+                                       type="checkbox"
+                                       checked={selectedInstallations.includes(installation.id)}
+                                       onChange={(e) => {
+                                         e.stopPropagation();
+                                         if (e.target.checked) {
+                                           setSelectedInstallations(prev => [...prev, installation.id]);
+                                         } else {
+                                           setSelectedInstallations(prev => prev.filter(id => id !== installation.id));
+                                         }
+                                       }}
+                                       className="h-4 w-4 rounded border-2 border-muted-foreground"
+                                     />
+                                     <input
+                                       type="checkbox"
+                                       checked={installation.installed}
+                                       onChange={() => toggleInstallation(installation.id)}
+                                       className="h-5 w-5 rounded border-2 border-primary"
+                                     />
                                     <div>
                                       <h4 className="font-semibold">
                                         {installation.codigo} {installation.descricao}
