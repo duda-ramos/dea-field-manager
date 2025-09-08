@@ -1,11 +1,11 @@
-import { Search, Bell, Moon, Sun } from "lucide-react"
+import { Search, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { UserMenu } from "@/components/auth/UserMenu"
 import { SyncButton } from "@/components/sync-button"
+import { NotificationSystem } from "@/components/notifications/NotificationSystem"
 import { useTheme } from "@/providers/theme-provider"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,15 +56,7 @@ export function AppHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 relative">
-            <Bell className="h-4 w-4" />
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs flex items-center justify-center"
-            >
-              3
-            </Badge>
-          </Button>
+          <NotificationSystem />
 
           <UserMenu />
         </div>
