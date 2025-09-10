@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          permissions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          permissions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          permissions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           amount: number
@@ -307,6 +346,69 @@ export type Database = {
         }
         Relationships: []
       }
+      project_activities: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      project_collaborators: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          invited_at: string
+          invited_by: string
+          permissions: Json
+          project_id: string
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          invited_by: string
+          permissions?: Json
+          project_id: string
+          role?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          invited_by?: string
+          permissions?: Json
+          project_id?: string
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       project_files: {
         Row: {
           category: string | null
@@ -346,6 +448,48 @@ export type Database = {
           project_id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      project_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          preview_image: string | null
+          template_data: Json
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          preview_image?: string | null
+          template_data: Json
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          preview_image?: string | null
+          template_data?: Json
+          updated_at?: string
+          usage_count?: number
         }
         Relationships: []
       }
@@ -395,6 +539,36 @@ export type Database = {
           project_files_link?: string | null
           status?: string | null
           suppliers?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      storage_integrations: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider?: string
           updated_at?: string
           user_id?: string
         }
