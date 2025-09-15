@@ -9,8 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
-import { SyncStatusBar } from "@/components/sync-status-bar";
-import { SyncStatusPanel } from "@/components/sync-status-panel";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
