@@ -251,11 +251,6 @@ export default function Dashboard() {
         </Dialog>
       </div>
 
-      {/* Sync Status */}
-      <div className="space-y-4">
-        <SyncStatusBar />
-        <SyncStatusPanel />
-      </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

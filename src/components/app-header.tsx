@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { UserMenu } from "@/components/auth/UserMenu"
-import { SyncButton } from "@/components/sync-button"
+import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 import { NotificationSystem } from "@/components/notifications/NotificationSystem"
 import { useTheme } from "@/providers/theme-provider"
 import {
@@ -33,7 +33,7 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SyncButton />
+          <SyncStatusIndicator />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
