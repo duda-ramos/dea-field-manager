@@ -9,7 +9,8 @@ import {
   FileText,
   HelpCircle,
   Plus,
-  DollarSign
+  DollarSign,
+  Zap
 } from "lucide-react"
 
 import {
@@ -54,19 +55,14 @@ const navigationItems = [
     url: "/relatorios",
     icon: BarChart3,
   },
+  {
+    title: "Recursos Avançados",
+    url: "/recursos-avancados",
+    icon: Zap,
+  },
 ]
 
 const supportItems = [
-  {
-    title: "Documentação",
-    url: "/docs",
-    icon: FileText,
-  },
-  {
-    title: "Suporte",
-    url: "/suporte",
-    icon: HelpCircle,
-  },
   {
     title: "Configurações",
     url: "/configuracoes",
