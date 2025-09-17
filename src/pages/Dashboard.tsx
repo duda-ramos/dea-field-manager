@@ -6,7 +6,7 @@ import { ProjectCard } from "@/components/project-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Template } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
@@ -15,13 +15,17 @@ import { errorMonitoring } from "@/services/errorMonitoring";
 import { ProjectProgressCharts } from "@/components/dashboard/ProjectProgressCharts";
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
+import { ProjectTemplateSelector } from "@/components/templates/ProjectTemplateSelector";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [newProject, setNewProject] = useState({
     name: "",
     client: "",
@@ -85,17 +89,35 @@ export default function Dashboard() {
 
     try {
       setCreating(true);
-      const project = await storage.upsertProject({
+      
+      // Use template data if selected
+      let projectData = {
         ...newProject,
         id: '', // Temporário - será substituído pelo UUID do Supabase
         status: 'planning' as const,
         suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      };
+
+      // Apply template data if available
+      if (selectedTemplate) {
+        projectData = {
+          ...projectData,
+          ...selectedTemplate.template_data,
+          // Keep user-entered data for these fields
+          name: newProject.name,
+          client: newProject.client,
+          city: newProject.city,
+          code: newProject.code || selectedTemplate.template_data?.code || '',
+        };
+      }
+
+      const project = await storage.upsertProject(projectData);
 
       await loadProjects();
       setIsCreateModalOpen(false);
+      setSelectedTemplate(null);
       setNewProject({
         name: "",
         client: "",
@@ -143,6 +165,39 @@ export default function Dashboard() {
     }));
   };
 
+  const handleSelectTemplate = async (template: any) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelector(false);
+    
+    // Pre-fill some fields from template if available
+    if (template.template_data) {
+      setNewProject(prev => ({
+        ...prev,
+        owner: template.template_data.owner_name || prev.owner,
+        project_files_link: template.template_data.project_files_link || prev.project_files_link,
+        suppliers: template.template_data.suppliers || prev.suppliers
+      }));
+    }
+    
+    toast({
+      title: "Template selecionado",
+      description: `Template "${template.name}" foi aplicado ao projeto`
+    });
+  };
+
+  const startFromScratch = () => {
+    setSelectedTemplate(null);
+    setNewProject({
+      name: "",
+      client: "",
+      city: "",
+      code: "",
+      owner: "",
+      project_files_link: "",
+      suppliers: [""]
+    });
+  };
+
   // Calculate statistics
   const totalProjects = projects.length;
   const completedProjects = projects.filter(p => p.status === 'completed').length;
@@ -171,6 +226,37 @@ export default function Dashboard() {
               <DialogTitle>Criar Novo Projeto</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Template Selection */}
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="gap-2"
+                >
+                  <Template className="h-4 w-4" />
+                  Usar Template
+                </Button>
+                {selectedTemplate && (
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={startFromScratch}
+                  >
+                    Começar do Zero
+                  </Button>
+                )}
+              </div>
+
+              {selectedTemplate && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">Template: {selectedTemplate.name}</p>
+                  <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="name">Nome do Projeto *</Label>
                 <Input 
@@ -247,6 +333,13 @@ export default function Dashboard() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Template Selector Modal */}
+        <ProjectTemplateSelector
+          isOpen={showTemplateSelector}
+          onClose={() => setShowTemplateSelector(false)}
+          onSelectTemplate={handleSelectTemplate}
+        />
       </div>
 
 
