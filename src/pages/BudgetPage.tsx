@@ -46,23 +46,10 @@ export default function BudgetPage() {
   });
 
   useEffect(() => {
-    console.log('=== BudgetPage Debug ===');
-    console.log('Current location:', window.location.pathname);
-    console.log('Raw params from useParams:', { id });
-    console.log('User exists:', !!user);
-    console.log('User id:', user?.id);
-    console.log('ID type:', typeof id, 'Value:', id);
-    
     if (id && user) {
-      console.log('Prerequisites met - loading data with id:', id);
       loadProjectData();
       loadBudgets();
-    } else {
-      console.log('Missing prerequisites - id:', id, 'user:', !!user);
-      if (!id) console.log('ERROR: No ID parameter found!');
-      if (!user) console.log('ERROR: No user found!');
     }
-    console.log('========================');
   }, [id, user]);
 
   const loadProjectData = async () => {
@@ -92,7 +79,6 @@ export default function BudgetPage() {
       const localProject = projects.find(p => p.id === id);
       
       if (localProject) {
-        console.log('Project found in local storage:', localProject);
         setProject({
           id: localProject.id,
           name: localProject.name,
@@ -110,7 +96,6 @@ export default function BudgetPage() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading project from Supabase:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar projeto",
@@ -132,7 +117,6 @@ export default function BudgetPage() {
       
       setProject(projectData);
     } catch (error) {
-      console.error('Unexpected error loading project:', error);
       navigate('/projetos');
     }
   };
@@ -144,8 +128,9 @@ export default function BudgetPage() {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
     if (!uuidRegex.test(id)) {
-      console.log('Project uses local ID, no Supabase budgets to load:', id);
-      setBudgets([]); // Projetos locais não têm orçamentos no Supabase ainda
+      setBudgets([]);
+      return;
+    }
       return;
     }
 

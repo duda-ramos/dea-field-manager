@@ -12,10 +12,8 @@ export async function refreshDatabase() {
     // Reopen with new schema
     await db.open();
     
-    console.log('✅ Database refreshed successfully');
     return true;
   } catch (error) {
-    console.error('❌ Failed to refresh database:', error);
     return false;
   }
 }

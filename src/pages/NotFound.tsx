@@ -1,14 +1,21 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { errorMonitoring } from "@/services/errorMonitoring";
 
 const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error(
-      "404 Error: User attempted to access non-existent route:",
-      location.pathname
-    );
+    if (location.pathname !== '/') {
+      errorMonitoring.captureError(
+        new Error('404 - Page not found'),
+        {
+          action: 'page_not_found',
+          component: 'NotFound',
+          metadata: { path: location.pathname }
+        }
+      );
+    }
   }, [location.pathname]);
 
   return (
