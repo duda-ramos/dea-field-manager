@@ -6,7 +6,7 @@ import { ProjectCard } from "@/components/project-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Layout } from "lucide-react";
+import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
@@ -235,7 +235,7 @@ export default function Dashboard() {
                   onClick={() => setShowTemplateSelector(true)}
                   className="gap-2"
                 >
-                  <Layout className="h-4 w-4" />
+                  <Template className="h-4 w-4" />
                   Usar Template
                 </Button>
                 {selectedTemplate && (
