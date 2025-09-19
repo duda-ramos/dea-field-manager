@@ -53,17 +53,12 @@ export default function BudgetPage() {
   }, [id, user]);
 
   const loadProjectData = async () => {
-    console.log('loadProjectData called - raw id:', id, 'typeof:', typeof id);
-    console.log('loadProjectData called - user:', user?.id);
-    
     if (!id || !user) {
-      console.log('Missing id or user, returning early - id:', id, 'user:', !!user);
       return;
     }
 
     // Additional validation for id
     if (id === ':id' || id.includes(':')) {
-      console.error('Invalid ID detected:', id);
       toast({
         title: "Erro de navegação",
         description: "ID do projeto inválido",
@@ -131,8 +126,6 @@ export default function BudgetPage() {
       setBudgets([]);
       return;
     }
-      return;
-    }
 
     try {
       const { data: budgetsData, error } = await supabase
@@ -143,7 +136,6 @@ export default function BudgetPage() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading budgets:', error);
         toast({
           title: "Erro",
           description: "Erro ao carregar orçamentos",
@@ -156,7 +148,6 @@ export default function BudgetPage() {
         setBudgets(budgetsData as Budget[]);
       }
     } catch (error) {
-      console.error('Unexpected error loading budgets:', error);
       toast({
         title: "Erro",
         description: "Erro inesperado ao carregar orçamentos",
@@ -200,7 +191,6 @@ export default function BudgetPage() {
       .single();
 
     if (error) {
-      console.error('Error creating budget:', error);
       toast({
         title: "Erro ao criar orçamento",
         description: error.message,
