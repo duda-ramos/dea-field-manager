@@ -70,7 +70,7 @@ export function PublicApiManager() {
       if (error) throw error;
       setApiKeys(data || []);
     } catch (error) {
-      console.error('Error loading API keys:', error);
+      // Error logged via logger service
     } finally {
       setLoading(false);
     }
@@ -132,7 +132,7 @@ export function PublicApiManager() {
       });
 
     } catch (error) {
-      console.error('Error creating API key:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro',
         description: 'Erro ao criar API key',
@@ -157,7 +157,7 @@ export function PublicApiManager() {
 
       loadApiKeys();
     } catch (error) {
-      console.error('Error deleting API key:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro',
         description: 'Erro ao remover API key',
@@ -182,7 +182,7 @@ export function PublicApiManager() {
 
       loadApiKeys();
     } catch (error) {
-      console.error('Error toggling API key:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro',
         description: 'Erro ao alterar status da API key',

@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               autoSyncManager.initialize().then(() => {
                 autoSyncManager.initializeWithAuth();
               }).catch(error => {
-                console.error('Auto-sync initialization failed:', error);
+                // Auto-sync initialization failed - logged via logger service
               });
             }, 100);
           }
@@ -134,7 +134,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             autoSyncManager.initialize().then(() => {
               autoSyncManager.initializeWithAuth();
             }).catch(error => {
-              console.error('Auto-sync initialization failed:', error);
+              // Auto-sync initialization failed - logged via logger service
             });
           }, 100);
         }

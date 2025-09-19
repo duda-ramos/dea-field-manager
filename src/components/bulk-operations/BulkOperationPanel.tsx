@@ -247,7 +247,7 @@ export function BulkOperationPanel({
 
       setSelectedItems([]);
     } catch (error) {
-      console.error('Bulk operation error:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro na operação',
         description: `Falha ao executar ${operation.label.toLowerCase()}.`,

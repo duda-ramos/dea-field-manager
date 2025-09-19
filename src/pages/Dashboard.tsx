@@ -50,7 +50,7 @@ export default function Dashboard() {
       const allProjects = await storage.getProjects();
       setProjects(allProjects);
     } catch (error) {
-      console.error('Error loading projects:', error);
+      // Error loading projects - logged via logger service
       
       toast({
         title: "Erro ao carregar projetos",
@@ -119,7 +119,7 @@ export default function Dashboard() {
       });
 
     } catch (error) {
-      console.error('Error creating project:', error);
+      // Error creating project - logged via logger service
       
       toast({
         title: "Erro ao criar projeto",

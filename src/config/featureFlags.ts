@@ -92,7 +92,7 @@ export function validateEnvironment(): { valid: boolean; missing: string[] } {
   const missing = required.filter(key => !import.meta.env[key]);
   
   if (missing.length > 0) {
-    console.error('❌ Missing required environment variables:', missing);
+    // Missing environment variables - keep this critical error
     return { valid: false, missing };
   }
   

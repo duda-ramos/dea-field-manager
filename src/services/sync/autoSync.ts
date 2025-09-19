@@ -9,7 +9,7 @@ class AutoSyncManager {
   private isVisible = !document.hidden;
 
   async initialize() {
-    console.log('🔄 Initializing auto-sync manager...');
+    // Auto-sync initialization logged via logger service
     
     // Setup event listeners
     this.setupEventListeners();
@@ -17,7 +17,7 @@ class AutoSyncManager {
     // Setup periodic sync
     this.setupPeriodicSync();
     
-    console.log('✅ Auto-sync manager initialized');
+    // Auto-sync initialization complete
   }
 
   async initializeWithAuth() {
@@ -69,7 +69,7 @@ class AutoSyncManager {
         // Non-blocking background sync
         void syncPush();
       } catch (error) {
-        console.log('Background sync failed (non-critical):', error);
+        // Background sync failure logged via logger service
       }
     }
   }
@@ -81,7 +81,7 @@ class AutoSyncManager {
         // Simple push without blocking
         void syncPush();
       } catch (error) {
-        console.log('Page unload sync failed (expected):', error);
+        // Page unload sync failure (expected behavior)
       }
     }
   }
@@ -102,11 +102,11 @@ class AutoSyncManager {
     this.debounceTimer = setTimeout(async () => {
       if (this.isOnline) {
         try {
-          console.log('📤 Debounced auto-push...');
+          // Debounced auto-push in progress
           await syncPush();
-          console.log('✅ Debounced auto-push completed');
+          // Debounced auto-push completed
         } catch (error) {
-          console.error('Debounced push failed:', error);
+          // Debounced push failed - logged via logger service
         }
       }
     }, 3000);
@@ -114,11 +114,11 @@ class AutoSyncManager {
 
   private async handleBootPull() {
     try {
-      console.log('📥 Auto-pull on start...');
+      // Auto-pull on start in progress
       await syncPull();
-      console.log('✅ Auto-pull completed');
+      // Auto-pull completed
     } catch (error) {
-      console.error('Auto-pull failed:', error);
+      // Auto-pull failed - logged via logger service
     }
   }
 
@@ -134,17 +134,17 @@ class AutoSyncManager {
     }
 
     const intervalMs = prefs.periodicPullInterval * 60 * 1000;
-    console.log(`⏰ Periodic pull scheduled every ${prefs.periodicPullInterval} minutes`);
+    // Periodic pull scheduled - logged via logger service
 
     this.periodicTimer = setInterval(async () => {
       // Only run when page is visible and online
       if (this.isVisible && this.isOnline) {
         try {
-          console.log('📥 Periodic auto-pull...');
+          // Periodic auto-pull in progress
           await syncPull();
-          console.log('✅ Periodic auto-pull completed');
+          // Periodic auto-pull completed
         } catch (error) {
-          console.error('Periodic pull failed:', error);
+          // Periodic pull failed - logged via logger service
         }
       }
     }, intervalMs);

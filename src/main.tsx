@@ -35,6 +35,7 @@ async function initializeApp() {
     // Render app first, then initialize auto-sync after auth is ready
     createRoot(document.getElementById("root")!).render(<App />);
   } catch (error) {
+    // Critical app initialization error - keep console.error
     console.error('Failed to initialize app:', error);
     // Render app anyway
     createRoot(document.getElementById("root")!).render(<App />);

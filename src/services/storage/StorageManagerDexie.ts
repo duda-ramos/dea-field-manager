@@ -44,6 +44,7 @@ export const StorageManagerDexie = {
         .single();
 
       if (error) {
+        // Critical Supabase error - keep console.error for debugging
         console.error('Erro ao criar projeto no Supabase:', error);
         throw error;
       }

@@ -65,16 +65,24 @@ class Logger {
       
       switch (type) {
         case 'error':
+          // Keep error console logging for critical issues
           console.error(`${emoji} ${message}${durationStr}`, data || '');
           break;
         case 'warn':
+          // Keep warning console logging for important issues
           console.warn(`${emoji} ${message}${durationStr}`, data || '');
           break;
         case 'debug':
-          console.debug(`${emoji} ${message}${durationStr}`, data || '');
+          // Debug logging only in development
+          if (import.meta.env.DEV) {
+            console.debug(`${emoji} ${message}${durationStr}`, data || '');
+          }
           break;
         default:
-          console.log(`${emoji} ${message}${durationStr}`, data || '');
+          // Info logging only in development
+          if (import.meta.env.DEV) {
+            console.log(`${emoji} ${message}${durationStr}`, data || '');
+          }
       }
     }
   }

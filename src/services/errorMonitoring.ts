@@ -55,7 +55,7 @@ class ErrorMonitoring {
 
     // React error boundary integration (if needed)
     if (getFeatureFlag('VERBOSE_LOGS')) {
-      console.log('🔍 Error monitoring initialized');
+      // Error monitoring initialized
     }
   }
 

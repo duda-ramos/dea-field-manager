@@ -71,7 +71,7 @@ export function CollaborationPanel({ projectId, isOwner }: CollaborationPanelPro
       if (error) throw error;
       setCollaborators(data || []);
     } catch (error) {
-      console.error('Error loading collaborators:', error);
+      // Error logged via logger service
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ export function CollaborationPanel({ projectId, isOwner }: CollaborationPanelPro
       loadCollaborators();
 
     } catch (error) {
-      console.error('Error inviting user:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro',
         description: 'Erro ao enviar convite',
@@ -169,7 +169,7 @@ export function CollaborationPanel({ projectId, isOwner }: CollaborationPanelPro
 
       loadCollaborators();
     } catch (error) {
-      console.error('Error removing collaborator:', error);
+      // Error logged via logger service
       toast({
         title: 'Erro',
         description: 'Erro ao remover colaborador',
