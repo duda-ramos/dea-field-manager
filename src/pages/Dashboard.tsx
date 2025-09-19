@@ -33,15 +33,12 @@ export default function Dashboard() {
     code: "",
     owner: "",
     project_files_link: "",
-    suppliers: [""]
+    suppliers: ""
   });
+  
   const { toast } = useToast();
   const { user } = useAuth();
-  const { 
-    showOnboarding, 
-    markOnboardingComplete, 
-    closeOnboarding 
-  } = useOnboarding();
+  const { showOnboarding, closeOnboarding, markOnboardingComplete } = useOnboarding();
 
   useEffect(() => {
     loadProjects();
@@ -50,38 +47,26 @@ export default function Dashboard() {
   const loadProjects = async () => {
     try {
       setLoading(true);
-      const projects = await storage.getProjects();
-      setProjects(projects);
+      const allProjects = await storage.getProjects();
+      setProjects(allProjects);
     } catch (error) {
-      errorMonitoring.captureError(
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          action: 'load_projects',
-          component: 'Dashboard'
-        }
-      );
+      console.error('Error loading projects:', error);
+      
       toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os projetos.',
-        variant: 'destructive'
+        title: "Erro ao carregar projetos",
+        description: "Tente novamente em alguns instantes",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const handleCreateProject = async () => {
-    if (!newProject.name || !newProject.client || !newProject.city) {
+    if (!newProject.name || !newProject.client) {
       toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        title: "Campos obrigatórios",
+        description: "Nome do projeto e cliente são obrigatórios",
         variant: "destructive"
       });
       return;
@@ -95,7 +80,7 @@ export default function Dashboard() {
         ...newProject,
         id: '', // Temporário - será substituído pelo UUID do Supabase
         status: 'planning' as const,
-        suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
+        suppliers: newProject.suppliers ? newProject.suppliers.split(',').map(s => s.trim()) : [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -113,7 +98,7 @@ export default function Dashboard() {
         };
       }
 
-      const project = await storage.upsertProject(projectData);
+      const createdProject = await storage.upsertProject(projectData);
 
       await loadProjects();
       setIsCreateModalOpen(false);
@@ -125,25 +110,20 @@ export default function Dashboard() {
         code: "",
         owner: "",
         project_files_link: "",
-        suppliers: [""]
+        suppliers: ""
       });
 
       toast({
         title: "Projeto criado",
-        description: `Projeto "${project.name}" foi criado com sucesso`
+        description: `Projeto "${createdProject.name}" foi criado com sucesso.`,
       });
+
     } catch (error) {
-      errorMonitoring.captureError(
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          action: 'create_project',
-          component: 'Dashboard',
-          metadata: { projectName: newProject.name }
-        }
-      );
+      console.error('Error creating project:', error);
+      
       toast({
-        title: "Erro",
-        description: "Não foi possível criar o projeto. Tente novamente.",
+        title: "Erro ao criar projeto",
+        description: "Tente novamente em alguns instantes",
         variant: "destructive"
       });
     } finally {
@@ -151,18 +131,16 @@ export default function Dashboard() {
     }
   };
 
-  const addSupplierField = () => {
-    setNewProject(prev => ({
-      ...prev,
-      suppliers: [...prev.suppliers, ""]
-    }));
-  };
-
-  const updateSupplier = (index: number, value: string) => {
-    setNewProject(prev => ({
-      ...prev,
-      suppliers: prev.suppliers.map((s, i) => i === index ? value : s)
-    }));
+  const resetForm = () => {
+    setNewProject({
+      name: "",
+      client: "",
+      city: "",
+      code: "",
+      owner: "",
+      project_files_link: "",
+      suppliers: ""
+    });
   };
 
   const handleSelectTemplate = async (template: any) => {
@@ -194,145 +172,155 @@ export default function Dashboard() {
       code: "",
       owner: "",
       project_files_link: "",
-      suppliers: [""]
+      suppliers: ""
     });
   };
 
-  // Calculate statistics
-  const totalProjects = projects.length;
-  const completedProjects = projects.filter(p => p.status === 'completed').length;
-  const inProgressProjects = projects.filter(p => p.status === 'in-progress').length;
-  const planningProjects = projects.filter(p => p.status === 'planning').length;
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (project.city && project.city.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const getProjectStats = () => {
+    const total = projects.length;
+    const active = projects.filter(p => p.status === 'in-progress').length;
+    const completed = projects.filter(p => p.status === 'completed').length;
+    const planning = projects.filter(p => p.status === 'planning').length;
+
+    return { total, active, completed, planning };
+  };
+
+  const stats = getProjectStats();
 
   return (
-    <LoadingBoundary isLoading={loading} loadingMessage="Carregando projetos...">
-      <div className="container-modern py-8 space-y-8">
-        {/* Page Header */}
+    <LoadingBoundary>
+      <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral dos seus projetos e instalações</p>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Gerencie seus projetos e acompanhe o progresso
+            </p>
           </div>
-        
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Projeto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Projeto</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {/* Template Selection */}
-              <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowTemplateSelector(true)}
-                  className="gap-2"
-                >
-                  <LayoutTemplate className="h-4 w-4" />
-                  Usar Template
-                </Button>
-                {selectedTemplate && (
+          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Projeto
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Criar Novo Projeto</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {/* Template Selection */}
+                <div className="flex gap-2">
                   <Button 
                     type="button" 
-                    variant="ghost" 
+                    variant="outline" 
                     size="sm" 
-                    onClick={startFromScratch}
+                    onClick={() => setShowTemplateSelector(true)}
+                    className="gap-2"
                   >
-                    Começar do Zero
+                    <LayoutTemplate className="h-4 w-4" />
+                    Usar Template
                   </Button>
-                )}
-              </div>
-
-              {selectedTemplate && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium">Template: {selectedTemplate.name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
+                  {selectedTemplate && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={startFromScratch}
+                    >
+                      Começar do Zero
+                    </Button>
+                  )}
                 </div>
-              )}
 
-              <div>
-                <Label htmlFor="name">Nome do Projeto *</Label>
-                <Input 
-                  id="name" 
-                  value={newProject.name} 
-                  onChange={e => setNewProject(prev => ({ ...prev, name: e.target.value }))} 
-                  placeholder="Ex: Shopping Center ABC" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="client">Cliente *</Label>
-                <Input 
-                  id="client" 
-                  value={newProject.client} 
-                  onChange={e => setNewProject(prev => ({ ...prev, client: e.target.value }))} 
-                  placeholder="Ex: Construtora XYZ" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="city">Cidade *</Label>
-                <Input 
-                  id="city" 
-                  value={newProject.city} 
-                  onChange={e => setNewProject(prev => ({ ...prev, city: e.target.value }))} 
-                  placeholder="Ex: São Paulo, SP" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="code">Código do Projeto</Label>
-                <Input 
-                  id="code" 
-                  value={newProject.code} 
-                  onChange={e => setNewProject(prev => ({ ...prev, code: e.target.value }))} 
-                  placeholder="Ex: DEA-2024-001" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="owner">Responsável</Label>
-                <Input 
-                  id="owner" 
-                  value={newProject.owner} 
-                  onChange={e => setNewProject(prev => ({ ...prev, owner: e.target.value }))} 
-                  placeholder="Ex: João Silva" 
-                />
-              </div>
-              <div>
-                <Label htmlFor="project_files_link">Link dos Arquivos do Projeto</Label>
-                <Input 
-                  id="project_files_link" 
-                  value={newProject.project_files_link} 
-                  onChange={e => setNewProject(prev => ({ ...prev, project_files_link: e.target.value }))} 
-                  placeholder="Ex: https://drive.google.com/folder/..." 
-                />
-              </div>
-              <div>
-                <Label>Fornecedores</Label>
-                {newProject.suppliers.map((supplier, index) => (
-                  <Input 
-                    key={index} 
-                    className="mt-2" 
-                    value={supplier} 
-                    onChange={e => updateSupplier(index, e.target.value)} 
-                    placeholder={`Fornecedor ${index + 1}`} 
+                {selectedTemplate && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">Template: {selectedTemplate.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="name">Nome do Projeto *</Label>
+                  <Input
+                    id="name"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nome do projeto"
                   />
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addSupplierField} className="mt-2">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Fornecedor
-                </Button>
+                </div>
+                <div>
+                  <Label htmlFor="client">Cliente *</Label>
+                  <Input
+                    id="client"
+                    value={newProject.client}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, client: e.target.value }))}
+                    placeholder="Nome do cliente"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    value={newProject.city}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="Cidade do projeto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="code">Código</Label>
+                  <Input
+                    id="code"
+                    value={newProject.code}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, code: e.target.value }))}
+                    placeholder="Código do projeto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="owner">Responsável</Label>
+                  <Input
+                    id="owner"
+                    value={newProject.owner}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, owner: e.target.value }))}
+                    placeholder="Responsável pelo projeto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="project_files_link">Link dos Arquivos</Label>
+                  <Input
+                    id="project_files_link"
+                    value={newProject.project_files_link}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, project_files_link: e.target.value }))}
+                    placeholder="Link para arquivos do projeto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="suppliers">Fornecedores</Label>
+                  <Input
+                    id="suppliers"
+                    value={newProject.suppliers}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, suppliers: e.target.value }))}
+                    placeholder="Lista de fornecedores"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateProject} disabled={creating} className="flex-1">
+                    {creating ? "Criando..." : "Criar Projeto"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Limpar
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handleCreateProject} className="w-full" disabled={creating}>
-                {creating ? <LoadingState message="Criando projeto..." size="sm" /> : "Criar Projeto"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {/* Template Selector Modal */}
         <ProjectTemplateSelector
@@ -340,67 +328,89 @@ export default function Dashboard() {
           onClose={() => setShowTemplateSelector(false)}
           onSelectTemplate={handleSelectTemplate}
         />
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total de Projetos"
+          value={stats.total}
+          icon={FolderOpen}
+        />
+        <StatsCard
+          title="Projetos Ativos"
+          value={stats.active}
+          icon={Clock}
+        />
+        <StatsCard
+          title="Projetos Concluídos"
+          value={stats.completed}
+          icon={CheckCircle2}
+        />
+        <StatsCard
+          title="Projetos Planejando"
+          value={stats.planning}
+          icon={AlertTriangle}
+        />
       </div>
-
-
-        {/* Statistics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard title="Total de Projetos" value={totalProjects} icon={FolderOpen} variant="default" />
-          <StatsCard title="Concluídos" value={completedProjects} icon={CheckCircle2} variant="success" />
-          <StatsCard title="Em Andamento" value={inProgressProjects} icon={Clock} variant="warning" />
-          <StatsCard title="Planejamento" value={planningProjects} icon={AlertTriangle} variant="default" />
-        </div>
 
         {/* Progress Charts */}
-        {projects.length > 0 && (
-          <ProjectProgressCharts projects={projects} />
+        <ProjectProgressCharts projects={projects} />
+
+        {/* Search and Filter */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Buscar projetos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Projects Grid */}
+        {loading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <CardLoadingState key={i} />
+            ))}
+          </div>
+        ) : filteredProjects.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredProjects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+            />
+          ))}
+        </div>
+        ) : (
+          <div className="text-center py-12">
+            <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              {searchTerm ? "Nenhum projeto encontrado" : "Nenhum projeto ainda"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm
+                ? "Tente ajustar os termos de busca"
+                : "Comece criando seu primeiro projeto"}
+            </p>
+            {!searchTerm && (
+              <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Criar Primeiro Projeto
+              </Button>
+            )}
+          </div>
         )}
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input 
-            placeholder="Buscar projetos..." 
-            value={searchTerm} 
-            onChange={e => setSearchTerm(e.target.value)} 
-            className="pl-10" 
-          />
-        </div>
+        <OnboardingFlow
+          isOpen={showOnboarding}
+          onClose={closeOnboarding}
+          onComplete={markOnboardingComplete}
+        />
       </div>
-
-      {/* Projects Grid */}
-      {filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">
-            {searchTerm ? "Nenhum projeto encontrado" : "Nenhum projeto criado"}
-          </h3>
-          <p className="text-muted-foreground mb-4 max-w-md">
-            {searchTerm ? "Tente ajustar os termos de busca" : "Comece criando seu primeiro projeto para gerenciar suas instalações"}
-          </p>
-          {!searchTerm && (
-            <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Criar Primeiro Projeto
-            </Button>
-          )}
-         </div>
-       ) : (
-         <div className="grid-projects">
-           {filteredProjects.map(project => (
-             <ProjectCard key={project.id} project={project} />
-           ))}
-         </div>
-       )}
-     </div>
-
-     {/* Onboarding Flow */}
-     <OnboardingFlow
-       isOpen={showOnboarding}
-       onClose={closeOnboarding}
-       onComplete={markOnboardingComplete}
-     />
-   </LoadingBoundary>
- );
+    </LoadingBoundary>
+  );
 }
