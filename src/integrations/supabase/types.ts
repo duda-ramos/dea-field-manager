@@ -678,6 +678,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      user_can_access_project_contacts: {
+        Args: { contact_project_id: string }
+        Returns: boolean
+      }
       validate_password_strength: {
         Args: { password: string }
         Returns: boolean
