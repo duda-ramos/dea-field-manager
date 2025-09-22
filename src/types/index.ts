@@ -40,6 +40,7 @@ export interface Installation {
   // Campos existentes mantidos
   installed: boolean;
   installed_at?: string;
+  status?: 'ativo' | 'on hold' | 'cancelado';
   updated_at: string;
   photos: string[];
   // Campos de revisão

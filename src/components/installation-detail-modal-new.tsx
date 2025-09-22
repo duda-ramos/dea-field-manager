@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,7 @@ export function InstallationDetailModalNew({
 }: InstallationDetailModalNewProps) {
   const { toast } = useToast();
   const [installed, setInstalled] = useState(installation.installed);
+  const [status, setStatus] = useState(installation.status || 'ativo');
   const [currentObservation, setCurrentObservation] = useState("");
   const [observationHistory, setObservationHistory] = useState<string[]>([]);
   const [currentSupplierComment, setCurrentSupplierComment] = useState("");
@@ -84,7 +86,8 @@ export function InstallationDetailModalNew({
 
     const updatedInstallation = { 
       ...installation, 
-      installed, 
+      installed,
+      status, 
       observacoes: newObservations || undefined, 
       comentarios_fornecedor: newSupplierComments || undefined,
       photos 
@@ -197,39 +200,37 @@ export function InstallationDetailModalNew({
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Pendency Information - More prominent display */}
-            {installation.pendencia_tipo && (
-              <Card className="border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md">
-                <CardHeader className="pb-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-t-lg">
-                  <CardTitle className="flex items-center gap-3 text-amber-900">
-                    <div className="h-3 w-3 bg-amber-500 rounded-full animate-pulse"></div>
-                    <span className="text-lg font-semibold">Pendência Ativa</span>
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        installation.pendencia_tipo === 'cliente' 
-                          ? "bg-red-100 text-red-800 border-red-300"
-                          : installation.pendencia_tipo === 'fornecedor'
-                          ? "bg-yellow-100 text-yellow-800 border-yellow-300" 
-                          : "bg-blue-100 text-blue-800 border-blue-300"
-                      }
-                    >
-                      {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="bg-white/70 rounded-lg p-4 border border-amber-200">
-                    <Label className="text-sm font-semibold text-amber-900 mb-2 block">
-                      Descrição da Pendência:
-                    </Label>
-                    <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
-                      {installation.pendencia_descricao}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Installation Status Toggle - Moved to top */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="installed"
+                checked={installed}
+                onCheckedChange={setInstalled}
+              />
+              <Label htmlFor="installed">
+                Marcar como instalado
+                {installed && installation.installed_at && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (Instalado em: {new Date(installation.installed_at).toLocaleDateString('pt-BR')})
+                  </span>
+                )}
+              </Label>
+            </div>
+
+            {/* Status Dropdown */}
+            <div>
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(value) => setStatus(value as 'ativo' | 'on hold' | 'cancelado')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="on hold">On Hold</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -271,6 +272,40 @@ export function InstallationDetailModalNew({
               </div>
             </div>
 
+            {/* Pendency Information - Moved after distance from batente */}
+            {installation.pendencia_tipo && (
+              <Card className="border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md">
+                <CardHeader className="pb-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-3 text-amber-900">
+                    <div className="h-3 w-3 bg-amber-500 rounded-full animate-pulse"></div>
+                    <span className="text-lg font-semibold">Pendência Ativa</span>
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        installation.pendencia_tipo === 'cliente' 
+                          ? "bg-red-100 text-red-800 border-red-300"
+                          : installation.pendencia_tipo === 'fornecedor'
+                          ? "bg-yellow-100 text-yellow-800 border-yellow-300" 
+                          : "bg-blue-100 text-blue-800 border-blue-300"
+                      }
+                    >
+                      {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="bg-white/70 rounded-lg p-4 border border-amber-200">
+                    <Label className="text-sm font-semibold text-amber-900 mb-2 block">
+                      Descrição da Pendência:
+                    </Label>
+                    <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
+                      {installation.pendencia_descricao}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Comments for supplier */}
             <div className="space-y-4">
               <Label>Comentários para o Fornecedor</Label>
@@ -308,22 +343,6 @@ export function InstallationDetailModalNew({
               )}
             </div>
 
-            {/* Installation Status */}
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="installed"
-                checked={installed}
-                onCheckedChange={setInstalled}
-              />
-              <Label htmlFor="installed">
-                Marcar como instalado
-                {installed && installation.installed_at && (
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (Instalado em: {new Date(installation.installed_at).toLocaleDateString('pt-BR')})
-                  </span>
-                )}
-              </Label>
-            </div>
 
             {/* Observations */}
             <div className="space-y-4">
