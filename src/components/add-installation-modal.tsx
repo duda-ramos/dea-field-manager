@@ -35,7 +35,9 @@ export function AddInstallationModal({
     diretriz_altura_cm: "",
     diretriz_dist_batente_cm: "",
     observacoes: "",
-    comentarios_fornecedor: ""
+    comentarios_fornecedor: "",
+    pendencia_tipo: "",
+    pendencia_descricao: ""
   });
   
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
@@ -54,7 +56,9 @@ export function AddInstallationModal({
         diretriz_altura_cm: editingInstallation.diretriz_altura_cm ? String(editingInstallation.diretriz_altura_cm) : "",
         diretriz_dist_batente_cm: editingInstallation.diretriz_dist_batente_cm ? String(editingInstallation.diretriz_dist_batente_cm) : "",
         observacoes: editingInstallation.observacoes || "",
-        comentarios_fornecedor: editingInstallation.comentarios_fornecedor || ""
+        comentarios_fornecedor: editingInstallation.comentarios_fornecedor || "",
+        pendencia_tipo: editingInstallation.pendencia_tipo || "",
+        pendencia_descricao: editingInstallation.pendencia_descricao || ""
       });
     } else {
       setFormData({
@@ -66,7 +70,9 @@ export function AddInstallationModal({
         diretriz_altura_cm: "",
         diretriz_dist_batente_cm: "",
         observacoes: "",
-        comentarios_fornecedor: ""
+        comentarios_fornecedor: "",
+        pendencia_tipo: "",
+        pendencia_descricao: ""
       });
     }
   }, [editingInstallation]);
@@ -81,7 +87,9 @@ export function AddInstallationModal({
       diretriz_altura_cm: "",
       diretriz_dist_batente_cm: "",
       observacoes: "",
-      comentarios_fornecedor: ""
+      comentarios_fornecedor: "",
+      pendencia_tipo: "",
+      pendencia_descricao: ""
     });
     setShowOverwriteConfirm(false);
     setOverwriteMotivo("");
@@ -114,6 +122,16 @@ export function AddInstallationModal({
       toast({
         title: "Erro de validação",
         description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate pendency fields
+    if (formData.pendencia_tipo && !formData.pendencia_descricao.trim()) {
+      toast({
+        title: "Erro de validação",
+        description: "Se há uma pendência, descreva-a no campo de descrição",
         variant: "destructive"
       });
       return;
@@ -160,7 +178,11 @@ export function AddInstallationModal({
       diretriz_altura_cm,
       diretriz_dist_batente_cm,
       observacoes: formData.observacoes || undefined,
-      comentarios_fornecedor: formData.comentarios_fornecedor || undefined
+      comentarios_fornecedor: formData.comentarios_fornecedor || undefined,
+      ...(formData.pendencia_tipo && {
+        pendencia_tipo: formData.pendencia_tipo as 'cliente' | 'fornecedor' | 'projetista',
+        pendencia_descricao: formData.pendencia_descricao || undefined
+      })
     };
 
     let savedInstallation: Installation;
@@ -402,6 +424,37 @@ export function AddInstallationModal({
               className="min-h-[80px]"
             />
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Tipo de Pendência</Label>
+              <Select 
+                value={formData.pendencia_tipo} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, pendencia_tipo: value, pendencia_descricao: value ? prev.pendencia_descricao : "" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cliente">Cliente</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                  <SelectItem value="projetista">Projetista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {formData.pendencia_tipo && (
+            <div>
+              <Label>Descrição da Pendência *</Label>
+              <Textarea
+                value={formData.pendencia_descricao}
+                onChange={(e) => setFormData(prev => ({ ...prev, pendencia_descricao: e.target.value }))}
+                placeholder="Descreva detalhadamente a pendência..."
+                className="min-h-[100px]"
+              />
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={handleClose}>

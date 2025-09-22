@@ -34,6 +34,9 @@ export interface Installation {
   diretriz_dist_batente_cm?: number;
   observacoes?: string;
   comentarios_fornecedor?: string;
+  // Campos de pendências
+  pendencia_tipo?: 'cliente' | 'fornecedor' | 'projetista';
+  pendencia_descricao?: string;
   // Campos existentes mantidos
   installed: boolean;
   installed_at?: string;

@@ -244,6 +244,8 @@ export type Database = {
           installed_at: string | null
           observacoes: string | null
           pavimento: string
+          pendencia_descricao: string | null
+          pendencia_tipo: string | null
           photos: string[] | null
           project_id: string
           quantidade: number
@@ -265,6 +267,8 @@ export type Database = {
           installed_at?: string | null
           observacoes?: string | null
           pavimento: string
+          pendencia_descricao?: string | null
+          pendencia_tipo?: string | null
           photos?: string[] | null
           project_id: string
           quantidade: number
@@ -286,6 +290,8 @@ export type Database = {
           installed_at?: string | null
           observacoes?: string | null
           pavimento?: string
+          pendencia_descricao?: string | null
+          pendencia_tipo?: string | null
           photos?: string[] | null
           project_id?: string
           quantidade?: number

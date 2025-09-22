@@ -197,6 +197,24 @@ export function InstallationDetailModalNew({
           </DialogHeader>
           
           <div className="space-y-6">
+            {/* Pendency Information */}
+            {installation.pendencia_tipo && (
+              <Card className="border-orange-200 bg-orange-50/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-orange-800">
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                      Pendência: {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-orange-700 whitespace-pre-wrap">
+                    {installation.pendencia_descricao}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
