@@ -41,6 +41,7 @@ export default function ProjectDetailNew() {
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
+  const [itemStatusFilter, setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -113,10 +114,13 @@ export default function ProjectDetailNew() {
     const matchesStatus = statusFilter === "all" || 
                           (statusFilter === "installed" && installation.installed) ||
                           (statusFilter === "pending" && !installation.installed);
+    
+    const matchesItemStatus = itemStatusFilter === "all" || 
+                             installation.status === itemStatusFilter;
                           
     const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
     
-    return matchesSearch && matchesStatus && matchesPavimento;
+    return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
   });
 
   const completedInstallations = installations.filter(i => i.installed).length;
@@ -321,6 +325,17 @@ export default function ProjectDetailNew() {
                 <option key={pavimento} value={pavimento}>{pavimento}</option>
               ))}
             </select>
+
+            <select
+              value={itemStatusFilter}
+              onChange={(e) => setItemStatusFilter(e.target.value as any)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="ativo">Ativo</option>
+              <option value="on hold">On Hold</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
             
             <Button variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -422,6 +437,20 @@ export default function ProjectDetailNew() {
                                   )}
                                 </div>
                                  <div className="flex items-center gap-2 ml-4">
+                                   {/* Status Badge */}
+                                   <Badge 
+                                     className={
+                                       installation.status === 'ativo' 
+                                         ? "bg-green-100 text-green-800 border-green-300"
+                                         : installation.status === 'on hold'
+                                         ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                         : installation.status === 'cancelado'
+                                         ? "bg-red-100 text-red-800 border-red-300"
+                                         : "bg-green-100 text-green-800 border-green-300" // default to ativo
+                                     }
+                                   >
+                                     {installation.status || 'ativo'}
+                                   </Badge>
                                    {installation.pendencia_tipo && (
                                      <Badge 
                                        variant="outline" 
