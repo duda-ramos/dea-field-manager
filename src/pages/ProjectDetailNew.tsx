@@ -333,6 +333,7 @@ export default function ProjectDetailNew() {
             >
               <option value="all">Todos os Status</option>
               <option value="ativo">Ativo</option>
+              <option value="pendente">Pendente</option>
               <option value="on hold">On Hold</option>
               <option value="cancelado">Cancelado</option>
             </select>
@@ -441,7 +442,9 @@ export default function ProjectDetailNew() {
                                    {installation.status && installation.status !== 'ativo' && (
                                      <Badge 
                                        className={
-                                         installation.status === 'on hold'
+                                         installation.status === 'pendente'
+                                           ? "bg-orange-100 text-orange-800 border-orange-300"
+                                           : installation.status === 'on hold'
                                            ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                                            : installation.status === 'cancelado'
                                            ? "bg-red-100 text-red-800 border-red-300"

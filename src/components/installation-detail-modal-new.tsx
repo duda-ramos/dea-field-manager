@@ -49,6 +49,16 @@ export function InstallationDetailModalNew({
   useEffect(() => {
     setInstalled(installation.installed);
     setPhotos(installation.photos);
+    setPendenciaTipo(installation.pendencia_tipo || '');
+    setPendenciaDescricao(installation.pendencia_descricao || '');
+    
+    // Auto-set status based on pendency
+    if (installation.pendencia_tipo) {
+      setStatus('pendente');
+    } else {
+      setStatus(installation.status || 'ativo');
+    }
+    
     const loadVersions = async () => {
       const versions = await storage.getItemVersions(installation.id);
       setVersions(versions);
@@ -224,14 +234,25 @@ export function InstallationDetailModalNew({
             {/* Status Dropdown */}
             <div>
               <Label>Status</Label>
-              <Select value={status} onValueChange={(value) => setStatus(value as 'ativo' | 'on hold' | 'cancelado')}>
+              <Select value={status} onValueChange={(value) => {
+                // Prevent manual change to 'pendente' if there's no pendency
+                if (value === 'pendente' && !pendenciaTipo) {
+                  return;
+                }
+                // Prevent changing from 'pendente' if there's a pendency
+                if (pendenciaTipo && value !== 'pendente') {
+                  return;
+                }
+                setStatus(value as 'ativo' | 'on hold' | 'cancelado' | 'pendente');
+              }}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="on hold">On Hold</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                  {!pendenciaTipo && <SelectItem value="ativo">Ativo</SelectItem>}
+                  {pendenciaTipo && <SelectItem value="pendente">Pendente</SelectItem>}
+                  {!pendenciaTipo && <SelectItem value="on hold">On Hold</SelectItem>}
+                  {!pendenciaTipo && <SelectItem value="cancelado">Cancelado</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -283,7 +304,18 @@ export function InstallationDetailModalNew({
                   <Label>Tipo de Pendência</Label>
                   <Select 
                     value={pendenciaTipo || "none"} 
-                    onValueChange={(value) => setPendenciaTipo(value === "none" ? "" : value)}
+                    onValueChange={(value) => {
+                      const newPendenciaTipo = value === "none" ? "" : value;
+                      setPendenciaTipo(newPendenciaTipo);
+                      
+                      // Auto-update status based on pendency
+                      if (newPendenciaTipo) {
+                        setStatus('pendente');
+                      } else {
+                        setStatus('ativo');
+                        setPendenciaDescricao('');
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo (opcional)" />
