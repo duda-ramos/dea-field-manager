@@ -282,14 +282,14 @@ export function InstallationDetailModalNew({
                 <div>
                   <Label>Tipo de Pendência</Label>
                   <Select 
-                    value={pendenciaTipo} 
-                    onValueChange={(value) => setPendenciaTipo(value)}
+                    value={pendenciaTipo || "none"} 
+                    onValueChange={(value) => setPendenciaTipo(value === "none" ? "" : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma pendência</SelectItem>
+                      <SelectItem value="none">Nenhuma pendência</SelectItem>
                       <SelectItem value="cliente">Cliente</SelectItem>
                       <SelectItem value="fornecedor">Fornecedor</SelectItem>
                       <SelectItem value="projetista">Projetista</SelectItem>
