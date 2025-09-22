@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
   Home,
@@ -6,11 +5,8 @@ import {
   Users,
   Settings,
   BarChart3,
-  FileText,
-  HelpCircle,
   Plus,
   DollarSign,
-  Zap
 } from "lucide-react"
 
 import {
@@ -54,11 +50,6 @@ const navigationItems = [
     title: "Relatórios",
     url: "/relatorios",
     icon: BarChart3,
-  },
-  {
-    title: "Recursos Avançados",
-    url: "/recursos-avancados",
-    icon: Zap,
   },
 ]
 

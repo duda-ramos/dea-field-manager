@@ -20,7 +20,6 @@ import BudgetPage from "./pages/BudgetPage";
 import BudgetsListPage from "./pages/BudgetsListPage";
 import { ContatosPage } from "./features/contatos";
 import GlobalContactsPage from "./pages/GlobalContactsPage";
-import AdvancedFeaturesPage from "./pages/AdvancedFeaturesPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
@@ -146,13 +145,6 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <BudgetsListPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/recursos-avancados" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <AdvancedFeaturesPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />

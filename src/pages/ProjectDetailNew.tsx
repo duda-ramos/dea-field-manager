@@ -24,7 +24,7 @@ import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
 import { FileManager } from "@/components/file-manager/FileManager";
-import { RealtimeCollaboration } from "@/components/collaboration/RealtimeCollaboration";
+import { CollaborationPanel } from "@/components/collaboration/CollaborationPanel";
 import { ProjectVersioning } from "@/components/versioning/ProjectVersioning";
 import { AutomaticBackup } from "@/components/backup/AutomaticBackup";
 import { logger } from '@/services/logger';
@@ -553,10 +553,17 @@ export default function ProjectDetailNew() {
         </CardContent>
       </Card>
 
-      {/* Advanced Features */}
-      <RealtimeCollaboration 
+      {/* Collaboration Panel */}
+      <CollaborationPanel 
         projectId={project.id} 
         isOwner={true}
+        onCollaboratorAdded={() => {
+          // Trigger real-time event
+          toast({
+            title: 'Colaborador adicionado',
+            description: 'Novo colaborador foi adicionado ao projeto'
+          });
+        }}
       />
       
       <ProjectVersioning 
