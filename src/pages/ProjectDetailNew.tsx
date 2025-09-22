@@ -421,19 +421,33 @@ export default function ProjectDetailNew() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2 ml-4">
-                                  {installation.installed && (
-                                    <Badge variant="success">Instalado</Badge>
-                                  )}
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => setSelectedInstallation(installation)}
-                                  >
-                                    <Settings className="h-4 w-4 mr-2" />
-                                    Detalhes
-                                  </Button>
-                                </div>
+                                 <div className="flex items-center gap-2 ml-4">
+                                   {installation.pendencia_tipo && (
+                                     <Badge 
+                                       variant="outline" 
+                                       className={
+                                         installation.pendencia_tipo === 'cliente' 
+                                           ? "border-red-300 bg-red-50 text-red-700"
+                                           : installation.pendencia_tipo === 'fornecedor'
+                                           ? "border-yellow-300 bg-yellow-50 text-yellow-700"
+                                           : "border-blue-300 bg-blue-50 text-blue-700"
+                                       }
+                                     >
+                                       Pendência: {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
+                                     </Badge>
+                                   )}
+                                   {installation.installed && (
+                                     <Badge variant="success">Instalado</Badge>
+                                   )}
+                                   <Button 
+                                     variant="outline" 
+                                     size="sm" 
+                                     onClick={() => setSelectedInstallation(installation)}
+                                   >
+                                     <Settings className="h-4 w-4 mr-2" />
+                                     Detalhes
+                                   </Button>
+                                 </div>
                               </div>
                             </CardContent>
                           </Card>

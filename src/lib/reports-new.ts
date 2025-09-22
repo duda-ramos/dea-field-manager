@@ -73,10 +73,11 @@ export function calculateReportSections(data: ReportData): ReportSections {
       return;
     }
 
-    // Check pending conditions based on interlocutor
-    const hasPendingCondition = interlocutor === 'cliente' 
-      ? !!item.observacoes 
-      : !!(item.observacoes || item.comentarios_fornecedor);
+    // Check pending conditions based on interlocutor and new pendency fields
+    const hasPendingCondition = item.pendencia_tipo || 
+      (interlocutor === 'cliente' 
+        ? !!item.observacoes 
+        : !!(item.observacoes || item.comentarios_fornecedor));
 
     if (hasPendingCondition) {
       pendencias.push(item);
