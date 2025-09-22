@@ -437,20 +437,20 @@ export default function ProjectDetailNew() {
                                   )}
                                 </div>
                                  <div className="flex items-center gap-2 ml-4">
-                                   {/* Status Badge */}
-                                   <Badge 
-                                     className={
-                                       installation.status === 'ativo' 
-                                         ? "bg-green-100 text-green-800 border-green-300"
-                                         : installation.status === 'on hold'
-                                         ? "bg-yellow-100 text-yellow-800 border-yellow-300"
-                                         : installation.status === 'cancelado'
-                                         ? "bg-red-100 text-red-800 border-red-300"
-                                         : "bg-green-100 text-green-800 border-green-300" // default to ativo
-                                     }
-                                   >
-                                     {installation.status || 'ativo'}
-                                   </Badge>
+                                   {/* Status Badge - only show if not ativo */}
+                                   {installation.status && installation.status !== 'ativo' && (
+                                     <Badge 
+                                       className={
+                                         installation.status === 'on hold'
+                                           ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                           : installation.status === 'cancelado'
+                                           ? "bg-red-100 text-red-800 border-red-300"
+                                           : ""
+                                       }
+                                     >
+                                       {installation.status}
+                                     </Badge>
+                                   )}
                                    {installation.pendencia_tipo && (
                                      <Badge 
                                        variant="outline" 
