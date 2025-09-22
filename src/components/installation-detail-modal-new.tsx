@@ -31,6 +31,8 @@ export function InstallationDetailModalNew({
   const { toast } = useToast();
   const [installed, setInstalled] = useState(installation.installed);
   const [status, setStatus] = useState(installation.status || 'ativo');
+  const [pendenciaTipo, setPendenciaTipo] = useState(installation.pendencia_tipo || '');
+  const [pendenciaDescricao, setPendenciaDescricao] = useState(installation.pendencia_descricao || '');
   const [currentObservation, setCurrentObservation] = useState("");
   const [observationHistory, setObservationHistory] = useState<string[]>([]);
   const [currentSupplierComment, setCurrentSupplierComment] = useState("");
@@ -87,7 +89,9 @@ export function InstallationDetailModalNew({
     const updatedInstallation = { 
       ...installation, 
       installed,
-      status, 
+      status,
+      pendencia_tipo: pendenciaTipo as 'cliente' | 'fornecedor' | 'projetista' | undefined,
+      pendencia_descricao: pendenciaDescricao || undefined, 
       observacoes: newObservations || undefined, 
       comentarios_fornecedor: newSupplierComments || undefined,
       photos 
@@ -272,13 +276,48 @@ export function InstallationDetailModalNew({
               </div>
             </div>
 
-            {/* Pendency Information - Moved after distance from batente */}
+            {/* Pendency Input Fields - Editable fields for pendency management */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Tipo de Pendência</Label>
+                  <Select 
+                    value={pendenciaTipo} 
+                    onValueChange={(value) => setPendenciaTipo(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nenhuma pendência</SelectItem>
+                      <SelectItem value="cliente">Cliente</SelectItem>
+                      <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                      <SelectItem value="projetista">Projetista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {pendenciaTipo && (
+                <div>
+                  <Label>Descrição da Pendência *</Label>
+                  <Textarea
+                    value={pendenciaDescricao}
+                    onChange={(e) => setPendenciaDescricao(e.target.value)}
+                    placeholder="Descreva detalhadamente a pendência..."
+                    className="min-h-[100px]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Pendency Information Display - Show existing pendency as card if present */}
             {installation.pendencia_tipo && (
               <Card className="border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md">
                 <CardHeader className="pb-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-t-lg">
                   <CardTitle className="flex items-center gap-3 text-amber-900">
                     <div className="h-3 w-3 bg-amber-500 rounded-full animate-pulse"></div>
-                    <span className="text-lg font-semibold">Pendência Ativa</span>
+                    <span className="text-lg font-semibold">Pendência Atual</span>
                     <Badge 
                       variant="outline" 
                       className={
