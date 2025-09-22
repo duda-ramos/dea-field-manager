@@ -94,6 +94,33 @@ export type Database = {
           },
         ]
       }
+      collaboration_events: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           access_count: number | null
@@ -373,6 +400,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_backups: {
+        Row: {
+          backup_data: Json
+          backup_type: string
+          created_at: string
+          file_count: number | null
+          id: string
+          project_id: string
+          restore_point: boolean | null
+          total_size: number | null
+        }
+        Insert: {
+          backup_data: Json
+          backup_type?: string
+          created_at?: string
+          file_count?: number | null
+          id?: string
+          project_id: string
+          restore_point?: boolean | null
+          total_size?: number | null
+        }
+        Update: {
+          backup_data?: Json
+          backup_type?: string
+          created_at?: string
+          file_count?: number | null
+          id?: string
+          project_id?: string
+          restore_point?: boolean | null
+          total_size?: number | null
+        }
+        Relationships: []
+      }
       project_collaborators: {
         Row: {
           accepted_at: string | null
@@ -490,6 +550,39 @@ export type Database = {
           template_data?: Json
           updated_at?: string
           usage_count?: number
+        }
+        Relationships: []
+      }
+      project_versions: {
+        Row: {
+          change_description: string | null
+          created_at: string
+          id: string
+          project_id: string
+          size_bytes: number | null
+          snapshot: Json
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          change_description?: string | null
+          created_at?: string
+          id?: string
+          project_id: string
+          size_bytes?: number | null
+          snapshot: Json
+          user_id: string
+          version_number: number
+        }
+        Update: {
+          change_description?: string | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          size_bytes?: number | null
+          snapshot?: Json
+          user_id?: string
+          version_number?: number
         }
         Relationships: []
       }

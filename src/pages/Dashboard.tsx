@@ -15,7 +15,6 @@ import { errorMonitoring } from "@/services/errorMonitoring";
 import { ProjectProgressCharts } from "@/components/dashboard/ProjectProgressCharts";
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
-import { ProjectTemplateSelector } from "@/components/templates/ProjectTemplateSelector";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
@@ -321,13 +320,6 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
         </div>
-
-        {/* Template Selector Modal */}
-        <ProjectTemplateSelector
-          isOpen={showTemplateSelector}
-          onClose={() => setShowTemplateSelector(false)}
-          onSelectTemplate={handleSelectTemplate}
-        />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

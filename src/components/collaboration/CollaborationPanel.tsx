@@ -39,9 +39,10 @@ interface Collaborator {
 interface CollaborationPanelProps {
   projectId: string;
   isOwner: boolean;
+  onCollaboratorAdded?: () => void;
 }
 
-export function CollaborationPanel({ projectId, isOwner }: CollaborationPanelProps) {
+export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: CollaborationPanelProps) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -140,6 +141,7 @@ export function CollaborationPanel({ projectId, isOwner }: CollaborationPanelPro
       setInviteEmail('');
       setInviteRole('viewer');
       loadCollaborators();
+      onCollaboratorAdded?.();
 
     } catch (error) {
       // Error logged via logger service
