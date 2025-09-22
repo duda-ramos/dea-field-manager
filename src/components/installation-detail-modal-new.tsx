@@ -197,20 +197,36 @@ export function InstallationDetailModalNew({
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Pendency Information */}
+            {/* Pendency Information - More prominent display */}
             {installation.pendencia_tipo && (
-              <Card className="border-orange-200 bg-orange-50/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-orange-800">
-                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
-                      Pendência: {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
+              <Card className="border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md">
+                <CardHeader className="pb-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-3 text-amber-900">
+                    <div className="h-3 w-3 bg-amber-500 rounded-full animate-pulse"></div>
+                    <span className="text-lg font-semibold">Pendência Ativa</span>
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        installation.pendencia_tipo === 'cliente' 
+                          ? "bg-red-100 text-red-800 border-red-300"
+                          : installation.pendencia_tipo === 'fornecedor'
+                          ? "bg-yellow-100 text-yellow-800 border-yellow-300" 
+                          : "bg-blue-100 text-blue-800 border-blue-300"
+                      }
+                    >
+                      {installation.pendencia_tipo.charAt(0).toUpperCase() + installation.pendencia_tipo.slice(1)}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-orange-700 whitespace-pre-wrap">
-                    {installation.pendencia_descricao}
-                  </p>
+                <CardContent className="pt-4">
+                  <div className="bg-white/70 rounded-lg p-4 border border-amber-200">
+                    <Label className="text-sm font-semibold text-amber-900 mb-2 block">
+                      Descrição da Pendência:
+                    </Label>
+                    <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
+                      {installation.pendencia_descricao}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
