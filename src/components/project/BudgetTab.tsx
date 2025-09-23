@@ -1,17 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, DollarSign, FileText, Calendar, Trash2, Edit } from "lucide-react";
+import { Plus, DollarSign, FileText, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { storage } from "@/lib/storage";
 
 interface Budget {
   id: string;
@@ -23,22 +20,19 @@ interface Budget {
   updated_at: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-  client: string;
+interface BudgetTabProps {
+  projectId: string;
+  projectName: string;
 }
 
-export default function BudgetPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [project, setProject] = useState<Project | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [loading, setLoading] = useState(true);
   const [newBudget, setNewBudget] = useState({
     supplier: "",
     amount: "",
@@ -46,84 +40,20 @@ export default function BudgetPage() {
   });
 
   useEffect(() => {
-    if (id && user) {
-      loadProjectData();
+    if (projectId && user) {
       loadBudgets();
     }
-  }, [id, user]);
-
-  const loadProjectData = async () => {
-    if (!id || !user) {
-      return;
-    }
-
-    // Additional validation for id
-    if (id === ':id' || id.includes(':')) {
-      toast({
-        title: "Erro de navegação",
-        description: "ID do projeto inválido",
-        variant: "destructive"
-      });
-      navigate('/projetos');
-      return;
-    }
-    
-    try {
-      // Primeiro tenta carregar do storage local
-      const projects = await storage.getProjects();
-      const localProject = projects.find(p => p.id === id);
-      
-      if (localProject) {
-        setProject({
-          id: localProject.id,
-          name: localProject.name,
-          client: localProject.client
-        });
-        return;
-      }
-
-      // Se não encontrou localmente, tenta carregar do Supabase
-      const { data: projectData, error } = await supabase
-        .from('projects')
-        .select('id, name, client')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar projeto",
-          variant: "destructive"
-        });
-        navigate('/projetos');
-        return;
-      }
-
-      if (!projectData) {
-        toast({
-          title: "Projeto não encontrado",
-          description: "Projeto não foi encontrado ou você não tem acesso a ele",
-          variant: "destructive"
-        });
-        navigate('/projetos');
-        return;
-      }
-      
-      setProject(projectData);
-    } catch (error) {
-      navigate('/projetos');
-    }
-  };
+  }, [projectId, user]);
 
   const loadBudgets = async () => {
-    if (!id || !user) return;
+    if (!projectId || !user) return;
 
     // Verificar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(projectId)) {
       setBudgets([]);
+      setLoading(false);
       return;
     }
 
@@ -131,7 +61,7 @@ export default function BudgetPage() {
       const { data: budgetsData, error } = await supabase
         .from('budgets')
         .select('*')
-        .eq('project_id', id)
+        .eq('project_id', projectId)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -153,11 +83,13 @@ export default function BudgetPage() {
         description: "Erro inesperado ao carregar orçamentos",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateBudget = async () => {
-    if (!newBudget.supplier || !newBudget.amount || !id || !user) {
+    if (!newBudget.supplier || !newBudget.amount || !projectId || !user) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -169,7 +101,7 @@ export default function BudgetPage() {
     // Verificar se o projeto precisa ser sincronizado primeiro
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(projectId)) {
       toast({
         title: "Projeto não sincronizado",
         description: "Este projeto precisa ser sincronizado com o servidor antes de criar orçamentos. Acesse a página de projetos e clique em sincronizar.",
@@ -181,7 +113,7 @@ export default function BudgetPage() {
     const { data, error } = await supabase
       .from('budgets')
       .insert([{
-        project_id: id,
+        project_id: projectId,
         supplier: newBudget.supplier,
         amount: parseFloat(newBudget.amount),
         status: newBudget.status,
@@ -287,26 +219,13 @@ export default function BudgetPage() {
   const approvedAmount = budgets.filter(b => b.status === 'approved').reduce((sum, budget) => sum + budget.amount, 0);
   const pendingAmount = budgets.filter(b => b.status === 'pending').reduce((sum, budget) => sum + budget.amount, 0);
 
-  if (!user) {
+  if (loading) {
     return (
-      <div className="container-modern py-8">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Acesso negado</h3>
-            <p className="text-muted-foreground">Você precisa estar logado para acessar esta página</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!project) {
-    return (
-      <div className="container-modern py-8">
+      <div className="space-y-6">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Carregando projeto...</p>
+            <p className="text-muted-foreground">Carregando orçamentos...</p>
           </div>
         </div>
       </div>
@@ -314,19 +233,12 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="container-modern py-8 space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => navigate(`/projeto/${id}`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold text-foreground">Orçamentos</h1>
-          <p className="text-muted-foreground">{project.name} - {project.client}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Orçamentos</h2>
+          <p className="text-muted-foreground">{projectName}</p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
@@ -503,7 +415,7 @@ export default function BudgetPage() {
                 <Input 
                   id="edit-supplier" 
                   value={editingBudget.supplier} 
-                  onChange={e => setEditingBudget(prev => prev ? { ...prev, supplier: e.target.value } : null)} 
+                  onChange={e => setEditingBudget({...editingBudget, supplier: e.target.value})} 
                   placeholder="Nome do fornecedor" 
                 />
               </div>
@@ -514,13 +426,13 @@ export default function BudgetPage() {
                   type="number"
                   step="0.01"
                   value={editingBudget.amount} 
-                  onChange={e => setEditingBudget(prev => prev ? { ...prev, amount: parseFloat(e.target.value) || 0 } : null)} 
+                  onChange={e => setEditingBudget({...editingBudget, amount: parseFloat(e.target.value) || 0})} 
                   placeholder="0.00" 
                 />
               </div>
               <div>
                 <Label htmlFor="edit-status">Status</Label>
-                <Select value={editingBudget.status} onValueChange={(value: any) => setEditingBudget(prev => prev ? { ...prev, status: value } : null)}>
+                <Select value={editingBudget.status} onValueChange={(value: any) => setEditingBudget({...editingBudget, status: value})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -531,8 +443,8 @@ export default function BudgetPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => editingBudget && handleUpdateBudget(editingBudget)} className="w-full">
-                Atualizar Orçamento
+              <Button onClick={() => handleUpdateBudget(editingBudget)} className="w-full">
+                Salvar Alterações
               </Button>
             </div>
           </DialogContent>

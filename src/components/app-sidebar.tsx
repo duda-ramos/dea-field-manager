@@ -6,7 +6,6 @@ import {
   Settings,
   BarChart3,
   Plus,
-  DollarSign,
 } from "lucide-react"
 
 import {
@@ -40,11 +39,6 @@ const navigationItems = [
     title: "Contatos",
     url: "/contatos",
     icon: Users,
-  },
-  {
-    title: "Orçamentos",
-    url: "/orcamentos",
-    icon: DollarSign,
   },
   {
     title: "Relatórios",

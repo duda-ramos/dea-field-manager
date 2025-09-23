@@ -16,8 +16,6 @@ import Dashboard from "./pages/Dashboard";
 import ProjectDetailNew from "./pages/ProjectDetailNew";
 import ProjectsPage from "./pages/ProjectsPage";
 import ReportsPage from "./pages/ReportsPage";
-import BudgetPage from "./pages/BudgetPage";
-import BudgetsListPage from "./pages/BudgetsListPage";
 import { ContatosPage } from "./features/contatos";
 import GlobalContactsPage from "./pages/GlobalContactsPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
@@ -99,17 +97,17 @@ const App = () => (
                   </AppLayout>
                 </ProtectedRoute>
               } />
-              <Route path="/projeto/:id/orcamentos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <BudgetPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
               <Route path="/projeto/:id/contatos" element={
                 <ProtectedRoute>
                   <AppLayout>
                     <ContatosPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/projeto/:id/orcamentos" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProjectDetailNew />
                   </AppLayout>
                 </ProtectedRoute>
               } />
@@ -138,13 +136,6 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <GlobalContactsPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/orcamentos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <BudgetsListPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />

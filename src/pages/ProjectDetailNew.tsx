@@ -27,6 +27,7 @@ import { FileManager } from "@/components/file-manager/FileManager";
 import { CollaborationPanel } from "@/components/collaboration/CollaborationPanel";
 import { ProjectVersioning } from "@/components/versioning/ProjectVersioning";
 import { AutomaticBackup } from "@/components/backup/AutomaticBackup";
+import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
 
 export default function ProjectDetailNew() {
@@ -1013,27 +1014,7 @@ export default function ProjectDetailNew() {
   };
 
   const renderOrcamentosSection = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Orçamentos do Projeto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="text-lg font-semibold mb-2">Gestão de Orçamentos</div>
-            <p className="text-muted-foreground mb-4">
-              Acesse a página dedicada de orçamentos para gerenciar fornecedores, valores e status dos orçamentos.
-            </p>
-            <Button 
-              onClick={() => navigate(`/projeto/${id}/orcamentos`)}
-              size="lg"
-            >
-              Gerenciar Orçamentos
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <BudgetTab projectId={project.id} projectName={project.name} />
   );
 
   const renderContatosSection = () => (
