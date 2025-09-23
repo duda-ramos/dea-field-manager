@@ -12,7 +12,7 @@ import { storage } from "@/lib/storage";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
-import { ProjectProgressCharts } from "@/components/dashboard/ProjectProgressCharts";
+
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -345,8 +345,6 @@ export default function Dashboard() {
         />
       </div>
 
-        {/* Progress Charts */}
-        <ProjectProgressCharts projects={projects} />
 
         {/* Search and Filter */}
         <div className="flex items-center gap-4">
