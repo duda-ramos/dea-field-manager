@@ -276,16 +276,16 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
           <div className="space-y-2">
             <Label>Projeto (opcional)</Label>
             <Select
-              value={formData.project_id || ''}
+              value={formData.project_id || 'none'}
               onValueChange={(value) => 
-                setFormData(prev => ({ ...prev, project_id: value || null }))
+                setFormData(prev => ({ ...prev, project_id: value === 'none' ? null : value }))
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecionar projeto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum projeto</SelectItem>
+                <SelectItem value="none">Nenhum projeto</SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name} - {project.client}
