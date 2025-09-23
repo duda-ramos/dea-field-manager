@@ -6,18 +6,21 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, DollarSign, FileText, Edit, Trash2 } from "lucide-react";
+import { Plus, Upload, FileText, Edit, Trash2, Download, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface Budget {
+interface SupplierProposal {
   id: string;
   project_id: string;
   supplier: string;
-  amount: number;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
+  file_name?: string;
+  file_path?: string;
+  file_size?: number;
+  uploaded_at?: string;
 }
 
 interface BudgetTabProps {
@@ -29,37 +32,38 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [proposals, setProposals] = useState<SupplierProposal[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editingProposal, setEditingProposal] = useState<SupplierProposal | null>(null);
   const [loading, setLoading] = useState(true);
-  const [newBudget, setNewBudget] = useState({
+  const [uploading, setUploading] = useState(false);
+  const [newProposal, setNewProposal] = useState({
     supplier: "",
-    amount: "",
-    status: "pending" as const
+    status: "pending" as const,
+    file: null as File | null
   });
 
   useEffect(() => {
     if (projectId && user) {
-      loadBudgets();
+      loadProposals();
     }
   }, [projectId, user]);
 
-  const loadBudgets = async () => {
+  const loadProposals = async () => {
     if (!projectId || !user) return;
 
     // Verificar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
     if (!uuidRegex.test(projectId)) {
-      setBudgets([]);
+      setProposals([]);
       setLoading(false);
       return;
     }
 
     try {
-      const { data: budgetsData, error } = await supabase
-        .from('budgets')
+      const { data: proposalsData, error } = await supabase
+        .from('supplier_proposals')
         .select('*')
         .eq('project_id', projectId)
         .eq('user_id', user.id)
@@ -68,19 +72,19 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       if (error) {
         toast({
           title: "Erro",
-          description: "Erro ao carregar orçamentos",
+          description: "Erro ao carregar propostas de fornecedores",
           variant: "destructive"
         });
         return;
       }
 
-      if (budgetsData) {
-        setBudgets(budgetsData as Budget[]);
+      if (proposalsData) {
+        setProposals(proposalsData as SupplierProposal[]);
       }
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro inesperado ao carregar orçamentos",
+        description: "Erro inesperado ao carregar propostas",
         variant: "destructive"
       });
     } finally {
@@ -88,11 +92,29 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
     }
   };
 
-  const handleCreateBudget = async () => {
-    if (!newBudget.supplier || !newBudget.amount || !projectId || !user) {
+  const uploadFile = async (file: File): Promise<{ filePath: string, fileName: string } | null> => {
+    if (!user) return null;
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+    
+    const { error } = await supabase.storage
+      .from('Orcamentos')
+      .upload(filePath, file);
+      
+    if (error) {
+      throw error;
+    }
+    
+    return { filePath, fileName: file.name };
+  };
+
+  const handleCreateProposal = async () => {
+    if (!newProposal.supplier || !newProposal.file || !projectId || !user) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios e selecione um arquivo",
         variant: "destructive"
       });
       return;
@@ -104,99 +126,136 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
     if (!uuidRegex.test(projectId)) {
       toast({
         title: "Projeto não sincronizado",
-        description: "Este projeto precisa ser sincronizado com o servidor antes de criar orçamentos. Acesse a página de projetos e clique em sincronizar.",
+        description: "Este projeto precisa ser sincronizado com o servidor antes de criar propostas. Acesse a página de projetos e clique em sincronizar.",
         variant: "destructive"
       });
       return;
     }
 
-    const { data, error } = await supabase
-      .from('budgets')
-      .insert([{
-        project_id: projectId,
-        supplier: newBudget.supplier,
-        amount: parseFloat(newBudget.amount),
-        status: newBudget.status,
-        user_id: user.id
-      }])
-      .select()
-      .single();
+    setUploading(true);
+    
+    try {
+      // Upload do arquivo
+      const uploadResult = await uploadFile(newProposal.file);
+      
+      if (!uploadResult) {
+        throw new Error("Falha no upload do arquivo");
+      }
 
-    if (error) {
+      // Criar a proposta no banco
+      const { data, error } = await supabase
+        .from('supplier_proposals')
+        .insert([{
+          project_id: projectId,
+          supplier: newProposal.supplier,
+          status: newProposal.status,
+          user_id: user.id,
+          file_name: uploadResult.fileName,
+          file_path: uploadResult.filePath,
+          file_size: newProposal.file.size
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        toast({
+          title: "Erro ao criar proposta",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data) {
+        setProposals([data as SupplierProposal, ...proposals]);
+        setNewProposal({ supplier: '', status: 'pending', file: null });
+        setIsCreateModalOpen(false);
+        toast({
+          title: "Proposta criada",
+          description: `Proposta de ${newProposal.supplier} foi criada com sucesso.`,
+        });
+      }
+    } catch (error: any) {
       toast({
-        title: "Erro ao criar orçamento",
-        description: error.message,
+        title: "Erro",
+        description: error.message || "Erro no upload do arquivo",
         variant: "destructive"
       });
-      return;
-    }
-
-    if (data) {
-      setBudgets([data as Budget, ...budgets]);
-      setNewBudget({ supplier: '', amount: '', status: 'pending' });
-      setIsCreateModalOpen(false);
-      toast({
-        title: "Orçamento criado",
-        description: `Orçamento de ${newBudget.supplier} foi criado com sucesso.`,
-      });
+    } finally {
+      setUploading(false);
     }
   };
 
-  const handleUpdateBudget = async (budget: Budget) => {
+  const handleUpdateProposal = async (proposal: SupplierProposal) => {
     if (!user) return;
 
     const { error } = await supabase
-      .from('budgets')
+      .from('supplier_proposals')
       .update({
-        supplier: budget.supplier,
-        amount: budget.amount,
-        status: budget.status
+        supplier: proposal.supplier,
+        status: proposal.status
       })
-      .eq('id', budget.id)
+      .eq('id', proposal.id)
       .eq('user_id', user.id);
 
     if (error) {
       toast({
         title: "Erro",
-        description: "Erro ao atualizar orçamento",
+        description: "Erro ao atualizar proposta",
         variant: "destructive"
       });
       return;
     }
 
-    await loadBudgets();
-    setEditingBudget(null);
+    await loadProposals();
+    setEditingProposal(null);
     
     toast({
-      title: "Orçamento atualizado",
-      description: "Orçamento foi atualizado com sucesso"
+      title: "Proposta atualizada",
+      description: "Proposta foi atualizada com sucesso"
     });
   };
 
-  const handleDeleteBudget = async (budgetId: string) => {
+  const handleDeleteProposal = async (proposalId: string, filePath?: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('budgets')
-      .delete()
-      .eq('id', budgetId)
-      .eq('user_id', user.id);
+    try {
+      // Deletar arquivo do storage se existir
+      if (filePath) {
+        await supabase.storage
+          .from('Orcamentos')
+          .remove([filePath]);
+      }
 
-    if (error) {
+      // Deletar registro do banco
+      const { error } = await supabase
+        .from('supplier_proposals')
+        .delete()
+        .eq('id', proposalId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir proposta",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await loadProposals();
+      
+      toast({
+        title: "Proposta excluída",
+        description: "Proposta foi excluída com sucesso"
+      });
+    } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao excluir orçamento",
+        description: "Erro ao excluir arquivo",
         variant: "destructive"
       });
-      return;
     }
-
-    await loadBudgets();
-    
-    toast({
-      title: "Orçamento excluído",
-      description: "Orçamento foi excluído com sucesso"
-    });
   };
 
   const getStatusColor = (status: string) => {
@@ -215,9 +274,43 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
     }
   };
 
-  const totalAmount = budgets.reduce((sum, budget) => sum + budget.amount, 0);
-  const approvedAmount = budgets.filter(b => b.status === 'approved').reduce((sum, budget) => sum + budget.amount, 0);
-  const pendingAmount = budgets.filter(b => b.status === 'pending').reduce((sum, budget) => sum + budget.amount, 0);
+  const totalProposals = proposals.length;
+  const approvedProposals = proposals.filter(p => p.status === 'approved').length;
+  const pendingProposals = proposals.filter(p => p.status === 'pending').length;
+  const rejectedProposals = proposals.filter(p => p.status === 'rejected').length;
+
+  const downloadFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('Orcamentos')
+        .download(filePath);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao baixar arquivo",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Criar link de download
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao processar download",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -225,7 +318,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Carregando orçamentos...</p>
+            <p className="text-muted-foreground">Carregando propostas de fornecedores...</p>
           </div>
         </div>
       </div>
@@ -237,44 +330,48 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Orçamentos</h2>
+          <h2 className="text-xl font-semibold">Gestão de Fornecedores</h2>
           <p className="text-muted-foreground">{projectName}</p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              Novo Orçamento
+              Nova Proposta
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Criar Novo Orçamento</DialogTitle>
+              <DialogTitle>Adicionar Proposta de Fornecedor</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="supplier">Fornecedor *</Label>
                 <Input 
                   id="supplier" 
-                  value={newBudget.supplier} 
-                  onChange={e => setNewBudget(prev => ({ ...prev, supplier: e.target.value }))} 
+                  value={newProposal.supplier} 
+                  onChange={e => setNewProposal(prev => ({ ...prev, supplier: e.target.value }))} 
                   placeholder="Nome do fornecedor" 
                 />
               </div>
               <div>
-                <Label htmlFor="amount">Valor *</Label>
+                <Label htmlFor="file">Arquivo da Proposta *</Label>
                 <Input 
-                  id="amount" 
-                  type="number"
-                  step="0.01"
-                  value={newBudget.amount} 
-                  onChange={e => setNewBudget(prev => ({ ...prev, amount: e.target.value }))} 
-                  placeholder="0.00" 
+                  id="file" 
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={e => {
+                    const file = e.target.files?.[0] || null;
+                    setNewProposal(prev => ({ ...prev, file }));
+                  }}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Formatos aceitos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG
+                </p>
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={newBudget.status} onValueChange={(value: any) => setNewBudget(prev => ({ ...prev, status: value }))}>
+                <Select value={newProposal.status} onValueChange={(value: any) => setNewProposal(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -285,8 +382,18 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleCreateBudget} className="w-full">
-                Criar Orçamento
+              <Button onClick={handleCreateProposal} disabled={uploading} className="w-full">
+                {uploading ? (
+                  <>
+                    <Upload className="h-4 w-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Criar Proposta
+                  </>
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -294,90 +401,97 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total de Propostas</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(totalAmount)}
-            </div>
+            <div className="text-2xl font-bold">{totalProposals}</div>
+            <p className="text-xs text-muted-foreground">fornecedores</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aprovados</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">Aprovadas</CardTitle>
+            <Users className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(approvedAmount)}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{approvedProposals}</div>
+            <p className="text-xs text-muted-foreground">aprovadas</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <DollarSign className="h-4 w-4 text-yellow-600" />
+            <Users className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(pendingAmount)}
-            </div>
+            <div className="text-2xl font-bold text-yellow-600">{pendingProposals}</div>
+            <p className="text-xs text-muted-foreground">em análise</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Rejeitadas</CardTitle>
+            <Users className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{rejectedProposals}</div>
+            <p className="text-xs text-muted-foreground">rejeitadas</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Budgets List */}
+      {/* Proposals List */}
       <div className="space-y-4">
-        {budgets.length === 0 ? (
+        {proposals.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum orçamento encontrado</h3>
+              <h3 className="text-lg font-semibold mb-2">Nenhuma proposta encontrada</h3>
               <p className="text-muted-foreground text-center mb-4">
-                Comece criando seu primeiro orçamento para este projeto
+                Comece adicionando sua primeira proposta de fornecedor
               </p>
               <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
-                Criar Primeiro Orçamento
+                Adicionar Primeira Proposta
               </Button>
             </CardContent>
           </Card>
         ) : (
-          budgets.map(budget => (
-            <Card key={budget.id}>
+          proposals.map(proposal => (
+            <Card key={proposal.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CardTitle className="text-lg">{budget.supplier}</CardTitle>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(budget.status)}`}>
-                      {getStatusText(budget.status)}
+                    <CardTitle className="text-lg">{proposal.supplier}</CardTitle>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(proposal.status)}`}>
+                      {getStatusText(proposal.status)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {proposal.file_path && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadFile(proposal.file_path!, proposal.file_name!)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setEditingBudget(budget)}
+                      onClick={() => setEditingProposal(proposal)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleDeleteBudget(budget.id)}
+                      onClick={() => handleDeleteProposal(proposal.id, proposal.file_path)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -386,14 +500,21 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL'
-                    }).format(budget.amount)}
+                  <div className="space-y-1">
+                    {proposal.file_name && (
+                      <p className="text-sm font-medium">{proposal.file_name}</p>
+                    )}
+                    {proposal.file_size && (
+                      <p className="text-xs text-muted-foreground">
+                        {(proposal.file_size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Criado em {new Date(budget.created_at).toLocaleDateString('pt-BR')}
+                    {proposal.uploaded_at 
+                      ? `Enviado em ${new Date(proposal.uploaded_at).toLocaleDateString('pt-BR')}`
+                      : `Criado em ${new Date(proposal.created_at).toLocaleDateString('pt-BR')}`
+                    }
                   </div>
                 </div>
               </CardContent>
@@ -402,37 +523,26 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         )}
       </div>
 
-      {/* Edit Budget Dialog */}
-      {editingBudget && (
-        <Dialog open={!!editingBudget} onOpenChange={() => setEditingBudget(null)}>
+      {/* Edit Proposal Dialog */}
+      {editingProposal && (
+        <Dialog open={!!editingProposal} onOpenChange={() => setEditingProposal(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Editar Orçamento</DialogTitle>
+              <DialogTitle>Editar Proposta</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="edit-supplier">Fornecedor *</Label>
                 <Input 
                   id="edit-supplier" 
-                  value={editingBudget.supplier} 
-                  onChange={e => setEditingBudget({...editingBudget, supplier: e.target.value})} 
+                  value={editingProposal.supplier} 
+                  onChange={e => setEditingProposal({...editingProposal, supplier: e.target.value})} 
                   placeholder="Nome do fornecedor" 
                 />
               </div>
               <div>
-                <Label htmlFor="edit-amount">Valor *</Label>
-                <Input 
-                  id="edit-amount" 
-                  type="number"
-                  step="0.01"
-                  value={editingBudget.amount} 
-                  onChange={e => setEditingBudget({...editingBudget, amount: parseFloat(e.target.value) || 0})} 
-                  placeholder="0.00" 
-                />
-              </div>
-              <div>
                 <Label htmlFor="edit-status">Status</Label>
-                <Select value={editingBudget.status} onValueChange={(value: any) => setEditingBudget({...editingBudget, status: value})}>
+                <Select value={editingProposal.status} onValueChange={(value: any) => setEditingProposal({...editingProposal, status: value})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -443,7 +553,16 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => handleUpdateBudget(editingBudget)} className="w-full">
+              {editingProposal.file_name && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">Arquivo atual:</p>
+                  <p className="text-sm text-muted-foreground">{editingProposal.file_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Para alterar o arquivo, delete esta proposta e crie uma nova.
+                  </p>
+                </div>
+              )}
+              <Button onClick={() => handleUpdateProposal(editingProposal)} className="w-full">
                 Salvar Alterações
               </Button>
             </div>

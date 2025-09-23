@@ -53,47 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      budgets: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          project_id: string
-          status: string | null
-          supplier: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          project_id: string
-          status?: string | null
-          supplier: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          project_id?: string
-          status?: string | null
-          supplier?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "budgets_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       collaboration_events: {
         Row: {
           created_at: string
@@ -672,6 +631,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      supplier_proposals: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          project_id: string
+          status: string | null
+          supplier: string
+          updated_at: string
+          uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          project_id: string
+          status?: string | null
+          supplier: string
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          project_id?: string
+          status?: string | null
+          supplier?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
