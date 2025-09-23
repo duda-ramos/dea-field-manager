@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, LayoutTemplate } from "lucide-react";
+import { InstallationCalendar } from "@/components/installation-calendar";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
@@ -32,7 +33,8 @@ export default function Dashboard() {
     code: "",
     owner: "",
     project_files_link: "",
-    suppliers: ""
+    suppliers: "",
+    installation_time_estimate_days: ""
   });
   
   const { toast } = useToast();
@@ -80,6 +82,7 @@ export default function Dashboard() {
         id: '', // Temporário - será substituído pelo UUID do Supabase
         status: 'planning' as const,
         suppliers: newProject.suppliers ? newProject.suppliers.split(',').map(s => s.trim()) : [],
+        installation_time_estimate_days: newProject.installation_time_estimate_days ? parseInt(newProject.installation_time_estimate_days) : undefined,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -109,7 +112,8 @@ export default function Dashboard() {
         code: "",
         owner: "",
         project_files_link: "",
-        suppliers: ""
+        suppliers: "",
+        installation_time_estimate_days: ""
       });
 
       toast({
@@ -138,7 +142,8 @@ export default function Dashboard() {
       code: "",
       owner: "",
       project_files_link: "",
-      suppliers: ""
+      suppliers: "",
+      installation_time_estimate_days: ""
     });
   };
 
@@ -171,7 +176,8 @@ export default function Dashboard() {
       code: "",
       owner: "",
       project_files_link: "",
-      suppliers: ""
+      suppliers: "",
+      installation_time_estimate_days: ""
     });
   };
 
@@ -308,6 +314,17 @@ export default function Dashboard() {
                     placeholder="Lista de fornecedores"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="installation_time_estimate_days">Estimativa de Tempo de Instalação (dias úteis)</Label>
+                  <Input
+                    id="installation_time_estimate_days"
+                    type="number"
+                    min="1"
+                    value={newProject.installation_time_estimate_days}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, installation_time_estimate_days: e.target.value }))}
+                    placeholder="Ex: 15"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleCreateProject} disabled={creating} className="flex-1">
                     {creating ? "Criando..." : "Criar Projeto"}
@@ -345,6 +362,8 @@ export default function Dashboard() {
         />
       </div>
 
+        {/* Installation Calendar */}
+        <InstallationCalendar projects={projects} />
 
         {/* Search and Filter */}
         <div className="flex items-center gap-4">

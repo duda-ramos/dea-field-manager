@@ -560,6 +560,7 @@ export type Database = {
           id: string
           inauguration_date: string | null
           installation_date: string | null
+          installation_time_estimate_days: number | null
           name: string
           owner_name: string | null
           project_files_link: string | null
@@ -576,6 +577,7 @@ export type Database = {
           id?: string
           inauguration_date?: string | null
           installation_date?: string | null
+          installation_time_estimate_days?: number | null
           name: string
           owner_name?: string | null
           project_files_link?: string | null
@@ -592,6 +594,7 @@ export type Database = {
           id?: string
           inauguration_date?: string | null
           installation_date?: string | null
+          installation_time_estimate_days?: number | null
           name?: string
           owner_name?: string | null
           project_files_link?: string | null

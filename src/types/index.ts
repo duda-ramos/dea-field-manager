@@ -10,6 +10,7 @@ export interface Project {
   owner: string;
   suppliers: string[];
   project_files_link?: string; // New field for project files link
+  installation_time_estimate_days?: number; // Estimativa de tempo de instalação em dias úteis
   created_at: string;
   updated_at: string;
   // Local timestamp for compatibility

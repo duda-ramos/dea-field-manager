@@ -28,7 +28,8 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     installation_date: project.installation_date || '',
     inauguration_date: project.inauguration_date || '',
     project_files_link: project.project_files_link || '',
-    suppliers: [...project.suppliers]
+    suppliers: [...project.suppliers],
+    installation_time_estimate_days: (project as any).installation_time_estimate_days || ''
   });
 
   const handleSave = async () => {
@@ -44,7 +45,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     const updatedProject = await storage.upsertProject({
       ...project,
       ...formData,
-      suppliers: formData.suppliers.filter(s => s.trim() !== '')
+      suppliers: formData.suppliers.filter(s => s.trim() !== ''),
+      installation_time_estimate_days: formData.installation_time_estimate_days ? 
+        parseInt(formData.installation_time_estimate_days.toString()) : undefined
     });
 
     if (updatedProject) {
@@ -167,7 +170,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="installation_date">Data de Instalação</Label>
+              <Label htmlFor="installation_date">Data de Entrega (Finalização da Instalação)</Label>
               <Input 
                 id="installation_date" 
                 type="date"
@@ -184,6 +187,18 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 onChange={(e) => setFormData(prev => ({ ...prev, inauguration_date: e.target.value }))}
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="installation_time_estimate_days">Estimativa de Tempo de Instalação (dias úteis)</Label>
+            <Input 
+              id="installation_time_estimate_days" 
+              type="number"
+              min="1"
+              value={formData.installation_time_estimate_days} 
+              onChange={(e) => setFormData(prev => ({ ...prev, installation_time_estimate_days: e.target.value }))}
+              placeholder="Ex: 15"
+            />
           </div>
 
           <div>
