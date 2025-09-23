@@ -552,13 +552,22 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
-        <Card>
+         <Card>
           <CardHeader>
             <CardTitle>Cronograma</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Data de Instalação</Label>
+              <Label>Estimativa de Tempo de Instalação (dias úteis)</Label>
+              <Input 
+                type="number"
+                value={(project as any).installation_time_estimate_days || ''} 
+                readOnly 
+                placeholder="Ex: 15 dias"
+              />
+            </div>
+            <div>
+              <Label>Data de Entrega (Finalização da Instalação)</Label>
               <Input 
                 type="date" 
                 value={project.installation_date || ''} 
