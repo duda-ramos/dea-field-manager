@@ -121,9 +121,22 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
     return dates;
   };
 
+  // Get all dates that have conflicts
+  const getDatesWithConflicts = () => {
+    const dates: Date[] = [];
+    installationPeriods.forEach(period => {
+      if (period.hasOverlap) {
+        const dateRange = eachDayOfInterval({ start: period.startDate, end: period.endDate });
+        dates.push(...dateRange);
+      }
+    });
+    return dates;
+  };
+
   const renderCalendarView = () => {
     const installationsForSelectedDate = getInstallationsForDate(selectedDate);
     const datesWithInstallations = getDatesWithInstallations();
+    const datesWithConflicts = getDatesWithConflicts();
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -135,19 +148,32 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
             locale={ptBR}
             modifiers={{
               hasInstallation: datesWithInstallations,
+              hasConflict: datesWithConflicts,
             }}
             modifiersStyles={{
               hasInstallation: { 
                 backgroundColor: 'hsl(var(--primary))', 
                 color: 'hsl(var(--primary-foreground))',
                 fontWeight: 'bold'
+              },
+              hasConflict: {
+                backgroundColor: 'hsl(25, 95%, 53%)', // Orange color
+                color: 'white',
+                fontWeight: 'bold'
               }
             }}
             className="rounded-md border"
           />
-          <p className="text-xs text-muted-foreground mt-2">
-            Datas destacadas possuem instalações programadas
-          </p>
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }}></div>
+              <span className="text-muted-foreground">Instalações programadas</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(25, 95%, 53%)' }}></div>
+              <span className="text-muted-foreground">Conflitos de cronograma</span>
+            </div>
+          </div>
         </div>
         
         <div>
