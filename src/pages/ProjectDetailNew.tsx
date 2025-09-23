@@ -1092,7 +1092,7 @@ export default function ProjectDetailNew() {
               variant={currentSection === 'orcamentos' ? 'default' : 'outline'}
               onClick={() => navigate(`/projeto/${id}/orcamentos`)}
             >
-              Fornecedores
+              Orçamentos
             </Button>
             <Button 
               variant={currentSection === 'arquivos' ? 'default' : 'outline'}

@@ -330,7 +330,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Gestão de Fornecedores</h2>
+          <h2 className="text-xl font-semibold">Orçamentos</h2>
           <p className="text-muted-foreground">{projectName}</p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
