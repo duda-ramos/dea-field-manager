@@ -45,6 +45,27 @@ export default function Dashboard() {
     loadProjects();
   }, []);
 
+  // Atualizar projetos quando a janela volta ao foco (usuário volta de outras páginas)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadProjects();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadProjects();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const loadProjects = async () => {
     try {
       setLoading(true);
