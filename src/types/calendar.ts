@@ -48,4 +48,4 @@ export interface CreateCalendarBlockData {
   block_type?: CalendarBlock['block_type'];
 }
 
-export type CalendarView = 'month' | 'week' | 'day' | 'agenda';
+export type CalendarView = 'month' | 'week' | 'day' | 'year' | 'agenda';

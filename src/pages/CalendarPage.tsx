@@ -57,11 +57,15 @@ export default function CalendarPage() {
           {/* View Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button
+                variant={currentView === 'month' ? 'default' : 'outline'}
+                size="sm"
+              >
                 {currentView === 'month' && 'Mês'}
                 {currentView === 'week' && 'Semana'}
                 {currentView === 'day' && 'Dia'}
-                {currentView === 'agenda' && 'Agenda'}
+                {currentView === 'year' && 'Ano'}
+                {currentView === 'agenda' && 'Lista'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -73,6 +77,9 @@ export default function CalendarPage() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setCurrentView('day')}>
                 Visualização Diária
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCurrentView('year')}>
+                Visualização Anual
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setCurrentView('agenda')}>
                 Lista de Eventos
