@@ -53,6 +53,104 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_blocks: {
+        Row: {
+          block_type: string
+          blocked_date: string
+          created_at: string
+          id: string
+          reason: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          block_type?: string
+          blocked_date: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          block_type?: string
+          blocked_date?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          attendees: Json | null
+          color: string | null
+          created_at: string
+          description: string | null
+          end_datetime: string
+          event_type: string
+          id: string
+          is_all_day: boolean
+          location: string | null
+          priority: string
+          project_id: string | null
+          recurrence_rule: string | null
+          start_datetime: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_datetime: string
+          event_type?: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          priority?: string
+          project_id?: string | null
+          recurrence_rule?: string | null
+          start_datetime: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_datetime?: string
+          event_type?: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          priority?: string
+          project_id?: string | null
+          recurrence_rule?: string | null
+          start_datetime?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collaboration_events: {
         Row: {
           created_at: string

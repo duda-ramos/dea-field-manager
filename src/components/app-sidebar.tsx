@@ -6,6 +6,7 @@ import {
   Settings,
   BarChart3,
   Plus,
+  Calendar,
 } from "lucide-react"
 
 import {
@@ -34,6 +35,11 @@ const navigationItems = [
     title: "Projetos",
     url: "/projetos",
     icon: FolderOpen,
+  },
+  {
+    title: "Agenda",
+    url: "/agenda",
+    icon: Calendar,
   },
   {
     title: "Contatos",

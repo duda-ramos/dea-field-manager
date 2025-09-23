@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import ProjectDetailNew from "./pages/ProjectDetailNew";
 import ProjectsPage from "./pages/ProjectsPage";
 import ReportsPage from "./pages/ReportsPage";
+import CalendarPage from "./pages/CalendarPage";
 import { ContatosPage } from "./features/contatos";
 import GlobalContactsPage from "./pages/GlobalContactsPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
@@ -129,6 +130,13 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <ReportsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/agenda" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <CalendarPage />
                   </AppLayout>
                 </ProtectedRoute>
               } />
