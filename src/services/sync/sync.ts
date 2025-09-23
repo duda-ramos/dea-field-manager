@@ -166,7 +166,8 @@ function transformRecordForSupabase(record: any, entityName: string, userId: str
       return {
         ...base,
         owner_name: record.owner,
-        suppliers: record.suppliers || []
+        suppliers: record.suppliers || [],
+        installation_time_estimate_days: record.installation_time_estimate_days
       };
     case 'contacts':
       return {
@@ -221,7 +222,8 @@ function transformRecordForLocal(record: any, entityName: string): any {
     case 'projects':
       return {
         ...base,
-        owner: record.owner_name
+        owner: record.owner_name,
+        installation_time_estimate_days: record.installation_time_estimate_days
       };
     case 'contacts':
       return {

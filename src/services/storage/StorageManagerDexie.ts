@@ -35,6 +35,7 @@ export const StorageManagerDexie = {
           status: project.status,
           installation_date: project.installation_date || null,
           inauguration_date: project.inauguration_date || null,
+          installation_time_estimate_days: (project as any).installation_time_estimate_days || null,
           owner_name: project.owner,
           suppliers: project.suppliers,
           project_files_link: project.project_files_link || null,
