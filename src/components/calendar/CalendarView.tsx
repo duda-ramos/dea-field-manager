@@ -155,11 +155,11 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
         </div>
 
         {/* Day Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 md:gap-6">
           {/* Timeline */}
-          <div className="lg:col-span-3">
+          <div className="md:col-span-3">
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 md:p-4">
                 {blocksForDay.length > 0 && (
                   <div className="mb-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                     <div className="text-sm font-medium text-destructive mb-1">Data Bloqueada</div>
@@ -180,12 +180,12 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                     });
 
                     return (
-                      <div key={hour} className="flex border-b border-border/50 min-h-[60px]">
-                        <div className="w-16 text-sm text-muted-foreground p-2 border-r">
+                      <div key={hour} className="flex border-b border-border/50 min-h-[50px] md:min-h-[60px]">
+                        <div className="w-12 md:w-16 text-xs md:text-sm text-muted-foreground p-1 md:p-2 border-r">
                           {hour === 0 && dayEvents.some(e => e.is_all_day) ? 'Todo dia' : 
                            hour.toString().padStart(2, '0') + ':00'}
                         </div>
-                        <div className="flex-1 p-2">
+                        <div className="flex-1 p-1 md:p-2">
                           {hourEvents.map(event => (
                             <div
                               key={event.id}
@@ -194,7 +194,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                               style={{ borderLeftColor: event.color, borderLeftWidth: '4px' }}
                             >
                               <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-sm">{event.title}</h4>
+                                <h4 className="font-medium text-xs md:text-sm">{event.title}</h4>
                                 <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
                                   {event.status}
                                 </Badge>
@@ -218,18 +218,18 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           </div>
 
           {/* Mini Calendar */}
-          <div>
+          <div className="md:col-span-1">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Navegação</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3">
                 <CalendarComponent
                   mode="single"
                   selected={selectedDate}
                   onSelect={onDateSelect}
                   locale={ptBR}
-                  className="rounded-md border-0"
+                  className="rounded-md border-0 w-full"
                 />
               </CardContent>
             </Card>
@@ -268,16 +268,16 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
 
         {/* Week Grid */}
         <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-8 gap-2">
+          <CardContent className="p-3 md:p-4">
+            <div className="grid grid-cols-8 gap-1 md:gap-2">
               {/* Header with day names */}
-              <div className="text-xs font-medium text-muted-foreground p-2"></div>
+              <div className="text-xs font-medium text-muted-foreground p-1 md:p-2"></div>
               {weekDays.map(day => (
-                <div key={day.toISOString()} className="text-center p-2">
+                <div key={day.toISOString()} className="text-center p-1 md:p-2">
                   <div className="text-xs font-medium text-muted-foreground">
                     {format(day, 'EEE', { locale: ptBR })}
                   </div>
-                  <div className={`text-lg font-semibold ${isToday(day) ? 'text-primary' : ''} ${isSameDay(day, selectedDate) ? 'bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center mx-auto' : ''}`}>
+                  <div className={`text-sm md:text-lg font-semibold ${isToday(day) ? 'text-primary' : ''} ${isSameDay(day, selectedDate) ? 'bg-primary text-primary-foreground rounded-full w-6 h-6 md:w-8 md:h-8 flex items-center justify-center mx-auto text-xs md:text-base' : ''}`}>
                     {format(day, 'd')}
                   </div>
                 </div>
@@ -286,7 +286,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
               {/* Hours rows */}
               {Array.from({ length: 24 }, (_, hour) => (
                 <React.Fragment key={hour}>
-                  <div className="text-xs text-muted-foreground p-2 border-r">
+                  <div className="text-xs text-muted-foreground p-1 md:p-2 border-r">
                     {hour.toString().padStart(2, '0')}:00
                   </div>
                   {weekDays.map(day => {
@@ -297,7 +297,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                     });
 
                     return (
-                      <div key={`${day.toISOString()}-${hour}`} className="border border-border/20 min-h-[40px] p-1">
+                      <div key={`${day.toISOString()}-${hour}`} className="border border-border/20 min-h-[30px] md:min-h-[40px] p-1">
                         {dayEvents.map(event => (
                           <div
                             key={event.id}
@@ -350,8 +350,8 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
 
         {/* Year Grid */}
         <Card>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-3 gap-6">
+          <CardContent className="p-4 md:p-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {months.map(month => {
                 const monthEvents = yearEvents.filter(event => {
                   const eventStart = parseISO(event.start_datetime);
@@ -364,9 +364,9 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                 });
 
                 return (
-                  <div key={month.toISOString()} className="border rounded-lg p-4">
+                  <div key={month.toISOString()} className="border rounded-lg p-3 md:p-4">
                     <div className="text-center mb-3">
-                      <h3 className="font-semibold">
+                      <h3 className="font-semibold text-sm md:text-base">
                         {format(month, 'MMMM', { locale: ptBR })}
                       </h3>
                     </div>
@@ -377,7 +377,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                       onSelect={(date) => date && onDateSelect(date)}
                       locale={ptBR}
                       month={month}
-                      className="rounded-md text-xs"
+                      className="rounded-md text-xs w-full"
                       modifiers={{
                         hasEvent: monthEvents.map(e => parseISO(e.start_datetime)),
                         hasBlock: monthBlocks.map(b => parseISO(b.blocked_date + 'T00:00:00')),
@@ -426,16 +426,16 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           <h2 className="text-lg sm:text-xl font-semibold">Lista de Eventos</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-responsive">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Upcoming Events */}
           <Card className="mobile-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Próximos Eventos</CardTitle>
+              <CardTitle className="text-sm md:text-base lg:text-lg">Próximos Eventos</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {upcomingEvents.length} eventos programados
               </p>
             </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
+            <CardContent className="space-y-2 sm:space-y-3 max-h-[350px] md:max-h-[400px] lg:max-h-[500px] overflow-y-auto">
               {upcomingEvents.length === 0 ? (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
                   Nenhum evento futuro programado
@@ -444,7 +444,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                 upcomingEvents.map(event => (
                   <div
                     key={event.id}
-                    className="p-3 sm:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="p-2 md:p-3 lg:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => onEventClick(event)}
                   >
                     <div className="flex items-start gap-2 sm:gap-3">
@@ -456,7 +456,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                             <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
                               {event.status}
                             </Badge>
-                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
+                            <Badge variant="outline" className="text-xs hidden md:inline-flex">
                               {eventTypeOptions.find(t => t.value === event.event_type)?.icon} {event.event_type}
                             </Badge>
                           </div>
@@ -501,12 +501,12 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           {/* Past Events */}
           <Card className="mobile-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Eventos Anteriores</CardTitle>
+              <CardTitle className="text-sm md:text-base lg:text-lg">Eventos Anteriores</CardTitle>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Últimos {pastEvents.length} eventos
               </p>
             </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
+            <CardContent className="space-y-2 sm:space-y-3 max-h-[350px] md:max-h-[400px] lg:max-h-[500px] overflow-y-auto">
               {pastEvents.length === 0 ? (
                 <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
                   Nenhum evento anterior
@@ -515,7 +515,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                 pastEvents.map(event => (
                   <div
                     key={event.id}
-                    className="p-3 sm:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors opacity-75"
+                    className="p-2 md:p-3 lg:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors opacity-75"
                     onClick={() => onEventClick(event)}
                   >
                     <div className="flex items-start gap-2 sm:gap-3">
@@ -597,11 +597,11 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Calendar */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 md:p-4">
                 <CalendarComponent
                   mode="single"
                   selected={selectedDate}
@@ -627,7 +627,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                   }}
                   className="rounded-md border w-full"
                 />
-                <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                <div className="mt-4 flex flex-wrap gap-3 md:gap-4 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-primary"></div>
                     <span>Com eventos</span>
@@ -642,14 +642,14 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           </div>
 
           {/* Selected Date Events */}
-          <div>
+          <div className="md:col-span-1">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base md:text-lg">
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 md:space-y-3">
                 {blocksForSelectedDate.length > 0 && (
                   <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                     <div className="text-sm font-medium text-destructive mb-1">
@@ -664,22 +664,22 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                 )}
 
                 {eventsForSelectedDate.length === 0 && blocksForSelectedDate.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Nenhum evento programado para esta data
                   </p>
                 ) : (
                   eventsForSelectedDate.map((event) => (
                     <div
                       key={event.id}
-                      className="p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="p-2 md:p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => onEventClick(event)}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2 md:gap-3">
                         <div className={`w-3 h-3 rounded-full mt-1 ${getEventTypeColor(event.event_type)}`} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-sm truncate">{event.title}</h4>
-                            <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
+                          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 mb-1">
+                            <h4 className="font-medium text-xs md:text-sm truncate">{event.title}</h4>
+                            <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs self-start">
                               {event.status}
                             </Badge>
                           </div>

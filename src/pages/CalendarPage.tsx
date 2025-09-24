@@ -109,8 +109,8 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-responsive">
-        <div className="xl:col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-4 gap-4 lg:gap-6">
+        <div className="lg:col-span-3">
           <CalendarView
             key={refreshKey}
             view={currentView}
@@ -121,7 +121,7 @@ export default function CalendarPage() {
           />
         </div>
         
-        <div className="xl:col-span-1">
+        <div className="lg:col-span-1">
           <ProjectIntegrationPanel />
         </div>
       </div>
