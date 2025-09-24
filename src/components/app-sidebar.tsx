@@ -77,14 +77,14 @@ export function AppSidebar() {
     return cn(
       "w-full justify-start transition-colors",
       isActive(path)
-        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        ? "bg-accent text-accent-foreground font-medium"
+        : "text-foreground hover:bg-accent hover:text-accent-foreground"
     )
   }
 
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+    <Sidebar className="border-r bg-background">
+      <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <FolderOpen className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function AppSidebar() {
 
       <SidebarContent className="p-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs font-medium text-sidebar-foreground/70">
+          <SidebarGroupLabel className="px-2 text-xs font-medium text-muted-foreground">
             Principal
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -123,7 +123,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs font-medium text-sidebar-foreground/70">
+          <SidebarGroupLabel className="px-2 text-xs font-medium text-muted-foreground">
             Suporte
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -146,7 +146,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarFooter className="border-t border-border p-2">
         {open && (
           <Button variant="outline" size="sm" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
