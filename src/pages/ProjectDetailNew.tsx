@@ -18,6 +18,8 @@ import {
 import { Project, Installation, ProjectReport } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { PhotoGallery } from "@/components/photo-gallery";
+import { EnhancedImageUpload } from "@/components/image-upload";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { EditProjectModal } from "@/components/edit-project-modal";
@@ -463,19 +465,36 @@ export default function ProjectDetailNew() {
     return (
       <div className="space-y-6">
         <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>Arquivos do Projeto</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie documentos e arquivos relacionados
-                </p>
-              </div>
-              <FileUpload
-                projectId={project.id}
-                onFilesChange={() => loadProjectData()}
-                className="w-full sm:w-auto"
-              />
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Gerenciamento de Imagens</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Sistema completo de upload, edição e organização de imagens
+            </p>
+          </CardHeader>
+          <CardContent>
+            <EnhancedImageUpload 
+              projectId={project.id}
+              context="projeto"
+              onImagesChange={(images) => {
+                console.log('Images updated:', images);
+              }}
+            />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Outros Arquivos</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Documentos, PDFs e outros tipos de arquivo
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FileUpload 
+              projectId={project.id}
+              acceptedTypes={['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.txt']}
+              onFilesChange={() => loadProjectData()}
+            />
             </div>
           </CardHeader>
           <CardContent>
