@@ -44,21 +44,27 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
-            <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
+            <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             Agenda
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Gerencie seus eventos, tarefas e compromissos
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {/* New Event Button */}
+          <Button onClick={handleCreateEvent} className="mobile-button">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Evento
+          </Button>
+
           {/* View Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant={currentView === 'month' ? 'default' : 'outline'}
+                variant="outline"
                 size="sm"
                 className="mobile-button"
               >
@@ -88,26 +94,17 @@ export default function CalendarPage() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Actions Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="mobile-button">
-                <Plus className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Novo</span>
-                <span className="sm:hidden">+</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleCreateEvent}>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Evento
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleBlockDate}>
-                <Ban className="h-4 w-4 mr-2" />
-                Bloquear Data
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Block Date Button */}
+          <Button 
+            onClick={handleBlockDate} 
+            variant="outline" 
+            size="sm"
+            className="mobile-button"
+          >
+            <Ban className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Bloquear Data</span>
+            <span className="sm:hidden">Bloquear</span>
+          </Button>
         </div>
       </div>
 

@@ -145,7 +145,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
             <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, -1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-semibold">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </h2>
             <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, 1))}>
@@ -261,7 +261,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
             <Button variant="outline" size="sm" onClick={() => onDateSelect(subWeeks(selectedDate, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-semibold">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {format(weekStart, "dd 'de' MMM", { locale: ptBR })} - {format(weekEnd, "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
             </h2>
             <Button variant="outline" size="sm" onClick={() => onDateSelect(addWeeks(selectedDate, 1))}>
@@ -347,7 +347,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
             <Button variant="outline" size="sm" onClick={() => onDateSelect(subYears(selectedDate, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-semibold">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {format(selectedDate, 'yyyy', { locale: ptBR })}
             </h2>
             <Button variant="outline" size="sm" onClick={() => onDateSelect(addYears(selectedDate, 1))}>
@@ -435,7 +435,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
       <div className="space-y-responsive">
         {/* Agenda Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-xl sm:text-2xl font-semibold">Lista de Eventos</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">Lista de Eventos</h2>
           <Button onClick={onCreateEvent} className="mobile-button">
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Novo Evento</span>
@@ -601,7 +601,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-semibold">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
             </h2>
             <Button
