@@ -114,8 +114,8 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg p-2 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''}`} onClick={handleViewProject}>
-      <CardHeader className="pb-1 sm:pb-3 p-0">
+    <Card className={`transition-all duration-200 hover:shadow-lg p-3 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''}`} onClick={handleViewProject}>
+      <CardHeader className="pb-2 sm:pb-3 p-0">
         <div className="flex items-start justify-between">
           {onSelectionChange && (
             <div className="mr-2 pt-1">
@@ -130,7 +130,7 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
               />
             </div>
           )}
-          <div className="space-y-1 flex-1">
+          <div className="space-y-1.5 flex-1">
             <CardTitle className="text-sm sm:text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
               {project.name}
             </CardTitle>
@@ -148,32 +148,32 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-2 sm:space-y-4 p-0">
-        <div className="space-y-1.5">
+      <CardContent className="space-y-3 sm:space-y-4 p-0">
+        <div className="space-y-2">
           <div className="flex items-center text-xs text-muted-foreground">
-            <Building className="h-3 w-3 mr-1.5 flex-shrink-0" />
+            <Building className="h-3 w-3 mr-2 flex-shrink-0" />
             <span className="truncate">{project.client}</span>
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
-            <MapPin className="h-3 w-3 mr-1.5 flex-shrink-0" />
+            <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
             <span className="truncate">{project.city}</span>
           </div>
           {project.code && (
             <div className="flex items-center text-xs text-muted-foreground">
-              <Code className="h-3 w-3 mr-1.5 flex-shrink-0" />
+              <Code className="h-3 w-3 mr-2 flex-shrink-0" />
               <span className="truncate font-mono text-xs">{project.code}</span>
             </div>
           )}
           {project.installation_date && (
             <div className="flex items-center text-xs text-muted-foreground">
-              <CalendarDays className="h-3 w-3 mr-1.5 flex-shrink-0" />
+              <CalendarDays className="h-3 w-3 mr-2 flex-shrink-0" />
               <span className="text-xs">{new Date(project.installation_date).toLocaleDateString('pt-BR')}</span>
             </div>
           )}
         </div>
 
         {totalInstallations > 0 && (
-          <div className="space-y-1 pt-2 border-t border-border">
+          <div className="space-y-1.5 pt-2 border-t border-border">
             <div className="flex justify-between items-center text-xs">
               <span className="text-muted-foreground">Instalações</span>
               <span className="font-medium">
@@ -187,7 +187,7 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
           </div>
         )}
 
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5 mt-3">
           {isLocalProject && (
             <Button 
               variant="outline"
