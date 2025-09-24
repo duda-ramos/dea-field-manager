@@ -788,7 +788,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      log_contact_access: {
+        Args: { action_type: string; contact_id: string }
+        Returns: undefined
+      }
       user_can_access_project_contacts: {
+        Args: { contact_project_id: string }
+        Returns: boolean
+      }
+      user_can_access_project_contacts_secure: {
         Args: { contact_project_id: string }
         Returns: boolean
       }
