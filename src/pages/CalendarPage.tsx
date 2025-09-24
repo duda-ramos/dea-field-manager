@@ -40,26 +40,27 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container-modern space-y-responsive">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <CalendarIcon className="h-8 w-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+            <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8" />
             Agenda
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Gerencie seus eventos, tarefas e compromissos
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* View Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant={currentView === 'month' ? 'default' : 'outline'}
                 size="sm"
+                className="mobile-button"
               >
                 {currentView === 'month' && 'Mês'}
                 {currentView === 'week' && 'Semana'}
@@ -90,9 +91,10 @@ export default function CalendarPage() {
           {/* Actions Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button className="mobile-button">
                 <Plus className="h-4 w-4 mr-2" />
-                Novo
+                <span className="hidden sm:inline">Novo</span>
+                <span className="sm:hidden">+</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -110,7 +112,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-responsive">
         <div className="xl:col-span-3">
           <CalendarView
             key={refreshKey}

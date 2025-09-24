@@ -432,57 +432,60 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
       .slice(0, 10);
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-responsive">
         {/* Agenda Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Lista de Eventos</h2>
-          <Button onClick={onCreateEvent}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 className="text-xl sm:text-2xl font-semibold">Lista de Eventos</h2>
+          <Button onClick={onCreateEvent} className="mobile-button">
             <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
+            <span className="hidden sm:inline">Novo Evento</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-responsive">
           {/* Upcoming Events */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Próximos Eventos</CardTitle>
-              <p className="text-sm text-muted-foreground">
+          <Card className="mobile-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Próximos Eventos</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {upcomingEvents.length} eventos programados
               </p>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+            <CardContent className="space-y-2 sm:space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
               {upcomingEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
                   Nenhum evento futuro programado
                 </p>
               ) : (
                 upcomingEvents.map(event => (
                   <div
                     key={event.id}
-                    className="p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="p-3 sm:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => onEventClick(event)}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-4 h-4 rounded-full mt-1 flex-shrink-0`} style={{ backgroundColor: event.color }} />
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full mt-1 flex-shrink-0`} style={{ backgroundColor: event.color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium truncate">{event.title}</h4>
-                          <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
-                            {event.status}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {eventTypeOptions.find(t => t.value === event.event_type)?.icon} {event.event_type}
-                          </Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+                          <h4 className="text-sm sm:text-base font-medium truncate">{event.title}</h4>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
+                              {event.status}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
+                              {eventTypeOptions.find(t => t.value === event.event_type)?.icon} {event.event_type}
+                            </Badge>
+                          </div>
                         </div>
                         
                         {event.description && (
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
                             {event.description}
                           </p>
                         )}
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
                             <span>
@@ -499,7 +502,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                           )}
                           
                           {event.location && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 truncate">
                               <span>📍 {event.location}</span>
                             </div>
                           )}
@@ -513,36 +516,36 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
           </Card>
 
           {/* Past Events */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Eventos Anteriores</CardTitle>
-              <p className="text-sm text-muted-foreground">
+          <Card className="mobile-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Eventos Anteriores</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Últimos {pastEvents.length} eventos
               </p>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+            <CardContent className="space-y-2 sm:space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
               {pastEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
                   Nenhum evento anterior
                 </p>
               ) : (
                 pastEvents.map(event => (
                   <div
                     key={event.id}
-                    className="p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors opacity-75"
+                    className="p-3 sm:p-4 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors opacity-75"
                     onClick={() => onEventClick(event)}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-4 h-4 rounded-full mt-1 flex-shrink-0`} style={{ backgroundColor: event.color }} />
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full mt-1 flex-shrink-0`} style={{ backgroundColor: event.color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium truncate">{event.title}</h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+                          <h4 className="text-sm sm:text-base font-medium truncate">{event.title}</h4>
                           <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
                             {event.status}
                           </Badge>
                         </div>
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
                             <span>
