@@ -152,10 +152,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={onCreateEvent}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
         </div>
 
         {/* Day Content */}
@@ -268,10 +264,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={onCreateEvent}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
         </div>
 
         {/* Week Grid */}
@@ -354,10 +346,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={onCreateEvent}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
         </div>
 
         {/* Year Grid */}
@@ -436,11 +424,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
         {/* Agenda Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold">Lista de Eventos</h2>
-          <Button onClick={onCreateEvent} className="mobile-button">
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Novo Evento</span>
-            <span className="sm:hidden">Novo</span>
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-responsive">
@@ -612,10 +595,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={onCreateEvent}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
