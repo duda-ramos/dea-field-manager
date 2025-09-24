@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -167,9 +167,9 @@ export function ReportCustomizationModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Personalizar Relatório - {getSectionLabel(interlocutor)}</DialogTitle>
-        </DialogHeader>
+        <DialogDescription>
+          Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
+        </DialogDescription>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <TabsList className="grid w-full grid-cols-3">

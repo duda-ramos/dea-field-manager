@@ -1024,7 +1024,7 @@ export default function ProjectDetailNew() {
                         </div>
                         <div className="flex items-center gap-2">
                           {item.installed && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                          {item.photos.length > 0 && (
+                          {item.photos && item.photos.length > 0 && (
                             <Badge variant="outline" className="text-xs">
                               {item.photos.length} foto{item.photos.length > 1 ? 's' : ''}
                             </Badge>

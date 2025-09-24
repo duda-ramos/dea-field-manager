@@ -642,7 +642,7 @@ async function prepareFlatTableData(
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
       // For Fornecedor, combine observações and comentários
@@ -658,7 +658,7 @@ async function prepareFlatTableData(
           item.codigo.toString(),
           item.descricao,
           observacao.join(' | '),
-          item.photos.length > 0 ? 'Ver foto' : ''
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
         ];
       });
     }
@@ -753,7 +753,7 @@ async function prepareTableData(
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
@@ -764,7 +764,7 @@ async function prepareTableData(
         item.descricao,
         item.observacoes || '',
         item.comentarios_fornecedor || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
@@ -812,7 +812,7 @@ async function prepareCompactTableData(
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
       columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
@@ -821,7 +821,7 @@ async function prepareCompactTableData(
         item.descricao,
         item.observacoes || '',
         item.comentarios_fornecedor || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
@@ -948,7 +948,7 @@ async function addSectionToPDF(
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
@@ -959,7 +959,7 @@ async function addSectionToPDF(
         item.descricao,
         item.observacoes || '',
         item.comentarios_fornecedor || '',
-        item.photos.length > 0 ? 'Ver foto' : ''
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
@@ -1117,7 +1117,7 @@ async function addSectionToXLSX(
         item.codigo,
         item.descricao,
         item.observacoes || '',
-        item.photos.length > 0 ? 'Arquivo de foto disponível' : ''
+        (item.photos && item.photos.length > 0) ? 'Arquivo de foto disponível' : ''
       ]);
     } else {
       headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
@@ -1128,7 +1128,7 @@ async function addSectionToXLSX(
         item.descricao,
         item.observacoes || '',
         item.comentarios_fornecedor || '',
-        item.photos.length > 0 ? 'Arquivo de foto disponível' : ''
+        (item.photos && item.photos.length > 0) ? 'Arquivo de foto disponível' : ''
       ]);
     }
   } else if (sectionType === 'revisao') {
