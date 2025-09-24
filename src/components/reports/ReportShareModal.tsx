@@ -288,33 +288,33 @@ export function ReportShareModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-2xl overflow-hidden">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Share2 className="h-5 w-5" />
             Compartilhar Relatório
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Report Summary */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {format === 'pdf' ? (
-                    <FileText className="h-8 w-8 text-red-500" />
+                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 shrink-0" />
                   ) : (
-                    <Table className="h-8 w-8 text-green-500" />
+                    <Table className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
                   )}
-                  <div>
-                    <div className="font-medium">{fileName}</div>
-                    <div className="text-sm text-muted-foreground">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm sm:text-base truncate">{fileName}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">
                       Projeto: {project.name} • {interlocutor}
                     </div>
                   </div>
                 </div>
-                <Badge variant="outline">
+                <Badge variant="outline" className="shrink-0 text-xs">
                   {format.toUpperCase()}
                 </Badge>
               </div>
@@ -322,7 +322,7 @@ export function ReportShareModal({
           </Card>
 
           {/* Share Method Selection */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               { key: 'download', icon: Download, label: 'Baixar' },
               { key: 'email', icon: Mail, label: 'Email' },
@@ -333,20 +333,22 @@ export function ReportShareModal({
                 key={method.key}
                 variant={shareMethod === method.key ? 'default' : 'outline'}
                 onClick={() => setShareMethod(method.key as any)}
-                className="flex flex-col gap-2 h-auto py-4"
+                className="flex flex-col gap-1.5 h-auto py-3 text-xs"
               >
-                <method.icon className="h-5 w-5" />
-                <span className="text-xs">{method.label}</span>
+                <method.icon className="h-4 w-4" />
+                <span>{method.label}</span>
               </Button>
             ))}
           </div>
 
           {/* Share Method Content */}
-          {getShareMethodContent()}
+          <div className="min-h-[200px]">
+            {getShareMethodContent()}
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>

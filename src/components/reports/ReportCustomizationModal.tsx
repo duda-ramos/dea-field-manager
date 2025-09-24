@@ -256,12 +256,12 @@ export function ReportCustomizationModal({
               </Card>
             </TabsContent>
 
-            <TabsContent value="details" className="space-y-4">
+            <TabsContent value="details" className="space-y-4 mt-0">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Informações Incluídas</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Informações Incluídas</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {Object.entries(config.includeDetails).map(([key, value]) => (
                     <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
@@ -270,7 +270,7 @@ export function ReportCustomizationModal({
                           checked={value}
                           onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
                         />
-                        <Label htmlFor={key} className="text-sm font-medium">
+                        <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
                           {getDetailLabel(key)}
                         </Label>
                       </div>
@@ -280,41 +280,41 @@ export function ReportCustomizationModal({
               </Card>
             </TabsContent>
 
-            <TabsContent value="preview" className="space-y-4">
+            <TabsContent value="preview" className="space-y-4 mt-0">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
                     Prévia do Relatório
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   {previewData && (
                     <>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold text-orange-600">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="text-center p-3 border rounded-lg bg-muted/50">
+                          <div className="text-lg sm:text-2xl font-bold text-orange-600">
                             {config.sections.pendencias ? previewData.totals.pendencias : 0}
                           </div>
-                          <div className="text-sm text-muted-foreground">Pendências</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">Pendências</div>
                         </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
+                        <div className="text-center p-3 border rounded-lg bg-muted/50">
+                          <div className="text-lg sm:text-2xl font-bold text-green-600">
                             {config.sections.concluidas ? previewData.totals.concluidas : 0}
                           </div>
-                          <div className="text-sm text-muted-foreground">Concluídas</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">Concluídas</div>
                         </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-center p-3 border rounded-lg bg-muted/50">
+                          <div className="text-lg sm:text-2xl font-bold text-blue-600">
                             {config.sections.emRevisao ? previewData.totals.emRevisao : 0}
                           </div>
-                          <div className="text-sm text-muted-foreground">Em Revisão</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground">Em Revisão</div>
                         </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold text-yellow-600">
+                        <div className="text-center p-3 border rounded-lg bg-muted/50">
+                          <div className="text-lg sm:text-2xl font-bold text-yellow-600">
                             {config.sections.emAndamento ? previewData.totals.emAndamento : 0}
                           </div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-xs sm:text-sm text-muted-foreground">
                             {interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
                           </div>
                         </div>
@@ -322,7 +322,7 @@ export function ReportCustomizationModal({
 
                       {config.includeDetails.storageChart && (
                         <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3">Gráfico de Status</h4>
+                          <h4 className="font-medium mb-3 text-sm">Gráfico de Status</h4>
                           <StorageBar
                             pendentes={config.sections.pendencias ? previewData.totals.pendencias : 0}
                             emAndamento={config.sections.emAndamento ? previewData.totals.emAndamento : 0}
@@ -333,7 +333,7 @@ export function ReportCustomizationModal({
 
                       {config.includeDetails.pavimentoSummary && previewData.pavimentoSummary && (
                         <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3">Resumo por Pavimento</h4>
+                          <h4 className="font-medium mb-3 text-sm">Resumo por Pavimento</h4>
                           <div className="text-sm text-muted-foreground">
                             {previewData.pavimentoSummary.length} pavimentos encontrados
                           </div>
@@ -341,8 +341,8 @@ export function ReportCustomizationModal({
                       )}
 
                       <div className="border rounded-lg p-4">
-                        <h4 className="font-medium mb-3">Configurações Aplicadas</h4>
-                        <div className="space-y-2 text-sm">
+                        <h4 className="font-medium mb-3 text-sm">Configurações Aplicadas</h4>
+                        <div className="space-y-2 text-xs sm:text-sm">
                           <div>
                             <strong>Agrupamento:</strong> {config.groupBy === 'none' ? 'Sem agrupamento' : 
                               config.groupBy === 'pavimento' ? 'Por pavimento' : 'Por tipologia'}
@@ -368,14 +368,14 @@ export function ReportCustomizationModal({
           </ScrollArea>
         </Tabs>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="gap-2 flex-col sm:flex-row pt-4">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Cancelar
           </Button>
           <Button
             onClick={() => handleGenerate('pdf')}
             disabled={isGenerating}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <FileText className="h-4 w-4" />
             {isGenerating ? 'Gerando...' : 'Gerar PDF'}
@@ -384,7 +384,7 @@ export function ReportCustomizationModal({
             variant="outline"
             onClick={() => handleGenerate('xlsx')}
             disabled={isGenerating}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <Table className="h-4 w-4" />
             {isGenerating ? 'Gerando...' : 'Gerar Excel'}

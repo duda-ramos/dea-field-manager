@@ -246,16 +246,16 @@ export default function ProjectDetailNew() {
             <CardTitle>Resumo das Peças</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-primary">{installations.length}</div>
                 <div className="text-sm text-muted-foreground">Total de Peças</div>
               </div>
-              <div>
+              <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-green-600">{completedInstallations}</div>
                 <div className="text-sm text-muted-foreground">Instaladas</div>
               </div>
-              <div>
+              <div className="p-4 rounded-lg bg-muted/50">
                 <div className="text-2xl font-bold text-orange-600">{pendingInstallations}</div>
                 <div className="text-sm text-muted-foreground">Pendentes</div>
               </div>
@@ -264,7 +264,7 @@ export default function ProjectDetailNew() {
         </Card>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatsCard
             title="Instalações Concluídas"
             value={completedInstallations}
@@ -1097,47 +1097,79 @@ export default function ProjectDetailNew() {
 
       <div className="container mx-auto px-4 py-6">
         {/* Navigation Menu */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-2">
-            <Button 
-              variant={currentSection === 'info' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}`)}
+        <div className="mb-6">
+          {/* Mobile Navigation - Dropdown */}
+          <div className="block sm:hidden">
+            <select 
+              value={currentSection}
+              onChange={(e) => {
+                const section = e.target.value;
+                const path = section === 'info' ? `/projeto/${id}` : `/projeto/${id}/${section}`;
+                navigate(path);
+              }}
+              className="w-full p-3 border border-input bg-background rounded-md text-sm"
             >
-              Informações
-            </Button>
-            <Button 
-              variant={currentSection === 'pecas' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}/pecas`)}
-            >
-              Peças
-            </Button>
-            <Button 
-              variant={currentSection === 'relatorios' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}/relatorios`)}
-            >
-              Relatórios
-            </Button>
-            <Button 
-              variant={currentSection === 'orcamentos' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}/orcamentos`)}
-            >
-              Orçamentos
-            </Button>
-            <Button 
-              variant={currentSection === 'arquivos' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}/arquivos`)}
-            >
-              Arquivos
-            </Button>
-            <Button 
-              variant={currentSection === 'contatos' ? 'default' : 'outline'}
-              onClick={() => navigate(`/projeto/${id}/contatos`)}
-            >
-              Contatos {contadores.total > 0 && `(${contadores.total})`}
-            </Button>
-            
-            {/* Import button - only shows import functionality */}
-            <div className="relative ml-auto">
+              <option value="info">Informações</option>
+              <option value="pecas">Peças</option>
+              <option value="relatorios">Relatórios</option>
+              <option value="orcamentos">Orçamentos</option>
+              <option value="arquivos">Arquivos</option>
+              <option value="contatos">Contatos {contadores.total > 0 ? `(${contadores.total})` : ''}</option>
+            </select>
+          </div>
+
+          {/* Desktop Navigation - Buttons */}
+          <div className="hidden sm:block">
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={currentSection === 'info' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}`)}
+                size="sm"
+              >
+                Informações
+              </Button>
+              <Button 
+                variant={currentSection === 'pecas' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}/pecas`)}
+                size="sm"
+              >
+                Peças
+              </Button>
+              <Button 
+                variant={currentSection === 'relatorios' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}/relatorios`)}
+                size="sm"
+              >
+                Relatórios
+              </Button>
+              <Button 
+                variant={currentSection === 'orcamentos' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}/orcamentos`)}
+                size="sm"
+              >
+                Orçamentos
+              </Button>
+              <Button 
+                variant={currentSection === 'arquivos' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}/arquivos`)}
+                size="sm"
+              >
+                Arquivos
+              </Button>
+              <Button 
+                variant={currentSection === 'contatos' ? 'default' : 'outline'}
+                onClick={() => navigate(`/projeto/${id}/contatos`)}
+                size="sm"
+              >
+                Contatos {contadores.total > 0 && `(${contadores.total})`}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Action Buttons Row */}
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            {/* Import button */}
+            <div className="relative">
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -1145,7 +1177,7 @@ export default function ProjectDetailNew() {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 onClick={(e) => e.stopPropagation()}
               />
-              <Button variant="outline" disabled={isImporting} className="pointer-events-none">
+              <Button variant="outline" disabled={isImporting} className="pointer-events-none w-full sm:w-auto">
                 <Upload className="h-4 w-4 mr-2" />
                 {isImporting ? "Importando..." : "Importar Planilha"}
               </Button>
@@ -1153,11 +1185,21 @@ export default function ProjectDetailNew() {
 
             {/* Add Installation button - only shows for pecas section */}
             {currentSection === 'pecas' && (
-              <Button onClick={() => setShowAddModal(true)}>
+              <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar ou Atualizar Peça
               </Button>
             )}
+
+            {/* Edit Project button for mobile */}
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditModalOpen(true)}
+              className="sm:hidden w-full"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Editar Projeto
+            </Button>
           </div>
         </div>
 
