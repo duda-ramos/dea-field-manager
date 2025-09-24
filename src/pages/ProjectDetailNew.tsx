@@ -495,10 +495,6 @@ export default function ProjectDetailNew() {
               acceptedTypes={['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.txt']}
               onFilesChange={() => loadProjectData()}
             />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <FileManager projectId={project.id} />
           </CardContent>
         </Card>
         
