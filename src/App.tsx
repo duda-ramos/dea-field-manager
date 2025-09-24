@@ -34,7 +34,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <AppHeader />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto container-modern py-4 sm:py-6 lg:py-8">
             {children}
           </main>
         </div>

@@ -17,19 +17,28 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 82 100% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 82 100% 40%;
+    --primary-light: 82 70% 85%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 82 50% 92%;
+    --accent-foreground: 82 100% 25%;
+    --accent-light: 82 30% 95%;
+    --success: 82 100% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 82 70% 85%;
+    --warning: 45 100% 60%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 45 70% 85%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 82 100% 45%;
     --radius: 0.75rem;
   }
 
@@ -40,19 +49,28 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
+    --primary: 82 100% 50%;
     --primary-foreground: 222.2 84% 4.9%;
+    --primary-hover: 82 100% 45%;
+    --primary-light: 82 50% 20%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 82 40% 15%;
+    --accent-foreground: 82 100% 80%;
+    --accent-light: 82 30% 12%;
+    --success: 82 100% 50%;
+    --success-foreground: 222.2 84% 4.9%;
+    --success-light: 82 50% 20%;
+    --warning: 45 100% 65%;
+    --warning-foreground: 222.2 84% 4.9%;
+    --warning-light: 45 50% 20%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
+    --ring: 82 100% 80%;
   }
 }
 
@@ -71,6 +89,38 @@
 /* Component styles */
 @layer components {
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+  
+  /* Container with proper lateral spacing */
+  .container-modern {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Responsive grid for projects */
+  .grid-projects {
+    @apply grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6;
+  }
+  
+  /* Mobile-optimized components */
+  .mobile-card {
+    @apply p-3 sm:p-6;
+  }
+  
+  .mobile-button {
+    @apply h-8 px-3 text-sm sm:h-10 sm:px-4 sm:text-base;
+  }
+  
+  .mobile-input {
+    @apply h-8 px-2 text-sm sm:h-10 sm:px-3 sm:text-base;
+  }
+  
+  /* Improved spacing utilities */
+  .space-y-responsive {
+    @apply space-y-4 sm:space-y-6 lg:space-y-8;
+  }
+  
+  .gap-responsive {
+    @apply gap-3 sm:gap-4 lg:gap-6;
   }
 }

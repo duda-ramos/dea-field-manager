@@ -139,8 +139,8 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
     const datesWithConflicts = getDatesWithConflicts();
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="order-2 lg:order-1">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -157,50 +157,52 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
                 fontWeight: 'bold'
               },
               hasConflict: {
-                backgroundColor: 'hsl(25, 95%, 53%)', // Orange color
+                backgroundColor: 'hsl(25, 95%, 53%)', 
                 color: 'white',
                 fontWeight: 'bold'
               }
             }}
-            className="rounded-md border"
+            className="rounded-md border w-full"
           />
           <div className="mt-2 space-y-1">
             <div className="flex items-center gap-2 text-xs">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }}></div>
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }}></div>
               <span className="text-muted-foreground">Instalações programadas</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(25, 95%, 53%)' }}></div>
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm" style={{ backgroundColor: 'hsl(25, 95%, 53%)' }}></div>
               <span className="text-muted-foreground">Conflitos de cronograma</span>
             </div>
           </div>
         </div>
         
-        <div>
-          <h4 className="font-medium mb-3">
+        <div className="order-1 lg:order-2">
+          <h4 className="font-medium mb-2 sm:mb-3 text-sm sm:text-base">
             {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </h4>
           {installationsForSelectedDate.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma instalação programada para esta data</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Nenhuma instalação programada para esta data</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {installationsForSelectedDate.map((period) => (
                 <div 
                   key={period.project.id} 
-                  className={`p-3 rounded-lg border ${
+                  className={`p-2 sm:p-3 rounded-lg border ${
                     period.hasOverlap ? 'border-destructive bg-destructive/5' : 'border-border'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <h5 className="font-medium">{period.project.name}</h5>
-                    <Badge variant={getStatusColor(period.project.status, period.hasOverlap)} className="text-xs">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                    <h5 className="font-medium text-sm truncate flex-1">{period.project.name}</h5>
+                    <Badge variant={getStatusColor(period.project.status, period.hasOverlap)} className="text-xs px-1.5 py-0.5">
                       {getStatusIcon(period.hasOverlap)}
-                      {period.hasOverlap ? 'Conflito' : 
-                       period.project.status === 'planning' ? 'Planejamento' :
-                       period.project.status === 'in-progress' ? 'Em Andamento' : 'Outro'}
+                      <span className="ml-1">
+                        {period.hasOverlap ? 'Conflito' : 
+                         period.project.status === 'planning' ? 'Planejamento' :
+                         period.project.status === 'in-progress' ? 'Em Andamento' : 'Outro'}
+                      </span>
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-2">{period.project.client}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1.5 sm:mb-2 truncate">{period.project.client}</p>
                   <div className="text-xs space-y-1">
                     <div>
                       <span className="font-medium">Período: </span>
@@ -304,49 +306,50 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="mobile-card">
+      <CardHeader className="pb-3 sm:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
-              Agenda de Instalações
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Agenda de Instalações</span>
+              <span className="sm:hidden">Agenda</span>
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Cronograma reverso baseado nas datas de entrega e estimativas de tempo
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              Cronograma baseado nas datas de entrega
             </p>
           </div>
           
           <div className="flex gap-1">
             <Button
               variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
+              className="mobile-button"
               onClick={() => setViewMode('list')}
             >
-              <List className="h-4 w-4" />
+              <List className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant={viewMode === 'calendar' ? 'default' : 'outline'}
-              size="sm"
+              className="mobile-button"
               onClick={() => setViewMode('calendar')}
             >
-              <CalendarIcon className="h-4 w-4" />
+              <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant={viewMode === 'roadmap' ? 'default' : 'outline'}
-              size="sm"
+              className="mobile-button"
               onClick={() => setViewMode('roadmap')}
             >
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {installationPeriods.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">
-            <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>Nenhuma instalação programada</p>
+          <div className="text-center py-4 sm:py-6 text-muted-foreground">
+            <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhuma instalação programada</p>
             <p className="text-xs">Adicione datas de entrega e estimativas aos projetos</p>
           </div>
         ) : (
@@ -354,43 +357,47 @@ export function InstallationCalendar({ projects }: InstallationCalendarProps) {
             {viewMode === 'calendar' && renderCalendarView()}
             {viewMode === 'roadmap' && renderRoadmapView()}
             {viewMode === 'list' && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {upcomingInstallations.map((period) => (
                   <div 
                     key={period.project.id} 
-                    className={`p-3 rounded-lg border ${
+                    className={`p-2 sm:p-3 rounded-lg border ${
                       period.hasOverlap ? 'border-destructive bg-destructive/5' : 'border-border'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2 sm:gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium truncate">{period.project.name}</h4>
-                          <Badge variant={getStatusColor(period.project.status, period.hasOverlap)} className="text-xs">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                          <h4 className="font-medium truncate text-sm sm:text-base">{period.project.name}</h4>
+                          <Badge variant={getStatusColor(period.project.status, period.hasOverlap)} className="text-xs px-1.5 py-0.5">
                             {getStatusIcon(period.hasOverlap)}
-                            {period.hasOverlap ? 'Conflito' : 
-                             period.project.status === 'planning' ? 'Planejamento' :
-                             period.project.status === 'in-progress' ? 'Em Andamento' : 'Outro'}
+                            <span className="ml-1">
+                              {period.hasOverlap ? 'Conflito' : 
+                               period.project.status === 'planning' ? 'Planejamento' :
+                               period.project.status === 'in-progress' ? 'Em Andamento' : 'Outro'}
+                            </span>
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{period.project.client}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-1.5 sm:mb-2 truncate">{period.project.client}</p>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                          <div>
-                            <span className="font-medium">Início: </span>
-                            <span className="text-muted-foreground">
-                              {format(period.startDate, "dd/MM/yyyy", { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Entrega: </span>
-                            <span className="text-muted-foreground">
-                              {format(period.endDate, "dd/MM/yyyy", { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Duração: </span>
-                            <span className="text-muted-foreground">{period.estimatedDays} dias úteis</span>
+                        <div className="grid grid-cols-1 gap-1.5 text-xs">
+                          <div className="flex flex-wrap gap-3">
+                            <div>
+                              <span className="font-medium">Início: </span>
+                              <span className="text-muted-foreground">
+                                {format(period.startDate, "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Entrega: </span>
+                              <span className="text-muted-foreground">
+                                {format(period.endDate, "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Duração: </span>
+                              <span className="text-muted-foreground">{period.estimatedDays} dias úteis</span>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -221,26 +221,27 @@ export default function Dashboard() {
 
   return (
     <LoadingBoundary>
-      <div className="space-y-8">
+      <div className="space-y-responsive">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Gerencie seus projetos e acompanhe o progresso
             </p>
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Novo Projeto
+              <Button className="mobile-button gap-1 sm:gap-2">
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Novo Projeto</span>
+                <span className="sm:hidden">Novo</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Criar Novo Projeto</DialogTitle>
+                <DialogTitle className="text-lg sm:text-xl">Criar Novo Projeto</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Template Selection */}
                 <div className="flex gap-2">
                   <Button 
@@ -360,7 +361,7 @@ export default function Dashboard() {
         </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatsCard
           title="Total de Projetos"
           value={stats.total}
@@ -387,27 +388,27 @@ export default function Dashboard() {
         <InstallationCalendar projects={projects} />
 
         {/* Search and Filter */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3 sm:h-4 sm:w-4" />
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="mobile-input pl-8 sm:pl-10"
             />
           </div>
         </div>
 
         {/* Projects Grid */}
         {loading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid-projects">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <CardLoadingState key={i} />
             ))}
           </div>
         ) : filteredProjects.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid-projects">
           {filteredProjects.map((project) => (
             <ProjectCard
               key={project.id}
@@ -416,19 +417,19 @@ export default function Dashboard() {
           ))}
         </div>
         ) : (
-          <div className="text-center py-12">
-            <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+          <div className="text-center py-8 sm:py-12">
+            <FolderOpen className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold mb-2">
               {searchTerm ? "Nenhum projeto encontrado" : "Nenhum projeto ainda"}
             </h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base px-4">
               {searchTerm
                 ? "Tente ajustar os termos de busca"
                 : "Comece criando seu primeiro projeto"}
             </p>
             {!searchTerm && (
-              <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
+              <Button onClick={() => setIsCreateModalOpen(true)} className="mobile-button gap-1 sm:gap-2">
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                 Criar Primeiro Projeto
               </Button>
             )}
