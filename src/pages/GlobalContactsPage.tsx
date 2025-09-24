@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPanel';
-import { Users, Search, Mail, Phone, Building2, User, Truck } from 'lucide-react';
+import { Users, Search, Mail, Phone, Building2, User, Truck, ChevronDown } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -208,121 +208,141 @@ export default function GlobalContactsPage() {
             </div>
           </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-full sm:max-w-md">
-              <TabsTrigger value="all" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Todos</span>
-                <span className="sm:hidden">Todos</span>
-                <span className="ml-1">({counts.all})</span>
-              </TabsTrigger>
-              <TabsTrigger value="cliente" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Cliente</span>
-                <span className="sm:hidden">Cli</span>
-                <span className="ml-1">({counts.cliente})</span>
-              </TabsTrigger>
-              <TabsTrigger value="obra" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Obra</span>
-                <span className="sm:hidden">Obra</span>
-                <span className="ml-1">({counts.obra})</span>
-              </TabsTrigger>
-              <TabsTrigger value="fornecedor" className="text-xs sm:text-sm">
-                <span className="hidden sm:inline">Fornecedor</span>
-                <span className="sm:hidden">Forn</span>
-                <span className="ml-1">({counts.fornecedor})</span>
-              </TabsTrigger>
-            </TabsList>
+          {/* Categoria Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+              <span>Todos ({counts.all})</span>
+              <span>•</span>
+              <span>Cliente ({counts.cliente})</span>
+              <span>•</span>
+              <span>Obra ({counts.obra})</span>
+              <span>•</span>
+              <span>Fornecedor ({counts.fornecedor})</span>
+            </div>
             
-            {/* Bulk Operations Panel */}
-            {selectedContacts.length > 0 && (
-              <BulkOperationPanel
-                items={contacts.filter(c => selectedContacts.includes(c.id))}
-                itemType="contacts"
-                onItemsChange={(updatedItems) => {
-                  loadContacts();
-                  setSelectedContacts([]);
-                }}
-              />
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="mobile-button justify-between">
+                  <span>
+                    {activeTab === 'all' && `Todos (${counts.all})`}
+                    {activeTab === 'cliente' && `Cliente (${counts.cliente})`}
+                    {activeTab === 'obra' && `Obra (${counts.obra})`}
+                    {activeTab === 'fornecedor' && `Fornecedor (${counts.fornecedor})`}
+                  </span>
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setActiveTab('all')}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Todos ({counts.all})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('cliente')}>
+                  <User className="h-4 w-4 mr-2" />
+                  Cliente ({counts.cliente})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('obra')}>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Obra ({counts.obra})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('fornecedor')}>
+                  <Truck className="h-4 w-4 mr-2" />
+                  Fornecedor ({counts.fornecedor})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-            <TabsContent value={activeTab} className="mt-4 sm:mt-6">
-              {filteredContacts.length === 0 ? (
-                <Card className="mobile-card">
-                  <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12">
-                    <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-base sm:text-lg font-semibold mb-2">Nenhum contato encontrado</h3>
-                    <p className="text-sm sm:text-base text-muted-foreground text-center">
-                      {searchTerm 
-                        ? 'Tente ajustar os filtros ou termos de busca.'
-                        : 'Comece criando contatos em seus projetos.'
-                      }
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
-                   {filteredContacts.map((contact) => (
-                     <Card key={contact.id} className={`hover:shadow-md transition-shadow mobile-card ${selectedContacts.includes(contact.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
-                       <CardHeader className="pb-2 sm:pb-3">
-                         <div className="flex items-start justify-between gap-2">
-                           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                             <input
-                               type="checkbox"
-                               checked={selectedContacts.includes(contact.id)}
-                               onChange={(e) => {
-                                 if (e.target.checked) {
-                                   setSelectedContacts(prev => [...prev, contact.id]);
-                                 } else {
-                                   setSelectedContacts(prev => prev.filter(id => id !== contact.id));
-                                 }
-                               }}
-                               className="h-4 w-4 rounded border-2 border-primary flex-shrink-0"
-                             />
-                            <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                              <AvatarFallback className="text-xs sm:text-sm">
-                                {contact.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{contact.name}</CardTitle>
-                              <CardDescription className="text-xs sm:text-sm truncate">
-                                {contact.project_name}
-                              </CardDescription>
-                            </div>
+          {/* Bulk Operations Panel */}
+          {selectedContacts.length > 0 && (
+            <BulkOperationPanel
+              items={contacts.filter(c => selectedContacts.includes(c.id))}
+              itemType="contacts"
+              onItemsChange={(updatedItems) => {
+                loadContacts();
+                setSelectedContacts([]);
+              }}
+            />
+          )}
+
+          {/* Content */}
+          <div className="mt-4 sm:mt-6">
+            {filteredContacts.length === 0 ? (
+              <Card className="mobile-card">
+                <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12">
+                  <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">Nenhum contato encontrado</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground text-center">
+                    {searchTerm 
+                      ? 'Tente ajustar os filtros ou termos de busca.'
+                      : 'Comece criando contatos em seus projetos.'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+                 {filteredContacts.map((contact) => (
+                   <Card key={contact.id} className={`hover:shadow-md transition-shadow mobile-card ${selectedContacts.includes(contact.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
+                     <CardHeader className="pb-2 sm:pb-3">
+                       <div className="flex items-start justify-between gap-2">
+                         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                           <input
+                             type="checkbox"
+                             checked={selectedContacts.includes(contact.id)}
+                             onChange={(e) => {
+                               if (e.target.checked) {
+                                 setSelectedContacts(prev => [...prev, contact.id]);
+                               } else {
+                                 setSelectedContacts(prev => prev.filter(id => id !== contact.id));
+                               }
+                             }}
+                             className="h-4 w-4 rounded border-2 border-primary flex-shrink-0"
+                           />
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                            <AvatarFallback className="text-xs sm:text-sm">
+                              {contact.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{contact.name}</CardTitle>
+                            <CardDescription className="text-xs sm:text-sm truncate">
+                              {contact.project_name}
+                            </CardDescription>
                           </div>
-                          <Badge variant={getRoleBadgeVariant(contact.role)} className="gap-1 text-xs flex-shrink-0">
-                            {getRoleIcon(contact.role)}
-                            <span className="hidden sm:inline">
-                              {contact.role.charAt(0).toUpperCase() + contact.role.slice(1)}
-                            </span>
-                            <span className="sm:hidden">
-                              {contact.role === 'cliente' ? 'Cli' : contact.role === 'obra' ? 'Obra' : 'Forn'}
-                            </span>
-                          </Badge>
                         </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-1 sm:space-y-2">
-                          {contact.email && (
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                              <span className="truncate">{contact.email}</span>
-                            </div>
-                          )}
-                          {contact.phone && (
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                              <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                              <span className="truncate">{contact.phone}</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                        <Badge variant={getRoleBadgeVariant(contact.role)} className="gap-1 text-xs flex-shrink-0">
+                          {getRoleIcon(contact.role)}
+                          <span className="hidden sm:inline">
+                            {contact.role.charAt(0).toUpperCase() + contact.role.slice(1)}
+                          </span>
+                          <span className="sm:hidden">
+                            {contact.role === 'cliente' ? 'Cli' : contact.role === 'obra' ? 'Obra' : 'Forn'}
+                          </span>
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-1 sm:space-y-2">
+                        {contact.email && (
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="truncate">{contact.email}</span>
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="truncate">{contact.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
