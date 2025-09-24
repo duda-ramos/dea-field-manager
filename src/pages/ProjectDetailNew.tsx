@@ -626,10 +626,9 @@ export default function ProjectDetailNew() {
       {selectedInstallation && (
         <InstallationDetailModalNew
           installation={selectedInstallation}
-          project={project}
           isOpen={!!selectedInstallation}
           onClose={() => setSelectedInstallation(null)}
-          onInstallationUpdated={loadProjectData}
+          onUpdate={loadProjectData}
         />
       )}
 
@@ -637,7 +636,7 @@ export default function ProjectDetailNew() {
         <AddInstallationModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
-          onInstallationAdded={loadProjectData}
+          onUpdate={loadProjectData}
           projectId={project.id}
         />
       )}
