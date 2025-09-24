@@ -114,11 +114,11 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
   };
 
   return (
-    <Card className={`mobile-card group cursor-pointer transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''}`} onClick={handleViewProject}>
-      <CardHeader className="pb-2 sm:pb-3">
+    <Card className={`transition-all duration-200 hover:shadow-lg p-2 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''}`} onClick={handleViewProject}>
+      <CardHeader className="pb-1 sm:pb-3 p-0">
         <div className="flex items-start justify-between">
           {onSelectionChange && (
-            <div className="mr-2 sm:mr-3 pt-1">
+            <div className="mr-2 pt-1">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -130,16 +130,16 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
               />
             </div>
           )}
-          <div className="space-y-1 sm:space-y-2 flex-1">
+          <div className="space-y-1 flex-1">
             <CardTitle className="text-sm sm:text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
               {project.name}
             </CardTitle>
-            <div className="flex gap-1 sm:gap-2 flex-wrap">
-              <Badge variant={statusConfig[project.status].variant} className="text-xs px-1 sm:px-2 py-0.5">
+            <div className="flex gap-1 flex-wrap">
+              <Badge variant={statusConfig[project.status].variant} className="text-xs px-1.5 py-0.5">
                 {statusConfig[project.status].label}
               </Badge>
               {isLocalProject && (
-                <Badge variant="outline" className="text-xs px-1 sm:px-2 py-0.5 text-orange-600 border-orange-200">
+                <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-orange-600 border-orange-200">
                   Não sync
                 </Badge>
               )}
@@ -148,46 +148,46 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3 sm:space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-            <Building className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+      <CardContent className="space-y-2 sm:space-y-4 p-0">
+        <div className="space-y-1.5">
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Building className="h-3 w-3 mr-1.5 flex-shrink-0" />
             <span className="truncate">{project.client}</span>
           </div>
-          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3 mr-1.5 flex-shrink-0" />
             <span className="truncate">{project.city}</span>
           </div>
           {project.code && (
-            <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-              <Code className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <div className="flex items-center text-xs text-muted-foreground">
+              <Code className="h-3 w-3 mr-1.5 flex-shrink-0" />
               <span className="truncate font-mono text-xs">{project.code}</span>
             </div>
           )}
           {project.installation_date && (
-            <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-              <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
-              <span className="text-xs sm:text-sm">{new Date(project.installation_date).toLocaleDateString('pt-BR')}</span>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <CalendarDays className="h-3 w-3 mr-1.5 flex-shrink-0" />
+              <span className="text-xs">{new Date(project.installation_date).toLocaleDateString('pt-BR')}</span>
             </div>
           )}
         </div>
 
         {totalInstallations > 0 && (
-          <div className="space-y-1.5 sm:space-y-2 pt-2 border-t border-border">
-            <div className="flex justify-between items-center text-xs sm:text-sm">
+          <div className="space-y-1 pt-2 border-t border-border">
+            <div className="flex justify-between items-center text-xs">
               <span className="text-muted-foreground">Instalações</span>
               <span className="font-medium">
                 {completedInstallations}/{totalInstallations}
               </span>
             </div>
-            <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
+            <Progress value={progressPercentage} className="h-1.5" />
             <div className="text-xs text-muted-foreground">
               {Math.round(progressPercentage)}% concluído
             </div>
           </div>
         )}
 
-        <div className="flex gap-1.5 sm:gap-2 mt-3 sm:mt-4">
+        <div className="flex gap-1.5 mt-2">
           {isLocalProject && (
             <Button 
               variant="outline"
@@ -197,13 +197,13 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
             >
               {isSyncing ? (
                 <>
-                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                   <span className="hidden sm:inline">Sincronizando...</span>
                   <span className="sm:hidden">Sync...</span>
                 </>
               ) : (
                 <>
-                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  <RefreshCw className="h-3 w-3 mr-1" />
                   <span className="hidden sm:inline">Sincronizar</span>
                   <span className="sm:hidden">Sync</span>
                 </>
@@ -218,8 +218,8 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
               handleViewProject();
             }}
           >
-            <span className="text-xs sm:text-sm">Ver Projeto</span>
-            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1 group-hover/btn:translate-x-1 transition-transform" />
+            <span className="text-xs">Ver Projeto</span>
+            <ArrowRight className="h-3 w-3 ml-1 group-hover/btn:translate-x-1 transition-transform" />
           </Button>
         </div>
       </CardContent>
