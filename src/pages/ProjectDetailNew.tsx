@@ -110,6 +110,12 @@ export default function ProjectDetailNew() {
                         location.pathname.includes('/contatos') ? 'contatos' :
                         'info';
 
+  // Calculate stats for info section
+  const completedInstallations = installations.filter(i => i.installed).length;
+  const pendingInstallations = installations.length - completedInstallations;
+  const installationsWithObservations = installations.filter(i => i.observacoes && i.observacoes.trim() !== "").length;
+  const progressPercentage = installations.length > 0 ? (completedInstallations / installations.length) * 100 : 0;
+
   const pavimentos = Array.from(new Set(installations.map(i => i.pavimento))).sort();
 
   const filteredInstallations = installations.filter(installation => {
@@ -129,10 +135,6 @@ export default function ProjectDetailNew() {
     return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
   });
 
-  const completedInstallations = installations.filter(i => i.installed).length;
-  const pendingInstallations = installations.length - completedInstallations;
-  const installationsWithObservations = installations.filter(i => i.observacoes && i.observacoes.trim() !== "").length;
-  const progressPercentage = installations.length > 0 ? (completedInstallations / installations.length) * 100 : 0;
 
   const toggleInstallation = async (installationId: string) => {
     const installation = installations.find(i => i.id === installationId);
@@ -214,6 +216,280 @@ export default function ProjectDetailNew() {
       // Clear file input
       event.target.value = '';
     }
+  };
+
+  // Info Section
+  const renderInfoSection = () => {
+    return (
+      <div className="space-y-6">
+        {/* Project Overview Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-xl">{project.name}</CardTitle>
+                <p className="text-muted-foreground">{project.client}</p>
+              </div>
+              <Badge variant={project.status === 'completed' ? 'default' : 'secondary'}>
+                {project.status === 'planning' && 'Planejamento'}
+                {project.status === 'in-progress' && 'Em Andamento'}
+                {project.status === 'completed' && 'Concluído'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Cidade</Label>
+                <p className="text-sm text-muted-foreground">{project.city}</p>
+              </div>
+              {project.code && (
+                <div>
+                  <Label className="text-sm font-medium">Código</Label>
+                  <p className="text-sm text-muted-foreground">{project.code}</p>
+                </div>
+              )}
+              {project.owner && (
+                <div>
+                  <Label className="text-sm font-medium">Responsável</Label>
+                  <p className="text-sm text-muted-foreground">{project.owner}</p>
+                </div>
+              )}
+              {project.installation_date && (
+                <div>
+                  <Label className="text-sm font-medium">Data de Instalação</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(project.installation_date).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {project.suppliers && project.suppliers.length > 0 && (
+              <div>
+                <Label className="text-sm font-medium">Fornecedores</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {project.suppliers.map((supplier, index) => (
+                    <Badge key={index} variant="outline">{supplier}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Project Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard
+            title="Total de Itens"
+            value={installations.length}
+            description="Itens no projeto"
+          />
+          <StatsCard
+            title="Concluídos"
+            value={completedInstallations}
+            description="Itens instalados"
+          />
+          <StatsCard
+            title="Pendentes"
+            value={pendingInstallations}
+            description="Aguardando instalação"
+          />
+          <StatsCard
+            title="Com Observações"
+            value={installationsWithObservations}
+            description="Itens com notas"
+          />
+        </div>
+
+        {/* Progress Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Progresso do Projeto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progresso Geral</span>
+                <span>{Math.round(progressPercentage)}%</span>
+              </div>
+              <Progress value={progressPercentage} className="w-full" />
+              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div>Concluídos: {completedInstallations}</div>
+                <div>Pendentes: {pendingInstallations}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ações Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/projeto/${id}/pecas`)}
+                className="justify-start gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Ver Peças
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/projeto/${id}/relatorios`)}
+                className="justify-start gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Gerar Relatório
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/projeto/${id}/orcamentos`)}
+                className="justify-start gap-2"
+              >
+                <Calculator className="h-4 w-4" />
+                Ver Orçamentos
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/projeto/${id}/arquivos`)}
+                className="justify-start gap-2"
+              >
+                <Archive className="h-4 w-4" />
+                Gerenciar Arquivos
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // Reports Section
+  const renderRelatoriosSection = () => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Relatórios do Projeto</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Gere e personalize relatórios detalhados
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowReportCustomization(true)}
+                className="gap-2 w-full sm:w-auto"
+              >
+                <FileText className="h-4 w-4" />
+                Gerar Relatório
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {reports.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nenhum relatório gerado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Clique no botão acima para gerar seu primeiro relatório
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reports.map((report, index) => (
+                  <Card key={index} className="border">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="min-w-0">
+                          <h4 className="font-medium truncate">
+                            Relatório - {new Date(report.generated_at).toLocaleDateString('pt-BR')}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {report.observacoes || 'Sem observações'}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="h-4 w-4" />
+                            Baixar
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // Budget Section
+  const renderOrcamentosSection = () => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Orçamentos</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie os orçamentos do projeto
+                </p>
+              </div>
+              <Button className="gap-2 w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                Novo Orçamento
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <BudgetTab projectId={project.id} projectName={project.name} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // Files Section  
+  const renderArquivosSection = () => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Arquivos do Projeto</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie documentos e arquivos relacionados
+                </p>
+              </div>
+              <FileUpload
+                projectId={project.id}
+                onFilesChange={() => loadProjectData()}
+                className="w-full sm:w-auto"
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <FileManager projectId={project.id} />
+          </CardContent>
+        </Card>
+        
+        <StorageBar
+          instalados={completedInstallations}
+          pendentes={pendingInstallations}
+          emAndamento={0}
+        />
+      </div>
+    );
   };
 
   const renderPecasSection = () => {
@@ -617,8 +893,11 @@ export default function ProjectDetailNew() {
       {/* Content */}
       <div className="container mx-auto px-4 pb-6">
         <div className="space-y-4">
+          {currentSection === 'info' && renderInfoSection()}
           {currentSection === 'pecas' && renderPecasSection()}
-          {/* Add other sections as needed */}
+          {currentSection === 'relatorios' && renderRelatoriosSection()}
+          {currentSection === 'orcamentos' && renderOrcamentosSection()}
+          {currentSection === 'arquivos' && renderArquivosSection()}
         </div>
       </div>
 
