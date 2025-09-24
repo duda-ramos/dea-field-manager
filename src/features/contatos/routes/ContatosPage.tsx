@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, Users, ChevronDown, User, Building2, Truck } from 'lucide-react';
 import { ContatoForm } from '../components/ContatoForm';
 import { ContatoList } from '../components/ContatoList';
 import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPanel';
@@ -134,101 +134,74 @@ export default function ContatosPage() {
       {/* Content */}
       <div className="container-modern py-4 sm:py-6">
         <div className="space-y-4 sm:space-y-6">
-          {/* Resumo */}
-          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-            <span>Cliente ({contadores.cliente})</span>
-            <span>•</span>
-            <span>Obra ({contadores.obra})</span>
-            <span>•</span>
-            <span>Fornecedor ({contadores.fornecedor})</span>
+          {/* Categoria Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+              <span>Cliente ({contadores.cliente})</span>
+              <span>•</span>
+              <span>Obra ({contadores.obra})</span>
+              <span>•</span>
+              <span>Fornecedor ({contadores.fornecedor})</span>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="mobile-button justify-between">
+                  <span>
+                    {activeTab === 'cliente' && `Cliente (${contadores.cliente})`}
+                    {activeTab === 'obra' && `Obra (${contadores.obra})`}
+                    {activeTab === 'fornecedor' && `Fornecedor (${contadores.fornecedor})`}
+                  </span>
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setActiveTab('cliente')}>
+                  <User className="h-4 w-4 mr-2" />
+                  Cliente ({contadores.cliente})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('obra')}>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Obra ({contadores.obra})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('fornecedor')}>
+                  <Truck className="h-4 w-4 mr-2" />
+                  Fornecedor ({contadores.fornecedor})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="cliente" className="gap-1 sm:gap-2 text-xs sm:text-sm">
-                <span className="hidden sm:inline">Cliente</span>
-                <span className="sm:hidden">Cli</span>
-                <span>({contadores.cliente})</span>
-              </TabsTrigger>
-              <TabsTrigger value="obra" className="gap-1 sm:gap-2 text-xs sm:text-sm">
-                <span className="hidden sm:inline">Obra</span>
-                <span className="sm:hidden">Obra</span>
-                <span>({contadores.obra})</span>
-              </TabsTrigger>
-              <TabsTrigger value="fornecedor" className="gap-1 sm:gap-2 text-xs sm:text-sm">
-                <span className="hidden sm:inline">Fornecedor</span>
-                <span className="sm:hidden">Forn</span>
-                <span>({contadores.fornecedor})</span>
-              </TabsTrigger>
-            </TabsList>
+          {/* Bulk Operations Panel */}
+          {selectedContacts.length > 0 && (
+            <BulkOperationPanel
+              items={contatos.filter(c => selectedContacts.includes(c.id))}
+              itemType="contacts"
+              onItemsChange={(updatedItems) => {
+                loadContatos();
+                setSelectedContacts([]);
+              }}
+            />
+          )}
 
-            {/* Bulk Operations Panel */}
-            {selectedContacts.length > 0 && (
-              <BulkOperationPanel
-                items={contatos.filter(c => selectedContacts.includes(c.id))}
-                itemType="contacts"
-                onItemsChange={(updatedItems) => {
-                  loadContatos();
-                  setSelectedContacts([]);
-                }}
-              />
-            )}
-
-            <TabsContent value="cliente" className="mt-4 sm:mt-6">
-              <ContatoList
-                contatos={getContatosByTipo("cliente")}
-                tipo="cliente"
-                onEdit={handleEditContato}
-                onDelete={handleDeleteContato}
-                onAdd={() => handleAddContato("cliente")}
-                selectedContacts={selectedContacts}
-                onSelectionChange={(contactId, selected) => {
-                  if (selected) {
-                    setSelectedContacts(prev => [...prev, contactId]);
-                  } else {
-                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
-                  }
-                }}
-              />
-            </TabsContent>
-
-            <TabsContent value="obra" className="mt-4 sm:mt-6">
-              <ContatoList
-                contatos={getContatosByTipo("obra")}
-                tipo="obra"
-                onEdit={handleEditContato}
-                onDelete={handleDeleteContato}
-                onAdd={() => handleAddContato("obra")}
-                selectedContacts={selectedContacts}
-                onSelectionChange={(contactId, selected) => {
-                  if (selected) {
-                    setSelectedContacts(prev => [...prev, contactId]);
-                  } else {
-                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
-                  }
-                }}
-              />
-            </TabsContent>
-
-            <TabsContent value="fornecedor" className="mt-4 sm:mt-6">
-              <ContatoList
-                contatos={getContatosByTipo("fornecedor")}
-                tipo="fornecedor"
-                onEdit={handleEditContato}
-                onDelete={handleDeleteContato}
-                onAdd={() => handleAddContato("fornecedor")}
-                selectedContacts={selectedContacts}
-                onSelectionChange={(contactId, selected) => {
-                  if (selected) {
-                    setSelectedContacts(prev => [...prev, contactId]);
-                  } else {
-                    setSelectedContacts(prev => prev.filter(id => id !== contactId));
-                  }
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+          {/* Content */}
+          <div className="mt-4 sm:mt-6">
+            <ContatoList
+              contatos={getContatosByTipo(activeTab)}
+              tipo={activeTab}
+              onEdit={handleEditContato}
+              onDelete={handleDeleteContato}
+              onAdd={() => handleAddContato(activeTab)}
+              selectedContacts={selectedContacts}
+              onSelectionChange={(contactId, selected) => {
+                if (selected) {
+                  setSelectedContacts(prev => [...prev, contactId]);
+                } else {
+                  setSelectedContacts(prev => prev.filter(id => id !== contactId));
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
 
