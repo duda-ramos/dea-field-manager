@@ -91,9 +91,9 @@ export function ContatoList({
   };
 
   return (
-    <Card>
+    <Card className="mobile-card">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
           <CardTitle className="flex items-center gap-2">
             {tipoLabel[tipo]}
             <Badge variant="secondary">{contatos.length}</Badge>
@@ -104,13 +104,16 @@ export function ContatoList({
               size="sm"
               onClick={exportCSV}
               disabled={filteredContatos.length === 0}
+              className="mobile-button"
             >
               <Download className="h-4 w-4 mr-2" />
-              CSV
+              <span className="hidden sm:inline">CSV</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
-            <Button onClick={onAdd} size="sm">
+            <Button onClick={onAdd} size="sm" className="mobile-button">
               <Plus className="h-4 w-4 mr-2" />
-              Novo contato
+              <span className="hidden sm:inline">Novo contato</span>
+              <span className="sm:hidden">Novo</span>
             </Button>
           </div>
         </div>
@@ -124,7 +127,7 @@ export function ContatoList({
             placeholder="Buscar por nome, empresa, email ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 mobile-input"
           />
         </div>
 

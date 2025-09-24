@@ -160,18 +160,18 @@ export default function GlobalContactsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="container mx-auto max-w-6xl">
-          <div className="space-y-6">
+      <div className="min-h-screen bg-background">
+        <div className="container-modern py-4 sm:py-6">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-96 mt-2" />
+              <Skeleton className="h-6 sm:h-8 w-32 sm:w-48" />
+              <Skeleton className="h-3 sm:h-4 w-64 sm:w-96 mt-2" />
             </div>
-            <Skeleton className="h-10 w-full max-w-md" />
-            <Skeleton className="h-12 w-full" />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-8 sm:h-10 w-full max-w-md" />
+            <Skeleton className="h-10 sm:h-12 w-full" />
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-32" />
+                <Skeleton key={i} className="h-24 sm:h-32" />
               ))}
             </div>
           </div>
@@ -181,15 +181,15 @@ export default function GlobalContactsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto max-w-6xl">
-        <div className="space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container-modern py-4 sm:py-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-4">
-            <Users className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Contatos Globais</h1>
-              <p className="text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Contatos Globais</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Gerencie todos os seus contatos de projetos em um só lugar
               </p>
             </div>
@@ -203,25 +203,33 @@ export default function GlobalContactsPage() {
                 placeholder="Buscar contatos ou projetos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 mobile-input"
               />
             </div>
           </div>
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-            <TabsList className="grid w-full grid-cols-4 max-w-md">
-              <TabsTrigger value="all">
-                Todos ({counts.all})
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-full sm:max-w-md">
+              <TabsTrigger value="all" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Todos</span>
+                <span className="sm:hidden">Todos</span>
+                <span className="ml-1">({counts.all})</span>
               </TabsTrigger>
-              <TabsTrigger value="cliente">
-                Cliente ({counts.cliente})
+              <TabsTrigger value="cliente" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Cliente</span>
+                <span className="sm:hidden">Cli</span>
+                <span className="ml-1">({counts.cliente})</span>
               </TabsTrigger>
-              <TabsTrigger value="obra">
-                Obra ({counts.obra})
+              <TabsTrigger value="obra" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Obra</span>
+                <span className="sm:hidden">Obra</span>
+                <span className="ml-1">({counts.obra})</span>
               </TabsTrigger>
-              <TabsTrigger value="fornecedor">
-                Fornecedor ({counts.fornecedor})
+              <TabsTrigger value="fornecedor" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Fornecedor</span>
+                <span className="sm:hidden">Forn</span>
+                <span className="ml-1">({counts.fornecedor})</span>
               </TabsTrigger>
             </TabsList>
             
@@ -237,13 +245,13 @@ export default function GlobalContactsPage() {
               />
             )}
 
-            <TabsContent value={activeTab} className="mt-6">
+            <TabsContent value={activeTab} className="mt-4 sm:mt-6">
               {filteredContacts.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Nenhum contato encontrado</h3>
-                    <p className="text-muted-foreground text-center">
+                <Card className="mobile-card">
+                  <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12">
+                    <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">Nenhum contato encontrado</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground text-center">
                       {searchTerm 
                         ? 'Tente ajustar os filtros ou termos de busca.'
                         : 'Comece criando contatos em seus projetos.'
@@ -252,12 +260,12 @@ export default function GlobalContactsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                    {filteredContacts.map((contact) => (
-                     <Card key={contact.id} className={`hover:shadow-md transition-shadow ${selectedContacts.includes(contact.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
-                       <CardHeader className="pb-3">
-                         <div className="flex items-start justify-between">
-                           <div className="flex items-center gap-3">
+                     <Card key={contact.id} className={`hover:shadow-md transition-shadow mobile-card ${selectedContacts.includes(contact.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
+                       <CardHeader className="pb-2 sm:pb-3">
+                         <div className="flex items-start justify-between gap-2">
+                           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                              <input
                                type="checkbox"
                                checked={selectedContacts.includes(contact.id)}
@@ -268,38 +276,43 @@ export default function GlobalContactsPage() {
                                    setSelectedContacts(prev => prev.filter(id => id !== contact.id));
                                  }
                                }}
-                               className="h-4 w-4 rounded border-2 border-primary"
+                               className="h-4 w-4 rounded border-2 border-primary flex-shrink-0"
                              />
-                            <Avatar>
-                              <AvatarFallback>
+                            <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                              <AvatarFallback className="text-xs sm:text-sm">
                                 {contact.name.substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
-                              <CardTitle className="text-lg truncate">{contact.name}</CardTitle>
-                              <CardDescription className="truncate">
+                              <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{contact.name}</CardTitle>
+                              <CardDescription className="text-xs sm:text-sm truncate">
                                 {contact.project_name}
                               </CardDescription>
                             </div>
                           </div>
-                          <Badge variant={getRoleBadgeVariant(contact.role)} className="gap-1">
+                          <Badge variant={getRoleBadgeVariant(contact.role)} className="gap-1 text-xs flex-shrink-0">
                             {getRoleIcon(contact.role)}
-                            {contact.role.charAt(0).toUpperCase() + contact.role.slice(1)}
+                            <span className="hidden sm:inline">
+                              {contact.role.charAt(0).toUpperCase() + contact.role.slice(1)}
+                            </span>
+                            <span className="sm:hidden">
+                              {contact.role === 'cliente' ? 'Cli' : contact.role === 'obra' ? 'Obra' : 'Forn'}
+                            </span>
                           </Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        <div className="space-y-2">
+                        <div className="space-y-1 sm:space-y-2">
                           {contact.email && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Mail className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                               <span className="truncate">{contact.email}</span>
                             </div>
                           )}
                           {contact.phone && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Phone className="h-4 w-4" />
-                              <span>{contact.phone}</span>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                              <span className="truncate">{contact.phone}</span>
                             </div>
                           )}
                         </div>

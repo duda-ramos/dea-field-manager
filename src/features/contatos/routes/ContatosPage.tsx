@@ -109,22 +109,22 @@ export default function ContatosPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container-modern py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => navigate(`/projeto/${id}`)}
-              className="gap-2"
+              className="gap-2 self-start"
             >
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
-            <div className="flex items-center gap-3">
-              <Users className="h-6 w-6 text-primary" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">Contatos</h1>
-                <p className="text-muted-foreground">{project.name}</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Contatos</h1>
+                <p className="text-sm sm:text-base text-muted-foreground truncate">{project.name}</p>
               </div>
             </div>
           </div>
@@ -132,10 +132,10 @@ export default function ContatosPage() {
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="space-y-6">
+      <div className="container-modern py-4 sm:py-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Resumo */}
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
             <span>Cliente ({contadores.cliente})</span>
             <span>•</span>
             <span>Obra ({contadores.obra})</span>
@@ -146,14 +146,20 @@ export default function ContatosPage() {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="cliente" className="gap-2">
-                Cliente ({contadores.cliente})
+              <TabsTrigger value="cliente" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                <span className="hidden sm:inline">Cliente</span>
+                <span className="sm:hidden">Cli</span>
+                <span>({contadores.cliente})</span>
               </TabsTrigger>
-              <TabsTrigger value="obra" className="gap-2">
-                Obra ({contadores.obra})
+              <TabsTrigger value="obra" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                <span className="hidden sm:inline">Obra</span>
+                <span className="sm:hidden">Obra</span>
+                <span>({contadores.obra})</span>
               </TabsTrigger>
-              <TabsTrigger value="fornecedor" className="gap-2">
-                Fornecedor ({contadores.fornecedor})
+              <TabsTrigger value="fornecedor" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                <span className="hidden sm:inline">Fornecedor</span>
+                <span className="sm:hidden">Forn</span>
+                <span>({contadores.fornecedor})</span>
               </TabsTrigger>
             </TabsList>
 
@@ -169,7 +175,7 @@ export default function ContatosPage() {
               />
             )}
 
-            <TabsContent value="cliente" className="mt-6">
+            <TabsContent value="cliente" className="mt-4 sm:mt-6">
               <ContatoList
                 contatos={getContatosByTipo("cliente")}
                 tipo="cliente"
@@ -187,7 +193,7 @@ export default function ContatosPage() {
               />
             </TabsContent>
 
-            <TabsContent value="obra" className="mt-6">
+            <TabsContent value="obra" className="mt-4 sm:mt-6">
               <ContatoList
                 contatos={getContatosByTipo("obra")}
                 tipo="obra"
@@ -205,7 +211,7 @@ export default function ContatosPage() {
               />
             </TabsContent>
 
-            <TabsContent value="fornecedor" className="mt-6">
+            <TabsContent value="fornecedor" className="mt-4 sm:mt-6">
               <ContatoList
                 contatos={getContatosByTipo("fornecedor")}
                 tipo="fornecedor"
