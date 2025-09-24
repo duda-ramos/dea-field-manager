@@ -117,33 +117,36 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange }: 
     <Card className={`transition-all duration-200 hover:shadow-lg p-3 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''}`} onClick={handleViewProject}>
       <CardHeader className="pb-2 sm:pb-3 p-0">
         <div className="flex items-start justify-between">
-          {onSelectionChange && (
-            <div className="mr-2 pt-1">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onSelectionChange(e.target.checked);
-                }}
-                className="h-3 w-3 sm:h-4 sm:w-4 rounded border-2 border-primary"
-              />
+          <div className="flex items-start gap-2 flex-1">
+            {onSelectionChange && (
+              <div className="pt-1">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onSelectionChange(e.target.checked);
+                  }}
+                  className="h-3 w-3 sm:h-4 sm:w-4 rounded border-2 border-primary"
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm sm:text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                {project.name}
+              </CardTitle>
             </div>
-          )}
-          <div className="space-y-1.5 flex-1">
-            <CardTitle className="text-sm sm:text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
-              {project.name}
-            </CardTitle>
-            <div className="flex gap-1 flex-wrap">
-              <Badge variant={statusConfig[project.status].variant} className="text-xs px-1.5 py-0.5">
-                {statusConfig[project.status].label}
+          </div>
+          
+          <div className="flex flex-col gap-1 ml-2">
+            <Badge variant={statusConfig[project.status].variant} className="text-xs px-1.5 py-0.5 w-fit">
+              {statusConfig[project.status].label}
+            </Badge>
+            {isLocalProject && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-orange-600 border-orange-200 w-fit">
+                Não sync
               </Badge>
-              {isLocalProject && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-orange-600 border-orange-200">
-                  Não sync
-                </Badge>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </CardHeader>
