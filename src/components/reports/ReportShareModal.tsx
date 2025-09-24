@@ -322,7 +322,7 @@ export function ReportShareModal({
           </Card>
 
           {/* Share Method Selection */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {[
               { key: 'download', icon: Download, label: 'Baixar' },
               { key: 'email', icon: Mail, label: 'Email' },
@@ -333,16 +333,16 @@ export function ReportShareModal({
                 key={method.key}
                 variant={shareMethod === method.key ? 'default' : 'outline'}
                 onClick={() => setShareMethod(method.key as any)}
-                className="flex flex-col gap-1.5 h-auto py-3 text-xs"
+                className="flex flex-col gap-1 h-auto py-2 text-xs"
               >
-                <method.icon className="h-4 w-4" />
-                <span>{method.label}</span>
+                <method.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs">{method.label}</span>
               </Button>
             ))}
           </div>
 
           {/* Share Method Content */}
-          <div className="min-h-[200px]">
+          <div className="min-h-[180px] sm:min-h-[200px]">
             {getShareMethodContent()}
           </div>
         </div>

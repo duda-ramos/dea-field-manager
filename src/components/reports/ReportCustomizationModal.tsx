@@ -166,40 +166,43 @@ export function ReportCustomizationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-        <DialogDescription>
-          Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
-        </DialogDescription>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-4xl overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-lg sm:text-xl">Personalizar Relatório</DialogTitle>
+          <DialogDescription className="text-sm">
+            Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
+          </DialogDescription>
+        </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="sections">Seções</TabsTrigger>
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="preview">Prévia</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-3 h-9">
+            <TabsTrigger value="sections" className="text-xs sm:text-sm">Seções</TabsTrigger>
+            <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
+            <TabsTrigger value="preview" className="text-xs sm:text-sm">Prévia</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="h-[60vh] mt-4">
-            <TabsContent value="sections" className="space-y-4">
+          <ScrollArea className="flex-1 mt-4">
+            <TabsContent value="sections" className="space-y-4 mt-0">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Seções do Relatório</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Seções do Relatório</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {Object.entries(config.sections).map(([key, value]) => (
                     <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 min-w-0">
                         <Checkbox
                           id={key}
                           checked={value}
                           onCheckedChange={() => handleSectionToggle(key as keyof ReportConfig['sections'])}
                         />
-                        <Label htmlFor={key} className="text-sm font-medium">
+                        <Label htmlFor={key} className="text-sm font-medium cursor-pointer truncate">
                           {getSectionLabel(key)}
                         </Label>
                       </div>
                       {previewData && (
-                        <Badge variant="outline">
-                          {previewData.totals[key as keyof typeof previewData.totals] || 0} itens
+                        <Badge variant="outline" className="shrink-0 text-xs">
+                          {previewData.totals[key as keyof typeof previewData.totals] || 0}
                         </Badge>
                       )}
                     </div>
@@ -208,15 +211,15 @@ export function ReportCustomizationModal({
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Organização</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Organização</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <Label className="text-sm font-medium">Agrupar por:</Label>
-                    <div className="flex gap-2 mt-2">
+                    <div className="grid grid-cols-3 gap-2 mt-2">
                       {[
-                        { value: 'none', label: 'Sem agrupamento' },
+                        { value: 'none', label: 'Nenhum' },
                         { value: 'pavimento', label: 'Pavimento' },
                         { value: 'tipologia', label: 'Tipologia' },
                       ].map(option => (
@@ -225,6 +228,7 @@ export function ReportCustomizationModal({
                           variant={config.groupBy === option.value ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => setConfig(prev => ({ ...prev, groupBy: option.value as any }))}
+                          className="text-xs"
                         >
                           {option.label}
                         </Button>
@@ -234,18 +238,19 @@ export function ReportCustomizationModal({
 
                   <div>
                     <Label className="text-sm font-medium">Ordenar por:</Label>
-                    <div className="flex gap-2 mt-2">
+                    <div className="grid grid-cols-2 gap-2 mt-2">
                       {[
                         { value: 'codigo', label: 'Código' },
                         { value: 'pavimento', label: 'Pavimento' },
                         { value: 'tipologia', label: 'Tipologia' },
-                        { value: 'updated_at', label: 'Data de atualização' },
+                        { value: 'updated_at', label: 'Data' },
                       ].map(option => (
                         <Button
                           key={option.value}
                           variant={config.sortBy === option.value ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => setConfig(prev => ({ ...prev, sortBy: option.value as any }))}
+                          className="text-xs"
                         >
                           {option.label}
                         </Button>
@@ -291,30 +296,30 @@ export function ReportCustomizationModal({
                 <CardContent className="space-y-4">
                   {previewData && (
                     <>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="text-center p-3 border rounded-lg bg-muted/50">
-                          <div className="text-lg sm:text-2xl font-bold text-orange-600">
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                          <div className="text-base sm:text-lg font-bold text-orange-600">
                             {config.sections.pendencias ? previewData.totals.pendencias : 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Pendências</div>
+                          <div className="text-xs text-muted-foreground">Pendências</div>
                         </div>
-                        <div className="text-center p-3 border rounded-lg bg-muted/50">
-                          <div className="text-lg sm:text-2xl font-bold text-green-600">
+                        <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                          <div className="text-base sm:text-lg font-bold text-green-600">
                             {config.sections.concluidas ? previewData.totals.concluidas : 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Concluídas</div>
+                          <div className="text-xs text-muted-foreground">Concluídas</div>
                         </div>
-                        <div className="text-center p-3 border rounded-lg bg-muted/50">
-                          <div className="text-lg sm:text-2xl font-bold text-blue-600">
+                        <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                          <div className="text-base sm:text-lg font-bold text-blue-600">
                             {config.sections.emRevisao ? previewData.totals.emRevisao : 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">Em Revisão</div>
+                          <div className="text-xs text-muted-foreground">Em Revisão</div>
                         </div>
-                        <div className="text-center p-3 border rounded-lg bg-muted/50">
-                          <div className="text-lg sm:text-2xl font-bold text-yellow-600">
+                        <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                          <div className="text-base sm:text-lg font-bold text-yellow-600">
                             {config.sections.emAndamento ? previewData.totals.emAndamento : 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             {interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
                           </div>
                         </div>
