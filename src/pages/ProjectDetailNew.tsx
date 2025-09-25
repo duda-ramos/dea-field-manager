@@ -672,7 +672,7 @@ export default function ProjectDetailNew() {
                                   />
                                    <div className="flex-1 min-w-0">
                                      <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-start">
-                                       <div className="text-xs px-2 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words shrink-0">
+                                       <div className="text-xs px-1 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words shrink-0 w-fit">
                                          {installation.codigo}
                                        </div>
                                        <h4 className="font-medium text-sm break-words text-left min-w-0">{installation.descricao}</h4>
