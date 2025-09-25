@@ -3,32 +3,76 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Camera, X, Plus, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { syncPhotoToProjectAlbum } from "@/utils/photoSync";
+import { useToast } from "@/hooks/use-toast";
 
 interface PhotoGalleryProps {
   photos?: string[]; // Made optional to handle undefined
   onPhotosChange: (photos: string[]) => void;
   className?: string;
+  projectId?: string; // Adiciona projectId opcional
+  installationId?: string; // Adiciona installationId opcional
+  installationCode?: string; // Adiciona código da instalação opcional
 }
 
-export function PhotoGallery({ photos = [], onPhotosChange, className }: PhotoGalleryProps) {
+export function PhotoGallery({ 
+  photos = [], 
+  onPhotosChange, 
+  className,
+  projectId,
+  installationId,
+  installationCode
+}: PhotoGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Ensure photos is always an array
   const safePhotos = photos || [];
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
+    const newPhotos: string[] = [];
+
+    for (const file of Array.from(files)) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const photoUrl = e.target?.result as string;
-        onPhotosChange([...safePhotos, photoUrl]);
+        newPhotos.push(photoUrl);
+        
+        // Sincronizar com o álbum de mídias se tiver os dados necessários
+        if (projectId && installationId && installationCode) {
+          try {
+            await syncPhotoToProjectAlbum(
+              projectId,
+              installationId,
+              installationCode,
+              photoUrl
+            );
+            
+            toast({
+              title: "Foto sincronizada",
+              description: `Foto da peça ${installationCode} adicionada ao álbum de mídias do projeto.`,
+            });
+          } catch (error) {
+            console.warn('Erro ao sincronizar foto com álbum:', error);
+            toast({
+              title: "Aviso",
+              description: "Foto adicionada à peça, mas não foi possível sincronizar com o álbum.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        // Atualizar as fotos da instalação
+        if (newPhotos.length === Array.from(files).length) {
+          onPhotosChange([...safePhotos, ...newPhotos]);
+        }
       };
       reader.readAsDataURL(file);
-    });
+    }
   };
 
   const removePhoto = (index: number) => {

@@ -456,6 +456,9 @@ export function InstallationDetailModalNew({
             <PhotoGallery
               photos={photos}
               onPhotosChange={setPhotos}
+              projectId={installation.project_id}
+              installationId={installation.id}
+              installationCode={String(installation.codigo)}
             />
 
             {/* Revision Actions */}
