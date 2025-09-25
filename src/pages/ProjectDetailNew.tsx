@@ -643,10 +643,10 @@ export default function ProjectDetailNew() {
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([tipologia, installations]) => (
                   <AccordionItem key={tipologia} value={tipologia} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 hover:no-underline">
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <span className="font-semibold">{tipologia}</span>
-                        <Badge variant="outline" className="ml-2">
+                    <AccordionTrigger className="px-4 hover:no-underline text-left">
+                      <div className="flex items-center justify-between w-full pr-4 min-w-0">
+                        <span className="font-semibold text-left break-words min-w-0 flex-1">{tipologia}</span>
+                        <Badge variant="outline" className="ml-2 shrink-0">
                           {installations.length}
                         </Badge>
                       </div>
@@ -670,12 +670,12 @@ export default function ProjectDetailNew() {
                                     }}
                                     className="w-4 h-4 mt-1 shrink-0"
                                   />
-                                  <div className="flex-1 min-w-0">
-                                     <div className="flex items-start gap-2 mb-2">
-                                       <div className="text-xs px-2 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words">
+                                   <div className="flex-1 min-w-0">
+                                     <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-start">
+                                       <div className="text-xs px-2 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words shrink-0">
                                          {installation.codigo}
                                        </div>
-                                       <h4 className="font-medium text-sm truncate">{installation.descricao}</h4>
+                                       <h4 className="font-medium text-sm break-words text-left min-w-0">{installation.descricao}</h4>
                                      </div>
                                     
                                     <div className="space-y-2 text-sm">
