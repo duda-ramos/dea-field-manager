@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 
-// Debug React availability
-console.log('React import in ThemeProvider:', React);
-console.log('useState availability:', useState);
-
 type Theme = "dark" | "light" | "system"
 
 type ThemeProviderProps = {
@@ -30,8 +26,6 @@ export function ThemeProvider({
   storageKey = "ui-theme",
   ...props
 }: ThemeProviderProps) {
-  console.log('ThemeProvider rendering, React:', React, 'useState:', useState);
-  
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
