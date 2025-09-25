@@ -436,24 +436,26 @@ export default function ProjectDetailNew() {
   // Budget Section
   const renderOrcamentosSection = () => {
     return (
-      <div className="space-y-6">
-        <Card>
+      <div className="space-y-6 max-w-full overflow-x-hidden">
+        <Card className="w-full">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>Orçamentos</CardTitle>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="break-words">Orçamentos</CardTitle>
+                <p className="text-sm text-muted-foreground break-words">
                   Gerencie os orçamentos do projeto
                 </p>
               </div>
-              <Button className="gap-2 w-full sm:w-auto">
+              <Button className="gap-2 w-full sm:w-auto shrink-0">
                 <Plus className="h-4 w-4" />
                 Novo Orçamento
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <BudgetTab projectId={project.id} projectName={project.name} />
+          <CardContent className="overflow-x-hidden">
+            <div className="max-w-full">
+              <BudgetTab projectId={project.id} projectName={project.name} />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -906,8 +908,8 @@ export default function ProjectDetailNew() {
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 pb-6">
-        <div className="space-y-4">
+      <div className="container mx-auto px-4 pb-6 max-w-full overflow-x-hidden">
+        <div className="space-y-4 max-w-full">
           {currentSection === 'info' && renderInfoSection()}
           {currentSection === 'pecas' && renderPecasSection()}
           {currentSection === 'relatorios' && renderRelatoriosSection()}

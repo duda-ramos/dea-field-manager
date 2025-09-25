@@ -326,12 +326,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Orçamentos</h2>
-          <p className="text-muted-foreground">{projectName}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold break-words">Orçamentos</h2>
+          <p className="text-muted-foreground break-words">{projectName}</p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
@@ -401,11 +401,11 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Propostas</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium break-words">Total de Propostas</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground shrink-0" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalProposals}</div>
@@ -414,8 +414,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aprovadas</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium break-words">Aprovadas</CardTitle>
+            <Users className="h-4 w-4 text-green-600 shrink-0" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{approvedProposals}</div>
@@ -424,8 +424,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Users className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="text-sm font-medium break-words">Pendentes</CardTitle>
+            <Users className="h-4 w-4 text-yellow-600 shrink-0" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{pendingProposals}</div>
@@ -434,8 +434,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejeitadas</CardTitle>
-            <Users className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-medium break-words">Rejeitadas</CardTitle>
+            <Users className="h-4 w-4 text-red-600 shrink-0" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{rejectedProposals}</div>
@@ -462,60 +462,68 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
           </Card>
         ) : (
           proposals.map(proposal => (
-            <Card key={proposal.id}>
+            <Card key={proposal.id} className="w-full overflow-x-hidden">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-lg">{proposal.supplier}</CardTitle>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(proposal.status)}`}>
-                      {getStatusText(proposal.status)}
-                    </span>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <CardTitle className="text-lg break-words">{proposal.supplier}</CardTitle>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(proposal.status)} shrink-0`}>
+                        {getStatusText(proposal.status)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     {proposal.file_path && (
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => downloadFile(proposal.file_path!, proposal.file_name!)}
+                        className="gap-1"
                       >
                         <Download className="h-4 w-4" />
+                        <span className="hidden sm:inline">Download</span>
                       </Button>
                     )}
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => setEditingProposal(proposal)}
+                      className="gap-1"
                     >
                       <Edit className="h-4 w-4" />
+                      <span className="hidden sm:inline">Editar</span>
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => handleDeleteProposal(proposal.id, proposal.file_path)}
+                      className="gap-1"
                     >
                       <Trash2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Excluir</span>
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    {proposal.file_name && (
-                      <p className="text-sm font-medium">{proposal.file_name}</p>
-                    )}
-                    {proposal.file_size && (
-                      <p className="text-xs text-muted-foreground">
-                        {(proposal.file_size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    )}
+                <div className="space-y-2 text-sm">
+                  {proposal.file_name && (
+                    <div className="flex items-center gap-2 break-all">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="break-words">{proposal.file_name}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="shrink-0">Criado em:</span>
+                    <span>{new Date(proposal.created_at).toLocaleDateString('pt-BR')}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {proposal.uploaded_at 
-                      ? `Enviado em ${new Date(proposal.uploaded_at).toLocaleDateString('pt-BR')}`
-                      : `Criado em ${new Date(proposal.created_at).toLocaleDateString('pt-BR')}`
-                    }
-                  </div>
+                  {proposal.file_size && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span className="shrink-0">Tamanho:</span>
+                      <span>{(proposal.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

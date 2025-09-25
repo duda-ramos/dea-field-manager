@@ -217,7 +217,7 @@ export function EnhancedImageUpload({
   };
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-6 max-w-full overflow-x-hidden', className)}>
       {/* Upload Controls */}
       <Card>
         <CardContent className="p-6">
@@ -238,10 +238,12 @@ export function EnhancedImageUpload({
               <Upload className="h-5 w-5 mr-2" />
               Galeria/Arquivo
             </Button>
-            <BulkDownloader 
-              images={images}
-              projectName={`projeto_${projectId}`}
-            />
+            <div className="shrink-0 w-full sm:w-auto">
+              <BulkDownloader 
+                images={images}
+                projectName={`projeto_${projectId}`}
+              />
+            </div>
           </div>
 
           {/* Hidden inputs */}
@@ -324,7 +326,7 @@ export function EnhancedImageUpload({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {filteredAndSortedImages.map((image) => (
             <Card key={image.id} className="group overflow-hidden">
               <CardContent className="p-0">
