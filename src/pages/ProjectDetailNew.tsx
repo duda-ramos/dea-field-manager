@@ -672,7 +672,7 @@ export default function ProjectDetailNew() {
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <Badge variant="outline" className="text-xs px-2 py-1 shrink-0">
+                                      <Badge variant="outline" className="text-xs px-2 py-1 shrink-0 text-left">
                                         {installation.codigo}
                                       </Badge>
                                       <h4 className="font-medium text-sm truncate">{installation.descricao}</h4>
