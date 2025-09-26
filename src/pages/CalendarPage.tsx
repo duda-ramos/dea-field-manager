@@ -40,42 +40,40 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="w-full max-w-full px-3 sm:px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-none p-4 md:p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
-              <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-primary flex-shrink-0" />
-              <span className="truncate">Agenda</span>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
+              <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+              Agenda
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
+            <p className="text-muted-foreground">
               Gerencie seus eventos, tarefas e compromissos
             </p>
           </div>
 
-          <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+          <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
             {/* New Event Button */}
-            <Button onClick={handleCreateEvent} className="w-full sm:w-auto whitespace-nowrap">
-              <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">Novo Evento</span>
+            <Button onClick={handleCreateEvent} className="w-full md:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Evento
             </Button>
 
             {/* View Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <MoreVertical className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">
-                    {currentView === 'month' && 'Mês'}
-                    {currentView === 'week' && 'Semana'}
-                    {currentView === 'day' && 'Dia'}
-                    {currentView === 'year' && 'Ano'}
-                    {currentView === 'agenda' && 'Lista'}
-                  </span>
+                <Button variant="outline" className="w-full md:w-auto">
+                  <MoreVertical className="h-4 w-4 mr-2" />
+                  {currentView === 'month' && 'Mês'}
+                  {currentView === 'week' && 'Semana'}
+                  {currentView === 'day' && 'Dia'}
+                  {currentView === 'year' && 'Ano'}
+                  {currentView === 'agenda' && 'Lista'}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCurrentView('month')}>
                   Visualização Mensal
                 </DropdownMenuItem>
@@ -98,31 +96,29 @@ export default function CalendarPage() {
             <Button 
               onClick={handleBlockDate} 
               variant="outline"
-              className="w-full sm:w-auto whitespace-nowrap"
+              className="w-full md:w-auto"
             >
-              <Ban className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">Bloquear Data</span>
+              <Ban className="h-4 w-4 mr-2" />
+              Bloquear Data
             </Button>
           </div>
         </div>
 
         {/* Calendar Content */}
-        <div className="w-full max-w-full overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-            <div className="lg:col-span-3 min-w-0">
-              <CalendarView
-                key={refreshKey}
-                view={currentView}
-                onCreateEvent={handleCreateEvent}
-                onEventClick={handleEventClick}
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-              />
-            </div>
-            
-            <div className="lg:col-span-1 min-w-0">
-              <ProjectIntegrationPanel />
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          <div className="xl:col-span-3">
+            <CalendarView
+              key={refreshKey}
+              view={currentView}
+              onCreateEvent={handleCreateEvent}
+              onEventClick={handleEventClick}
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
+          </div>
+          
+          <div className="xl:col-span-1">
+            <ProjectIntegrationPanel />
           </div>
         </div>
       </div>
