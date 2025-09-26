@@ -138,40 +138,42 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
     return (
-      <Card>
-        <CardHeader>
+      <Card className="w-full max-w-full overflow-hidden">
+        <CardHeader className="px-3 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, -1))}>
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, -1))} className="flex-shrink-0">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <CardTitle className="text-lg md:text-xl">
-                {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              <CardTitle className="text-sm sm:text-lg md:text-xl min-w-0 text-center flex-1">
+                <span className="truncate">
+                  {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </span>
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, 1))}>
+              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, 1))} className="flex-shrink-0">
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="px-3 sm:px-6 space-y-4 md:space-y-6">
 
           {/* Day Timeline */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 w-full max-w-full">
             {/* Timeline */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-3 min-w-0 w-full">
               {blocksForDay.length > 0 && (
-                <div className="mb-4 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                <div className="mb-4 p-3 sm:p-4 bg-destructive/10 rounded-lg border border-destructive/20 w-full">
                   <div className="text-sm font-medium text-destructive mb-2">Data Bloqueada</div>
                   {blocksForDay.map(block => (
-                    <div key={block.id} className="text-sm text-muted-foreground">
+                    <div key={block.id} className="text-sm text-muted-foreground break-words">
                       {block.reason || `Bloqueio: ${block.block_type}`}
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="space-y-1">
+              <div className="space-y-1 w-full overflow-x-auto">
                 {hours.map(hour => {
                   const hourEvents = dayEvents.filter(event => {
                     if (event.is_all_day) return hour === 0;
@@ -180,36 +182,36 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                   });
 
                   return (
-                    <div key={hour} className="flex border-b border-border min-h-[60px]">
-                      <div className="w-16 text-sm text-muted-foreground p-3 border-r border-border bg-muted/20">
+                    <div key={hour} className="flex border-b border-border min-h-[50px] sm:min-h-[60px] min-w-[300px] w-full">
+                      <div className="w-12 sm:w-16 text-xs sm:text-sm text-muted-foreground p-2 sm:p-3 border-r border-border bg-muted/20 flex-shrink-0">
                         {hour === 0 && dayEvents.some(e => e.is_all_day) ? 'Todo dia' : 
                          hour.toString().padStart(2, '0') + ':00'}
                       </div>
-                      <div className="flex-1 p-3">
+                      <div className="flex-1 p-2 sm:p-3 min-w-0">
                         {hourEvents.map(event => (
                           <div
                             key={event.id}
-                            className="p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors mb-2 last:mb-0"
+                            className="p-2 sm:p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors mb-2 last:mb-0 w-full"
                             onClick={() => onEventClick(event)}
                             style={{ borderLeftColor: event.color, borderLeftWidth: '4px' }}
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-medium text-sm">{event.title}</h4>
-                              <Badge variant={getStatusBadgeVariant(event.status)}>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <h4 className="font-medium text-xs sm:text-sm break-words flex-1 min-w-0">{event.title}</h4>
+                              <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs flex-shrink-0">
                                 {event.status}
                               </Badge>
                             </div>
                             {event.description && (
-                              <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                              <p className="text-xs sm:text-sm text-muted-foreground mb-2 break-words">{event.description}</p>
                             )}
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-xs sm:text-sm text-muted-foreground">
                               {event.is_all_day ? 'Dia inteiro' : 
                                `${format(parseISO(event.start_datetime), 'HH:mm')} - ${format(parseISO(event.end_datetime), 'HH:mm')}`}
                             </div>
                           </div>
                         ))}
                         {hourEvents.length === 0 && (
-                          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                          <div className="h-full flex items-center justify-center text-muted-foreground text-xs sm:text-sm">
                             {/* Empty hour slot */}
                           </div>
                         )}
@@ -221,12 +223,12 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
             </div>
 
             {/* Mini Calendar */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Navegação</CardTitle>
+            <div className="lg:col-span-1 min-w-0">
+              <Card className="w-full">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm sm:text-base">Navegação</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3">
                   <CalendarComponent
                     mode="single"
                     selected={selectedDate}
@@ -577,88 +579,94 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
     const datesWithBlocks = getDatesWithBlocks();
 
     return (
-      <Card>
-        <CardHeader>
+      <Card className="w-full max-w-full overflow-hidden">
+        <CardHeader className="px-3 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => navigateMonth('prev')}
+                className="flex-shrink-0"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <CardTitle className="text-xl md:text-2xl">
-                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+              <CardTitle className="text-lg sm:text-xl md:text-2xl min-w-0 text-center flex-1">
+                <span className="truncate">
+                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                </span>
               </CardTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => navigateMonth('next')}
+                className="flex-shrink-0"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <CardContent className="px-3 sm:px-6 space-y-4 md:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Calendar */}
-            <div className="lg:col-span-2">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={onDateSelect}
-                locale={ptBR}
-                month={currentMonth}
-                onMonthChange={setCurrentMonth}
-                modifiers={{
-                  hasEvent: datesWithEvents,
-                  hasBlock: datesWithBlocks,
-                }}
-                modifiersStyles={{
-                  hasEvent: {
-                    backgroundColor: 'hsl(var(--primary))',
-                    color: 'hsl(var(--primary-foreground))',
-                    fontWeight: 'bold',
-                    borderRadius: '6px'
-                  },
-                  hasBlock: {
-                    backgroundColor: 'hsl(var(--destructive))',
-                    color: 'hsl(var(--destructive-foreground))',
-                    fontWeight: 'bold',
-                    borderRadius: '6px'
-                  }
-                }}
-                className="rounded-md border w-full"
-              />
-              <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <div className="lg:col-span-2 min-w-0">
+              <div className="w-full overflow-x-auto">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={onDateSelect}
+                  locale={ptBR}
+                  month={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  modifiers={{
+                    hasEvent: datesWithEvents,
+                    hasBlock: datesWithBlocks,
+                  }}
+                  modifiersStyles={{
+                    hasEvent: {
+                      backgroundColor: 'hsl(var(--primary))',
+                      color: 'hsl(var(--primary-foreground))',
+                      fontWeight: 'bold',
+                      borderRadius: '6px'
+                    },
+                    hasBlock: {
+                      backgroundColor: 'hsl(var(--destructive))',
+                      color: 'hsl(var(--destructive-foreground))',
+                      fontWeight: 'bold',
+                      borderRadius: '6px'
+                    }
+                  }}
+                  className="rounded-md border w-full min-w-[300px]"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-primary"></div>
+                  <div className="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
                   <span>Com eventos</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-destructive"></div>
+                  <div className="w-3 h-3 rounded-sm bg-destructive flex-shrink-0"></div>
                   <span>Data bloqueada</span>
                 </div>
               </div>
             </div>
 
             {/* Selected Date Events */}
-            <div className="lg:col-span-1">
-              <div className="bg-muted/30 rounded-lg p-4">
-                <h3 className="text-lg font-semibold mb-4">
+            <div className="lg:col-span-1 min-w-0">
+              <div className="bg-muted/30 rounded-lg p-3 sm:p-4 w-full">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 truncate">
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                 </h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-3 w-full">
                   {blocksForSelectedDate.length > 0 && (
-                    <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20 w-full">
                       <div className="text-sm font-medium text-destructive mb-2">
                         Data Bloqueada
                       </div>
                       {blocksForSelectedDate.map(block => (
-                        <div key={block.id} className="text-sm text-muted-foreground">
+                        <div key={block.id} className="text-sm text-muted-foreground break-words">
                           {block.reason || `Bloqueio: ${block.block_type}`}
                         </div>
                       ))}
@@ -666,15 +674,15 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                   )}
 
                   {eventsForSelectedDate.length === 0 && blocksForSelectedDate.length === 0 ? (
-                    <div className="text-center py-8">
-                      <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">
+                    <div className="text-center py-6 sm:py-8 w-full">
+                      <CalendarIcon className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3">
                         Nenhum evento programado para esta data
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-3"
+                        className="w-full sm:w-auto"
                         onClick={onCreateEvent}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -685,27 +693,27 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                     eventsForSelectedDate.map((event) => (
                       <div
                         key={event.id}
-                        className="p-3 rounded-lg border bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="p-3 rounded-lg border bg-card cursor-pointer hover:bg-muted/50 transition-colors w-full"
                         onClick={() => onEventClick(event)}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3 w-full">
                           <div 
                             className="w-3 h-3 rounded-full mt-1 flex-shrink-0" 
                             style={{ backgroundColor: event.color }}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium text-sm truncate">{event.title}</h4>
-                              <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h4 className="font-medium text-sm break-words flex-1 min-w-0">{event.title}</h4>
+                              <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs flex-shrink-0">
                                 {event.status}
                               </Badge>
                             </div>
                             {event.description && (
-                              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                              <p className="text-xs text-muted-foreground mb-2 break-words line-clamp-2">
                                 {event.description}
                               </p>
                             )}
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground break-words">
                               {event.is_all_day ? (
                                 'Dia inteiro'
                               ) : (
@@ -716,9 +724,9 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
                               )}
                             </div>
                             {event.location && (
-                              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {event.location}
+                              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
+                                <MapPin className="h-3 w-3 flex-shrink-0" />
+                                <span className="break-words min-w-0">{event.location}</span>
                               </div>
                             )}
                           </div>
