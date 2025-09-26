@@ -40,89 +40,86 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="container-modern space-y-responsive">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
-            <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-            Agenda
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gerencie seus eventos, tarefas e compromissos
-          </p>
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-none p-4 md:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
+              <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+              Agenda
+            </h1>
+            <p className="text-muted-foreground">
+              Gerencie seus eventos, tarefas e compromissos
+            </p>
+          </div>
+
+          <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
+            {/* New Event Button */}
+            <Button onClick={handleCreateEvent} className="w-full md:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Evento
+            </Button>
+
+            {/* View Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full md:w-auto">
+                  <MoreVertical className="h-4 w-4 mr-2" />
+                  {currentView === 'month' && 'Mês'}
+                  {currentView === 'week' && 'Semana'}
+                  {currentView === 'day' && 'Dia'}
+                  {currentView === 'year' && 'Ano'}
+                  {currentView === 'agenda' && 'Lista'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setCurrentView('month')}>
+                  Visualização Mensal
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView('week')}>
+                  Visualização Semanal
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView('day')}>
+                  Visualização Diária
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView('year')}>
+                  Visualização Anual
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView('agenda')}>
+                  Lista de Eventos
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Block Date Button */}
+            <Button 
+              onClick={handleBlockDate} 
+              variant="outline"
+              className="w-full md:w-auto"
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              Bloquear Data
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          {/* New Event Button */}
-          <Button onClick={handleCreateEvent} className="mobile-button">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
-
-          {/* View Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mobile-button"
-              >
-                {currentView === 'month' && 'Mês'}
-                {currentView === 'week' && 'Semana'}
-                {currentView === 'day' && 'Dia'}
-                {currentView === 'year' && 'Ano'}
-                {currentView === 'agenda' && 'Lista'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setCurrentView('month')}>
-                Visualização Mensal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrentView('week')}>
-                Visualização Semanal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrentView('day')}>
-                Visualização Diária
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrentView('year')}>
-                Visualização Anual
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrentView('agenda')}>
-                Lista de Eventos
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Block Date Button */}
-          <Button 
-            onClick={handleBlockDate} 
-            variant="outline" 
-            size="sm"
-            className="mobile-button"
-          >
-            <Ban className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Bloquear Data</span>
-            <span className="sm:hidden">Bloquear</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Calendar Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-4 gap-4 lg:gap-6">
-        <div className="lg:col-span-3">
-          <CalendarView
-            key={refreshKey}
-            view={currentView}
-            onCreateEvent={handleCreateEvent}
-            onEventClick={handleEventClick}
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-          />
-        </div>
-        
-        <div className="lg:col-span-1">
-          <ProjectIntegrationPanel />
+        {/* Calendar Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          <div className="xl:col-span-3">
+            <CalendarView
+              key={refreshKey}
+              view={currentView}
+              onCreateEvent={handleCreateEvent}
+              onEventClick={handleEventClick}
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
+          </div>
+          
+          <div className="xl:col-span-1">
+            <ProjectIntegrationPanel />
+          </div>
         </div>
       </div>
 

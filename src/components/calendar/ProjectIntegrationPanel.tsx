@@ -68,10 +68,10 @@ export function ProjectIntegrationPanel() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-orange-500" />
+              <Clock className="h-4 w-4 text-amber-500" />
               <span className="font-medium">Instalações</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -89,7 +89,7 @@ export function ProjectIntegrationPanel() {
 
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <AlertTriangle className="h-4 w-4 text-destructive" />
               <span className="font-medium">Prazos</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -118,23 +118,23 @@ export function ProjectIntegrationPanel() {
           </div>
         )}
 
-        <div className="pt-4 border-t">
-          <h4 className="font-medium mb-2">Tipos de Eventos Sincronizados</h4>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="text-xs">
-              <div className="w-2 h-2 bg-orange-500 rounded-full mr-1" />
-              Instalações
-            </Badge>
-            <Badge variant="secondary" className="text-xs">
-              <div className="w-2 h-2 bg-red-500 rounded-full mr-1" />
-              Prazos
-            </Badge>
-            <Badge variant="secondary" className="text-xs">
-              <div className="w-2 h-2 bg-purple-500 rounded-full mr-1" />
-              Lembretes
-            </Badge>
+          <div className="pt-4 border-t">
+            <h4 className="font-medium mb-2">Tipos de Eventos Sincronizados</h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="text-xs">
+                <div className="w-2 h-2 bg-amber-500 rounded-full mr-1" />
+                Instalações
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                <div className="w-2 h-2 bg-destructive rounded-full mr-1" />
+                Prazos
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                <div className="w-2 h-2 bg-violet-500 rounded-full mr-1" />
+                Lembretes
+              </Badge>
+            </div>
           </div>
-        </div>
       </CardContent>
     </Card>
   );

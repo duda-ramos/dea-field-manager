@@ -3,7 +3,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Filter, MapPin } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isSameDay, eachDayOfInterval, isWeekend, addDays, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, startOfYear, endOfYear, eachMonthOfInterval, addYears, subYears, isToday, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarEvent, CalendarBlock, CalendarView as ViewType } from '@/types/calendar';
@@ -98,13 +98,13 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
 
   const getEventTypeColor = (type: CalendarEvent['event_type']) => {
     const colors = {
-      task: 'bg-blue-500',
-      meeting: 'bg-green-500',
-      installation: 'bg-orange-500', 
-      deadline: 'bg-red-500',
-      reminder: 'bg-purple-500'
+      task: 'bg-primary',
+      meeting: 'bg-emerald-500',
+      installation: 'bg-amber-500', 
+      deadline: 'bg-destructive',
+      reminder: 'bg-violet-500'
     };
-    return colors[type] || 'bg-gray-500';
+    return colors[type] || 'bg-muted';
   };
 
   const getStatusBadgeVariant = (status: CalendarEvent['status']) => {
@@ -138,104 +138,108 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
     return (
-      <div className="space-y-6">
-        {/* Day Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, -1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-lg sm:text-xl font-semibold">
-              {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </h2>
-            <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, -1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <CardTitle className="text-lg md:text-xl">
+                {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={() => onDateSelect(addDays(selectedDate, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
 
-        {/* Day Content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 md:gap-6">
-          {/* Timeline */}
-          <div className="md:col-span-3">
-            <Card>
-              <CardContent className="p-3 md:p-4">
-                {blocksForDay.length > 0 && (
-                  <div className="mb-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <div className="text-sm font-medium text-destructive mb-1">Data Bloqueada</div>
-                    {blocksForDay.map(block => (
-                      <div key={block.id} className="text-xs text-muted-foreground">
-                        {block.reason || `Bloqueio: ${block.block_type}`}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  {hours.map(hour => {
-                    const hourEvents = dayEvents.filter(event => {
-                      if (event.is_all_day) return hour === 0;
-                      const eventStart = parseISO(event.start_datetime);
-                      return eventStart.getHours() === hour;
-                    });
-
-                    return (
-                      <div key={hour} className="flex border-b border-border/50 min-h-[50px] md:min-h-[60px]">
-                        <div className="w-12 md:w-16 text-xs md:text-sm text-muted-foreground p-1 md:p-2 border-r">
-                          {hour === 0 && dayEvents.some(e => e.is_all_day) ? 'Todo dia' : 
-                           hour.toString().padStart(2, '0') + ':00'}
-                        </div>
-                        <div className="flex-1 p-1 md:p-2">
-                          {hourEvents.map(event => (
-                            <div
-                              key={event.id}
-                              className="p-2 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors mb-1"
-                              onClick={() => onEventClick(event)}
-                              style={{ borderLeftColor: event.color, borderLeftWidth: '4px' }}
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-xs md:text-sm">{event.title}</h4>
-                                <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
-                                  {event.status}
-                                </Badge>
-                              </div>
-                              {event.description && (
-                                <p className="text-xs text-muted-foreground mb-1">{event.description}</p>
-                              )}
-                              <div className="text-xs text-muted-foreground">
-                                {event.is_all_day ? 'Dia inteiro' : 
-                                 `${format(parseISO(event.start_datetime), 'HH:mm')} - ${format(parseISO(event.end_datetime), 'HH:mm')}`}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+          {/* Day Timeline */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Timeline */}
+            <div className="lg:col-span-3">
+              {blocksForDay.length > 0 && (
+                <div className="mb-4 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                  <div className="text-sm font-medium text-destructive mb-2">Data Bloqueada</div>
+                  {blocksForDay.map(block => (
+                    <div key={block.id} className="text-sm text-muted-foreground">
+                      {block.reason || `Bloqueio: ${block.block_type}`}
+                    </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
 
-          {/* Mini Calendar */}
-          <div className="md:col-span-1">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Navegação</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={onDateSelect}
-                  locale={ptBR}
-                  className="rounded-md border-0 w-full"
-                />
-              </CardContent>
-            </Card>
+              <div className="space-y-1">
+                {hours.map(hour => {
+                  const hourEvents = dayEvents.filter(event => {
+                    if (event.is_all_day) return hour === 0;
+                    const eventStart = parseISO(event.start_datetime);
+                    return eventStart.getHours() === hour;
+                  });
+
+                  return (
+                    <div key={hour} className="flex border-b border-border min-h-[60px]">
+                      <div className="w-16 text-sm text-muted-foreground p-3 border-r border-border bg-muted/20">
+                        {hour === 0 && dayEvents.some(e => e.is_all_day) ? 'Todo dia' : 
+                         hour.toString().padStart(2, '0') + ':00'}
+                      </div>
+                      <div className="flex-1 p-3">
+                        {hourEvents.map(event => (
+                          <div
+                            key={event.id}
+                            className="p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors mb-2 last:mb-0"
+                            onClick={() => onEventClick(event)}
+                            style={{ borderLeftColor: event.color, borderLeftWidth: '4px' }}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-medium text-sm">{event.title}</h4>
+                              <Badge variant={getStatusBadgeVariant(event.status)}>
+                                {event.status}
+                              </Badge>
+                            </div>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                            )}
+                            <div className="text-sm text-muted-foreground">
+                              {event.is_all_day ? 'Dia inteiro' : 
+                               `${format(parseISO(event.start_datetime), 'HH:mm')} - ${format(parseISO(event.end_datetime), 'HH:mm')}`}
+                            </div>
+                          </div>
+                        ))}
+                        {hourEvents.length === 0 && (
+                          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                            {/* Empty hour slot */}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mini Calendar */}
+            <div className="lg:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Navegação</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={onDateSelect}
+                    locale={ptBR}
+                    className="rounded-md border-0 w-full"
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -573,146 +577,161 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
     const datesWithBlocks = getDatesWithBlocks();
 
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth('prev')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-lg sm:text-xl font-semibold">
-              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-            </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateMonth('next')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth('prev')}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <CardTitle className="text-xl md:text-2xl">
+                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth('next')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 lg:gap-6">
-          {/* Calendar */}
-          <div className="md:col-span-2">
-            <Card>
-              <CardContent className="p-3 md:p-4">
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={onDateSelect}
-                  locale={ptBR}
-                  month={currentMonth}
-                  onMonthChange={setCurrentMonth}
-                  modifiers={{
-                    hasEvent: datesWithEvents,
-                    hasBlock: datesWithBlocks,
-                  }}
-                  modifiersStyles={{
-                    hasEvent: {
-                      backgroundColor: 'hsl(var(--primary))',
-                      color: 'hsl(var(--primary-foreground))',
-                      fontWeight: 'bold'
-                    },
-                    hasBlock: {
-                      backgroundColor: 'hsl(var(--destructive))',
-                      color: 'hsl(var(--destructive-foreground))',
-                      fontWeight: 'bold'
-                    }
-                  }}
-                  className="rounded-md border w-full"
-                />
-                <div className="mt-4 flex flex-wrap gap-3 md:gap-4 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-primary"></div>
-                    <span>Com eventos</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-destructive"></div>
-                    <span>Data bloqueada</span>
-                  </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Calendar */}
+            <div className="lg:col-span-2">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={onDateSelect}
+                locale={ptBR}
+                month={currentMonth}
+                onMonthChange={setCurrentMonth}
+                modifiers={{
+                  hasEvent: datesWithEvents,
+                  hasBlock: datesWithBlocks,
+                }}
+                modifiersStyles={{
+                  hasEvent: {
+                    backgroundColor: 'hsl(var(--primary))',
+                    color: 'hsl(var(--primary-foreground))',
+                    fontWeight: 'bold',
+                    borderRadius: '6px'
+                  },
+                  hasBlock: {
+                    backgroundColor: 'hsl(var(--destructive))',
+                    color: 'hsl(var(--destructive-foreground))',
+                    fontWeight: 'bold',
+                    borderRadius: '6px'
+                  }
+                }}
+                className="rounded-md border w-full"
+              />
+              <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-primary"></div>
+                  <span>Com eventos</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-destructive"></div>
+                  <span>Data bloqueada</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Selected Date Events */}
-          <div className="md:col-span-1">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">
+            {/* Selected Date Events */}
+            <div className="lg:col-span-1">
+              <div className="bg-muted/30 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-4">
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 md:space-y-3">
-                {blocksForSelectedDate.length > 0 && (
-                  <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <div className="text-sm font-medium text-destructive mb-1">
-                      Data Bloqueada
-                    </div>
-                    {blocksForSelectedDate.map(block => (
-                      <div key={block.id} className="text-xs text-muted-foreground">
-                        {block.reason || `Bloqueio: ${block.block_type}`}
+                </h3>
+                
+                <div className="space-y-3">
+                  {blocksForSelectedDate.length > 0 && (
+                    <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                      <div className="text-sm font-medium text-destructive mb-2">
+                        Data Bloqueada
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {blocksForSelectedDate.map(block => (
+                        <div key={block.id} className="text-sm text-muted-foreground">
+                          {block.reason || `Bloqueio: ${block.block_type}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {eventsForSelectedDate.length === 0 && blocksForSelectedDate.length === 0 ? (
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Nenhum evento programado para esta data
-                  </p>
-                ) : (
-                  eventsForSelectedDate.map((event) => (
-                    <div
-                      key={event.id}
-                      className="p-2 md:p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => onEventClick(event)}
-                    >
-                      <div className="flex items-start gap-2 md:gap-3">
-                        <div className={`w-3 h-3 rounded-full mt-1 ${getEventTypeColor(event.event_type)}`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 mb-1">
-                            <h4 className="font-medium text-xs md:text-sm truncate">{event.title}</h4>
-                            <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs self-start">
-                              {event.status}
-                            </Badge>
-                          </div>
-                          {event.description && (
-                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                              {event.description}
-                            </p>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            {event.is_all_day ? (
-                              'Dia inteiro'
-                            ) : (
-                              <>
-                                {format(parseISO(event.start_datetime), 'HH:mm')} - {' '}
-                                {format(parseISO(event.end_datetime), 'HH:mm')}
-                              </>
+                  {eventsForSelectedDate.length === 0 && blocksForSelectedDate.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum evento programado para esta data
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={onCreateEvent}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar evento
+                      </Button>
+                    </div>
+                  ) : (
+                    eventsForSelectedDate.map((event) => (
+                      <div
+                        key={event.id}
+                        className="p-3 rounded-lg border bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => onEventClick(event)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div 
+                            className="w-3 h-3 rounded-full mt-1 flex-shrink-0" 
+                            style={{ backgroundColor: event.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium text-sm truncate">{event.title}</h4>
+                              <Badge variant={getStatusBadgeVariant(event.status)} className="text-xs">
+                                {event.status}
+                              </Badge>
+                            </div>
+                            {event.description && (
+                              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                {event.description}
+                              </p>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {event.is_all_day ? (
+                                'Dia inteiro'
+                              ) : (
+                                <>
+                                  {format(parseISO(event.start_datetime), 'HH:mm')} - {' '}
+                                  {format(parseISO(event.end_datetime), 'HH:mm')}
+                                </>
+                              )}
+                            </div>
+                            {event.location && (
+                              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {event.location}
+                              </div>
                             )}
                           </div>
-                          {event.location && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              📍 {event.location}
-                            </div>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
