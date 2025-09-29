@@ -237,39 +237,41 @@ export function FileManager({ projectId }: FileManagerProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Arquivos do Projeto</h2>
-          <p className="text-muted-foreground">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold truncate">Arquivos do Projeto</h2>
+          <p className="text-muted-foreground text-sm">
             {files.length} arquivo{files.length !== 1 ? 's' : ''}
           </p>
         </div>
         
         <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2 shrink-0">
               <Upload className="h-4 w-4" />
-              Upload Arquivo
+              <span className="hidden sm:inline">Upload</span>
+              <span className="sm:hidden">Upload</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-hidden">
             <DialogHeader>
-              <DialogTitle>Upload de Arquivo</DialogTitle>
+              <DialogTitle className="text-lg">Upload de Arquivo</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
               <div>
-                <Label htmlFor="file">Arquivo</Label>
+                <Label htmlFor="file" className="text-sm font-medium">Arquivo</Label>
                 <Input 
                   id="file" 
                   type="file" 
                   onChange={handleFileUpload}
                   disabled={loading}
+                  className="mt-1"
                 />
               </div>
               
               <div>
-                <Label htmlFor="category">Categoria</Label>
+                <Label htmlFor="category" className="text-sm font-medium">Categoria</Label>
                 <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -282,12 +284,13 @@ export function FileManager({ projectId }: FileManagerProps) {
               </div>
               
               <div>
-                <Label htmlFor="description">Descrição (opcional)</Label>
+                <Label htmlFor="description" className="text-sm font-medium">Descrição (opcional)</Label>
                 <Textarea 
                   id="description" 
                   placeholder="Descreva o arquivo..."
                   value={uploadDescription}
                   onChange={(e) => setUploadDescription(e.target.value)}
+                  className="mt-1 min-h-[80px] resize-none"
                 />
               </div>
               
@@ -306,8 +309,8 @@ export function FileManager({ projectId }: FileManagerProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="Buscar arquivos..."
@@ -318,7 +321,7 @@ export function FileManager({ projectId }: FileManagerProps) {
         </div>
         
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full sm:w-52 shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -357,43 +360,51 @@ export function FileManager({ projectId }: FileManagerProps) {
         ) : (
           filteredFiles.map((file) => (
             <Card key={file.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {getFileIcon(file.file_type)}
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="shrink-0 mt-1">
+                      {getFileIcon(file.file_type)}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{file.file_name}</h4>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant={getCategoryBadgeVariant(file.category) as any}>
+                      <h4 className="font-medium text-sm sm:text-base break-words">{file.file_name}</h4>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
+                        <Badge variant={getCategoryBadgeVariant(file.category) as any} className="text-xs">
                           {getCategoryLabel(file.category)}
                         </Badge>
-                        <span>•</span>
-                        <span>{formatFileSize(file.file_size)}</span>
-                        <span>•</span>
-                        <span>{new Date(file.created_at).toLocaleDateString()}</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="whitespace-nowrap">{formatFileSize(file.file_size)}</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="whitespace-nowrap">{new Date(file.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                       {file.description && (
-                        <p className="text-sm text-muted-foreground mt-1 truncate">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2 break-words">
                           {file.description}
                         </p>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 shrink-0 self-start">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDownload(file)}
+                      className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
+                      title="Download"
                     >
                       <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Download</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(file)}
+                      className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 text-destructive hover:text-destructive"
+                      title="Excluir"
                     >
                       <Trash2 className="h-4 w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Excluir</span>
                     </Button>
                   </div>
                 </div>

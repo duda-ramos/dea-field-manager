@@ -449,17 +449,19 @@ export function FileUpload({
   return (
     <div className={cn("space-y-4", className)}>
       {/* Network Status */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 p-2 rounded-lg bg-muted/30">
         <div className="flex items-center gap-2">
           {isOnline ? (
             <>
-              <Wifi className="h-4 w-4 text-green-500" />
+              <Wifi className="h-4 w-4 text-green-500 shrink-0" />
               <span className="text-sm text-green-500">Online</span>
             </>
           ) : (
             <>
-              <WifiOff className="h-4 w-4 text-orange-500" />
-              <span className="text-sm text-orange-500">Offline - arquivos serão sincronizados quando conectar</span>
+              <WifiOff className="h-4 w-4 text-orange-500 shrink-0" />
+              <span className="text-xs sm:text-sm text-orange-500 line-clamp-2">
+                Offline - arquivos serão sincronizados quando conectar
+              </span>
             </>
           )}
         </div>
@@ -467,10 +469,10 @@ export function FileUpload({
 
       {/* Upload Area */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-6">
           <div
             className={cn(
-              "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+              "border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors",
               isDragOver 
                 ? "border-primary bg-primary/5" 
                 : "border-muted-foreground/25 hover:border-muted-foreground/50"
@@ -480,27 +482,36 @@ export function FileUpload({
             onDragLeave={handleDragLeave}
           >
             {isOnline ? (
-              <CloudUpload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <CloudUpload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
             ) : (
-              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
             )}
-            <h3 className="text-lg font-semibold mb-2">
+            <h3 className="text-base sm:text-lg font-semibold mb-2">
               {isOnline ? "Enviar arquivos para nuvem" : "Adicionar arquivos localmente"}
             </h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4 px-2">
               Arraste e solte os arquivos aqui ou clique para selecionar
             </p>
             <Button 
               onClick={() => fileInputRef.current?.click()}
               variant="outline"
+              className="mb-3"
             >
               Selecionar Arquivos
             </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Tipos aceitos: {acceptedTypes.join(', ')} | Tamanho máximo: {maxFileSize}MB
-              {!isOnline && <br />}
-              {!isOnline && "⚠️ Arquivos serão enviados à nuvem quando voltar online"}
-            </p>
+            <div className="text-xs text-muted-foreground px-2">
+              <div className="mb-1">
+                <span className="font-medium">Tipos:</span> {acceptedTypes.join(', ')}
+              </div>
+              <div className="mb-1">
+                <span className="font-medium">Tamanho máximo:</span> {maxFileSize}MB
+              </div>
+              {!isOnline && (
+                <div className="text-orange-500 mt-2">
+                  ⚠️ Arquivos serão enviados à nuvem quando voltar online
+                </div>
+              )}
+            </div>
           </div>
           
           <input
@@ -537,17 +548,17 @@ export function FileUpload({
       {/* Files List */}
       {files.length > 0 && (
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <h4 className="text-sm font-medium mb-3">Arquivos enviados ({files.length})</h4>
             <div className="space-y-2">
               {files.map((file) => (
                 <div 
                   key={file.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <FileIcon className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <FileIcon className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                       {file.storagePath ? (
                         <CloudUpload className="h-3 w-3 text-green-500" />
                       ) : (
@@ -555,31 +566,27 @@ export function FileUpload({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{file.name}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{formatFileSize(file.size)}</span>
-                        <span>•</span>
-                        <span>{file.uploadedAt.toLocaleDateString('pt-BR')}</span>
+                      <p className="text-sm font-medium break-words line-clamp-1">{file.name}</p>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground mt-1">
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {file.name.split('.').pop()?.toUpperCase()}
+                        </Badge>
+                        <span className="shrink-0">{formatFileSize(file.size)}</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="shrink-0">{file.uploadedAt.toLocaleDateString('pt-BR')}</span>
                         {!file.storagePath && (
-                          <>
-                            <span>•</span>
-                            <Badge variant="outline" className="text-blue-500 border-blue-500">Migrar</Badge>
-                          </>
+                          <Badge variant="outline" className="text-blue-500 border-blue-500 text-xs shrink-0">
+                            Migrar
+                          </Badge>
                         )}
                         {file.needsUpload === 1 && (
-                          <>
-                            <span>•</span>
-                            <span className="text-orange-500">Pendente</span>
-                          </>
+                          <span className="text-orange-500 shrink-0">Pendente</span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <Badge variant="secondary" className="text-xs">
-                      {file.name.split('.').pop()?.toUpperCase()}
-                    </Badge>
+                  <div className="flex items-center gap-1 shrink-0 self-start sm:self-center">
                     {!file.storagePath && (
                       <Button
                         variant="ghost"
@@ -630,14 +637,14 @@ export function FileUpload({
 
       {/* Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              {currentPreviewFile?.name}
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-6">
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+              <span className="truncate">{currentPreviewFile?.name}</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="overflow-auto max-h-[calc(90vh-120px)]">
             {renderFilePreview()}
           </div>
         </DialogContent>
