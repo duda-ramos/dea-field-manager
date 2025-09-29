@@ -166,216 +166,220 @@ export function ReportCustomizationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-4xl flex flex-col">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-w-[95vw] w-full h-[95vh] sm:max-w-4xl flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle className="text-lg sm:text-xl">Personalizar Relatório</DialogTitle>
           <DialogDescription className="text-sm">
             Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-3 h-9 shrink-0">
-            <TabsTrigger value="sections" className="text-xs sm:text-sm">Seções</TabsTrigger>
-            <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
-            <TabsTrigger value="preview" className="text-xs sm:text-sm">Prévia</TabsTrigger>
-          </TabsList>
+        <div className="flex-1 overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-3 h-9 flex-shrink-0 mb-4">
+              <TabsTrigger value="sections" className="text-xs sm:text-sm">Seções</TabsTrigger>
+              <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
+              <TabsTrigger value="preview" className="text-xs sm:text-sm">Prévia</TabsTrigger>
+            </TabsList>
 
-          <div className="flex-1 mt-4 min-h-0">
-            <ScrollArea className="h-full max-h-[calc(95vh-200px)]">
-              <TabsContent value="sections" className="space-y-4 mt-0 pr-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg">Seções do Relatório</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {Object.entries(config.sections).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <Checkbox
-                            id={key}
-                            checked={value}
-                            onCheckedChange={() => handleSectionToggle(key as keyof ReportConfig['sections'])}
-                          />
-                          <Label htmlFor={key} className="text-sm font-medium cursor-pointer truncate">
-                            {getSectionLabel(key)}
-                          </Label>
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="pr-4">
+                  <TabsContent value="sections" className="space-y-4 mt-0">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Seções do Relatório</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {Object.entries(config.sections).map(([key, value]) => (
+                          <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <Checkbox
+                                id={key}
+                                checked={value}
+                                onCheckedChange={() => handleSectionToggle(key as keyof ReportConfig['sections'])}
+                              />
+                              <Label htmlFor={key} className="text-sm font-medium cursor-pointer truncate">
+                                {getSectionLabel(key)}
+                              </Label>
+                            </div>
+                            {previewData && (
+                              <Badge variant="outline" className="shrink-0 text-xs">
+                                {previewData.totals[key as keyof typeof previewData.totals] || 0}
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Organização</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label className="text-sm font-medium">Agrupar por:</Label>
+                          <div className="grid grid-cols-3 gap-2 mt-2">
+                            {[
+                              { value: 'none', label: 'Nenhum' },
+                              { value: 'pavimento', label: 'Pavimento' },
+                              { value: 'tipologia', label: 'Tipologia' },
+                            ].map(option => (
+                              <Button
+                                key={option.value}
+                                variant={config.groupBy === option.value ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setConfig(prev => ({ ...prev, groupBy: option.value as any }))}
+                                className="text-xs"
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
+
+                        <div>
+                          <Label className="text-sm font-medium">Ordenar por:</Label>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            {[
+                              { value: 'codigo', label: 'Código' },
+                              { value: 'pavimento', label: 'Pavimento' },
+                              { value: 'tipologia', label: 'Tipologia' },
+                              { value: 'updated_at', label: 'Data' },
+                            ].map(option => (
+                              <Button
+                                key={option.value}
+                                variant={config.sortBy === option.value ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setConfig(prev => ({ ...prev, sortBy: option.value as any }))}
+                                className="text-xs"
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="details" className="space-y-4 mt-0">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Informações Incluídas</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {Object.entries(config.includeDetails).map(([key, value]) => (
+                          <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                id={key}
+                                checked={value}
+                                onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
+                              />
+                              <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
+                                {getDetailLabel(key)}
+                              </Label>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="preview" className="space-y-4 mt-0">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          Prévia do Relatório
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
                         {previewData && (
-                          <Badge variant="outline" className="shrink-0 text-xs">
-                            {previewData.totals[key as keyof typeof previewData.totals] || 0}
-                          </Badge>
+                          <>
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                              <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                                <div className="text-base sm:text-lg font-bold text-orange-600">
+                                  {config.sections.pendencias ? previewData.totals.pendencias : 0}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Pendências</div>
+                              </div>
+                              <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                                <div className="text-base sm:text-lg font-bold text-green-600">
+                                  {config.sections.concluidas ? previewData.totals.concluidas : 0}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Concluídas</div>
+                              </div>
+                              <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                                <div className="text-base sm:text-lg font-bold text-blue-600">
+                                  {config.sections.emRevisao ? previewData.totals.emRevisao : 0}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Em Revisão</div>
+                              </div>
+                              <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
+                                <div className="text-base sm:text-lg font-bold text-yellow-600">
+                                  {config.sections.emAndamento ? previewData.totals.emAndamento : 0}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {config.includeDetails.storageChart && (
+                              <div className="border rounded-lg p-4">
+                                <h4 className="font-medium mb-3 text-sm">Gráfico de Status</h4>
+                                <StorageBar
+                                  pendentes={config.sections.pendencias ? previewData.totals.pendencias : 0}
+                                  emAndamento={config.sections.emAndamento ? previewData.totals.emAndamento : 0}
+                                  instalados={config.sections.concluidas ? previewData.totals.concluidas : 0}
+                                />
+                              </div>
+                            )}
+
+                            {config.includeDetails.pavimentoSummary && previewData.pavimentoSummary && (
+                              <div className="border rounded-lg p-4">
+                                <h4 className="font-medium mb-3 text-sm">Resumo por Pavimento</h4>
+                                <div className="text-sm text-muted-foreground">
+                                  {previewData.pavimentoSummary.length} pavimentos encontrados
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="border rounded-lg p-4">
+                              <h4 className="font-medium mb-3 text-sm">Configurações Aplicadas</h4>
+                              <div className="space-y-2 text-xs sm:text-sm">
+                                <div>
+                                  <strong>Agrupamento:</strong> {config.groupBy === 'none' ? 'Sem agrupamento' : 
+                                    config.groupBy === 'pavimento' ? 'Por pavimento' : 'Por tipologia'}
+                                </div>
+                                <div>
+                                  <strong>Ordenação:</strong> {config.sortBy === 'codigo' ? 'Por código' :
+                                    config.sortBy === 'pavimento' ? 'Por pavimento' :
+                                    config.sortBy === 'tipologia' ? 'Por tipologia' : 'Por data de atualização'}
+                                </div>
+                                <div>
+                                  <strong>Incluir fotos:</strong> {config.includeDetails.photos ? 'Sim' : 'Não'}
+                                </div>
+                                <div>
+                                  <strong>Incluir observações:</strong> {config.includeDetails.observations ? 'Sim' : 'Não'}
+                                </div>
+                              </div>
+                            </div>
+                          </>
                         )}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </div>
+              </ScrollArea>
+            </div>
+          </Tabs>
+        </div>
 
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg">Organização</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Agrupar por:</Label>
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        {[
-                          { value: 'none', label: 'Nenhum' },
-                          { value: 'pavimento', label: 'Pavimento' },
-                          { value: 'tipologia', label: 'Tipologia' },
-                        ].map(option => (
-                          <Button
-                            key={option.value}
-                            variant={config.groupBy === option.value ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setConfig(prev => ({ ...prev, groupBy: option.value as any }))}
-                            className="text-xs"
-                          >
-                            {option.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium">Ordenar por:</Label>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        {[
-                          { value: 'codigo', label: 'Código' },
-                          { value: 'pavimento', label: 'Pavimento' },
-                          { value: 'tipologia', label: 'Tipologia' },
-                          { value: 'updated_at', label: 'Data' },
-                        ].map(option => (
-                          <Button
-                            key={option.value}
-                            variant={config.sortBy === option.value ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setConfig(prev => ({ ...prev, sortBy: option.value as any }))}
-                            className="text-xs"
-                          >
-                            {option.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="details" className="space-y-4 mt-0 pr-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg">Informações Incluídas</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {Object.entries(config.includeDetails).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Checkbox
-                            id={key}
-                            checked={value}
-                            onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
-                          />
-                          <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
-                            {getDetailLabel(key)}
-                          </Label>
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="preview" className="space-y-4 mt-0 pr-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Prévia do Relatório
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {previewData && (
-                      <>
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                          <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
-                            <div className="text-base sm:text-lg font-bold text-orange-600">
-                              {config.sections.pendencias ? previewData.totals.pendencias : 0}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Pendências</div>
-                          </div>
-                          <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
-                            <div className="text-base sm:text-lg font-bold text-green-600">
-                              {config.sections.concluidas ? previewData.totals.concluidas : 0}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Concluídas</div>
-                          </div>
-                          <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
-                            <div className="text-base sm:text-lg font-bold text-blue-600">
-                              {config.sections.emRevisao ? previewData.totals.emRevisao : 0}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Em Revisão</div>
-                          </div>
-                          <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
-                            <div className="text-base sm:text-lg font-bold text-yellow-600">
-                              {config.sections.emAndamento ? previewData.totals.emAndamento : 0}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {config.includeDetails.storageChart && (
-                          <div className="border rounded-lg p-4">
-                            <h4 className="font-medium mb-3 text-sm">Gráfico de Status</h4>
-                            <StorageBar
-                              pendentes={config.sections.pendencias ? previewData.totals.pendencias : 0}
-                              emAndamento={config.sections.emAndamento ? previewData.totals.emAndamento : 0}
-                              instalados={config.sections.concluidas ? previewData.totals.concluidas : 0}
-                            />
-                          </div>
-                        )}
-
-                        {config.includeDetails.pavimentoSummary && previewData.pavimentoSummary && (
-                          <div className="border rounded-lg p-4">
-                            <h4 className="font-medium mb-3 text-sm">Resumo por Pavimento</h4>
-                            <div className="text-sm text-muted-foreground">
-                              {previewData.pavimentoSummary.length} pavimentos encontrados
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3 text-sm">Configurações Aplicadas</h4>
-                          <div className="space-y-2 text-xs sm:text-sm">
-                            <div>
-                              <strong>Agrupamento:</strong> {config.groupBy === 'none' ? 'Sem agrupamento' : 
-                                config.groupBy === 'pavimento' ? 'Por pavimento' : 'Por tipologia'}
-                            </div>
-                            <div>
-                              <strong>Ordenação:</strong> {config.sortBy === 'codigo' ? 'Por código' :
-                                config.sortBy === 'pavimento' ? 'Por pavimento' :
-                                config.sortBy === 'tipologia' ? 'Por tipologia' : 'Por data de atualização'}
-                            </div>
-                            <div>
-                              <strong>Incluir fotos:</strong> {config.includeDetails.photos ? 'Sim' : 'Não'}
-                            </div>
-                            <div>
-                              <strong>Incluir observações:</strong> {config.includeDetails.observations ? 'Sim' : 'Não'}
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </ScrollArea>
-          </div>
-        </Tabs>
-
-        <DialogFooter className="gap-2 flex-col sm:flex-row pt-4 shrink-0 border-t">
+        <DialogFooter className="gap-2 flex-col sm:flex-row pt-4 flex-shrink-0 border-t mt-4">
           <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Cancelar
           </Button>
