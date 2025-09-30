@@ -234,9 +234,9 @@ export function FileManager({ projectId }: FileManagerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-12rem)] space-y-4 overflow-hidden">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold truncate">Arquivos do Projeto</h2>
           <p className="text-muted-foreground text-sm">
@@ -309,7 +309,7 @@ export function FileManager({ projectId }: FileManagerProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-full">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -335,7 +335,7 @@ export function FileManager({ projectId }: FileManagerProps) {
       </div>
 
       {/* Files List */}
-      <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-2">
+      <div className="space-y-3 w-full max-w-full">
         {filteredFiles.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
