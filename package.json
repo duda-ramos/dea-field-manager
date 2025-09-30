@@ -51,6 +51,7 @@
     "dexie": "^3.2.7",
     "embla-carousel-react": "^8.6.0",
     "fabric": "^6.7.1",
+    "file-saver": "^2.0.5",
     "input-otp": "^1.4.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",

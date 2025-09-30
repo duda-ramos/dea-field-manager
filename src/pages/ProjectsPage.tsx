@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
 import { ProjectCard } from "@/components/project-card";
 import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Trash2, Archive } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [activeTab, setActiveTab] = useState<'active' | 'deleted' | 'archived'>('active');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -34,8 +35,22 @@ export default function ProjectsPage() {
 
   const loadProjects = async () => {
     const projects = await storage.getProjects();
-    setProjects(projects);
+    setAllProjects(projects);
   };
+
+  // Filter projects based on active tab
+  const getProjectsByTab = () => {
+    switch (activeTab) {
+      case 'deleted':
+        return allProjects.filter(p => p.deleted_at && !p.archived_at);
+      case 'archived':
+        return allProjects.filter(p => p.archived_at && !p.deleted_at);
+      default:
+        return allProjects.filter(p => !p.deleted_at && !p.archived_at);
+    }
+  };
+
+  const projects = getProjectsByTab();
 
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,7 +71,7 @@ export default function ProjectsPage() {
 
     const project = await storage.upsertProject({
       ...newProject,
-      id: '', // Temporário - será substituído pelo UUID do Supabase
+      id: '',
       status: 'planning' as const,
       suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
       created_at: new Date().toISOString(),
@@ -96,78 +111,36 @@ export default function ProjectsPage() {
   };
 
   // Calculate statistics
-  const totalProjects = projects.length;
-  const completedProjects = projects.filter(p => p.status === 'completed').length;
-  const inProgressProjects = projects.filter(p => p.status === 'in-progress').length;
-  const planningProjects = projects.filter(p => p.status === 'planning').length;
-
-  const handleBulkOperation = async (operation: string, projectIds: string[]) => {
-    try {
-      switch (operation) {
-        case 'archive':
-          // Implement bulk archive
-          await Promise.all(projectIds.map(id => {
-            const project = projects.find(p => p.id === id);
-            if (project) {
-              return storage.upsertProject({ ...project, status: 'completed' });
-            }
-          }));
-          break;
-        case 'delete':
-          // Implement bulk delete
-          await Promise.all(projectIds.map(id => storage.deleteProject(id)));
-          break;
-        case 'export':
-          // Implement bulk export
-          const selectedProjectsData = projects.filter(p => projectIds.includes(p.id));
-          const dataStr = JSON.stringify(selectedProjectsData, null, 2);
-          const dataBlob = new Blob([dataStr], { type: 'application/json' });
-          const url = URL.createObjectURL(dataBlob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'projetos-exportados.json';
-          link.click();
-          break;
-      }
-      
-      await loadProjects();
-      setSelectedProjects([]);
-      
-      toast({
-        title: "Operação concluída",
-        description: `${projectIds.length} projeto(s) processado(s) com sucesso`
-      });
-    } catch (error) {
-      toast({
-        title: "Erro na operação",
-        description: "Ocorreu um erro ao processar a operação",
-        variant: "destructive"
-      });
-    }
-  };
+  const activeProjects = allProjects.filter(p => !p.deleted_at && !p.archived_at);
+  const totalProjects = activeProjects.length;
+  const completedProjects = activeProjects.filter(p => p.status === 'completed').length;
+  const inProgressProjects = activeProjects.filter(p => p.status === 'in-progress').length;
+  const planningProjects = activeProjects.filter(p => p.status === 'planning').length;
+  const deletedCount = allProjects.filter(p => p.deleted_at).length;
+  const archivedCount = allProjects.filter(p => p.archived_at).length;
 
   return (
-    <div className="space-y-responsive">
-      {/* Page Header */}
+    <div className="space-y-6 p-4 sm:p-6 max-w-full overflow-x-hidden">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Projetos</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Gerencie todos os seus projetos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Projetos</h1>
+          <p className="text-muted-foreground">
+            Gerencie seus projetos
+          </p>
         </div>
-        
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
-            <Button className="mobile-button gap-1 sm:gap-2">
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Novo Projeto</span>
-              <span className="sm:hidden">Novo</span>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Projeto
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">Criar Novo Projeto</DialogTitle>
+              <DialogTitle>Criar Novo Projeto</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Nome do Projeto *</Label>
                 <Input 
@@ -183,7 +156,7 @@ export default function ProjectsPage() {
                   id="client" 
                   value={newProject.client} 
                   onChange={e => setNewProject(prev => ({ ...prev, client: e.target.value }))} 
-                  placeholder="Ex: Construtora XYZ" 
+                  placeholder="Nome do cliente" 
                 />
               </div>
               <div>
@@ -192,7 +165,7 @@ export default function ProjectsPage() {
                   id="city" 
                   value={newProject.city} 
                   onChange={e => setNewProject(prev => ({ ...prev, city: e.target.value }))} 
-                  placeholder="Ex: São Paulo, SP" 
+                  placeholder="Cidade do projeto" 
                 />
               </div>
               <div>
@@ -201,7 +174,7 @@ export default function ProjectsPage() {
                   id="code" 
                   value={newProject.code} 
                   onChange={e => setNewProject(prev => ({ ...prev, code: e.target.value }))} 
-                  placeholder="Ex: DEA-2024-001" 
+                  placeholder="Ex: P-2024-001" 
                 />
               </div>
               <div>
@@ -210,7 +183,7 @@ export default function ProjectsPage() {
                   id="owner" 
                   value={newProject.owner} 
                   onChange={e => setNewProject(prev => ({ ...prev, owner: e.target.value }))} 
-                  placeholder="Ex: João Silva" 
+                  placeholder="Nome do responsável" 
                 />
               </div>
               <div>
@@ -219,23 +192,27 @@ export default function ProjectsPage() {
                   id="project_files_link" 
                   value={newProject.project_files_link} 
                   onChange={e => setNewProject(prev => ({ ...prev, project_files_link: e.target.value }))} 
-                  placeholder="Ex: https://drive.google.com/folder/..." 
+                  placeholder="https://..." 
                 />
               </div>
               <div>
                 <Label>Fornecedores</Label>
                 {newProject.suppliers.map((supplier, index) => (
-                  <Input 
-                    key={index} 
-                    className="mt-2" 
-                    value={supplier} 
-                    onChange={e => updateSupplier(index, e.target.value)} 
-                    placeholder={`Fornecedor ${index + 1}`} 
-                  />
+                  <div key={index} className="mt-2">
+                    <Input 
+                      value={supplier} 
+                      onChange={e => updateSupplier(index, e.target.value)} 
+                      placeholder={`Fornecedor ${index + 1}`} 
+                    />
+                  </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={addSupplierField} className="mt-2">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Fornecedor
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={addSupplierField} 
+                  className="mt-2"
+                >
+                  + Adicionar Fornecedor
                 </Button>
               </div>
               <Button onClick={handleCreateProject} className="w-full">
@@ -246,74 +223,92 @@ export default function ProjectsPage() {
         </Dialog>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatsCard title="Total de Projetos" value={totalProjects} icon={FolderOpen} variant="default" />
-        <StatsCard title="Concluídos" value={completedProjects} icon={CheckCircle2} variant="success" />
-        <StatsCard title="Em Andamento" value={inProgressProjects} icon={Clock} variant="warning" />
-        <StatsCard title="Planejamento" value={planningProjects} icon={AlertTriangle} variant="default" />
+      {/* Stats */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total de Projetos"
+          value={totalProjects}
+          icon={FolderOpen}
+        />
+        <StatsCard
+          title="Concluídos"
+          value={completedProjects}
+          icon={CheckCircle2}
+          variant="success"
+        />
+        <StatsCard
+          title="Em Andamento"
+          value={inProgressProjects}
+          icon={Clock}
+          variant="warning"
+        />
+        <StatsCard
+          title="Planejamento"
+          value={planningProjects}
+          icon={AlertTriangle}
+          variant="default"
+        />
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3 sm:h-4 sm:w-4" />
-          <Input 
-            placeholder="Buscar projetos..." 
-            value={searchTerm} 
-            onChange={e => setSearchTerm(e.target.value)} 
-            className="mobile-input pl-8 sm:pl-10" 
-          />
-        </div>
-        
-        {selectedProjects.length > 0 && (
-          <BulkOperationPanel
-            items={projects.filter(p => selectedProjects.includes(p.id))}
-            itemType="projects"
-            onItemsChange={(updatedItems) => {
-              // Handle updated items if needed
-              loadProjects();
-              setSelectedProjects([]);
-            }}
-          />
-        )}
-      </div>
+      {/* Tabs for filtering */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="active">
+            Ativos ({totalProjects})
+          </TabsTrigger>
+          <TabsTrigger value="deleted">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Lixeira ({deletedCount})
+          </TabsTrigger>
+          <TabsTrigger value="archived">
+            <Archive className="h-4 w-4 mr-2" />
+            Arquivados ({archivedCount})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Projects Grid */}
-      {filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center">
-          <FolderOpen className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-          <h3 className="text-base sm:text-lg font-semibold mb-2">
-            {searchTerm ? "Nenhum projeto encontrado" : "Nenhum projeto criado"}
-          </h3>
-          <p className="text-muted-foreground mb-3 sm:mb-4 max-w-md text-sm sm:text-base px-4">
-            {searchTerm ? "Tente ajustar os termos de busca" : "Comece criando seu primeiro projeto para gerenciar suas instalações"}
-          </p>
-          {!searchTerm && (
-            <Button onClick={() => setIsCreateModalOpen(true)} className="mobile-button gap-1 sm:gap-2">
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-              Criar Primeiro Projeto
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid-projects">
-          {filteredProjects.map(project => (
-            <ProjectCard 
-              key={project.id} 
-              project={project}
-              isSelected={selectedProjects.includes(project.id)}
-              onSelectionChange={(selected) => {
-                if (selected) {
-                  setSelectedProjects(prev => [...prev, project.id]);
-                } else {
-                  setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                }
-              }}
+        <TabsContent value={activeTab} className="mt-6 space-y-4">
+          {/* Search */}
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Buscar projetos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
             />
-          ))}
-        </div>
-      )}
+          </div>
+
+          {/* Projects List */}
+          {filteredProjects.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchTerm ? "Nenhum projeto encontrado." : 
+                  activeTab === 'deleted' ? "Nenhum projeto na lixeira." :
+                  activeTab === 'archived' ? "Nenhum projeto arquivado." :
+                  "Nenhum projeto encontrado. Crie seu primeiro projeto!"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {filteredProjects.map(project => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  isSelected={selectedProjects.includes(project.id)}
+                  onSelectionChange={(selected) => {
+                    if (selected) {
+                      setSelectedProjects([...selectedProjects, project.id]);
+                    } else {
+                      setSelectedProjects(selectedProjects.filter(id => id !== project.id));
+                    }
+                  }}
+                  onUpdate={loadProjects}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -651,16 +651,19 @@ export type Database = {
       }
       projects: {
         Row: {
+          archived_at: string | null
           city: string
           client: string
           code: string | null
           created_at: string
+          deleted_at: string | null
           id: string
           inauguration_date: string | null
           installation_date: string | null
           installation_time_estimate_days: number | null
           name: string
           owner_name: string | null
+          permanent_deletion_at: string | null
           project_files_link: string | null
           status: string | null
           suppliers: string[] | null
@@ -668,16 +671,19 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           city: string
           client: string
           code?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           inauguration_date?: string | null
           installation_date?: string | null
           installation_time_estimate_days?: number | null
           name: string
           owner_name?: string | null
+          permanent_deletion_at?: string | null
           project_files_link?: string | null
           status?: string | null
           suppliers?: string[] | null
@@ -685,16 +691,19 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           city?: string
           client?: string
           code?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           inauguration_date?: string | null
           installation_date?: string | null
           installation_time_estimate_days?: number | null
           name?: string
           owner_name?: string | null
+          permanent_deletion_at?: string | null
           project_files_link?: string | null
           status?: string | null
           suppliers?: string[] | null
@@ -788,6 +797,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_old_archived_projects: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      delete_old_trashed_projects: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
         Returns: undefined
