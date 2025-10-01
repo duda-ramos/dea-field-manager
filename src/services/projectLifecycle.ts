@@ -94,18 +94,95 @@ export async function restoreProject(projectId: string) {
  */
 export async function permanentlyDeleteProject(projectId: string) {
   try {
+    console.log("Attempting to permanently delete project:", projectId);
+    
+    // Delete all related data to avoid foreign key constraints
+    // Order matters - delete dependent tables first
+    
+    // Delete calendar events
+    await supabase.from("calendar_events").delete().eq("project_id", projectId);
+    
+    // Delete collaboration events
+    await supabase.from("collaboration_events").delete().eq("project_id", projectId);
+    
+    // Delete project versions
+    await supabase.from("project_versions").delete().eq("project_id", projectId);
+    
+    // Delete project backups
+    await supabase.from("project_backups").delete().eq("project_id", projectId);
+    
+    // Delete project activities
+    await supabase.from("project_activities").delete().eq("project_id", projectId);
+    
+    // Delete project collaborators
+    await supabase.from("project_collaborators").delete().eq("project_id", projectId);
+    
+    // Delete project files
+    await supabase.from("project_files").delete().eq("project_id", projectId);
+    
+    // Delete installations
+    const { error: installError } = await supabase
+      .from("installations")
+      .delete()
+      .eq("project_id", projectId);
+    
+    if (installError) {
+      console.error("Error deleting installations:", installError);
+      throw installError;
+    }
+
+    // Delete contacts
+    const { error: contactError } = await supabase
+      .from("contacts")
+      .delete()
+      .eq("project_id", projectId);
+    
+    if (contactError) {
+      console.error("Error deleting contacts:", contactError);
+      throw contactError;
+    }
+
+    // Delete files metadata
+    const { error: filesError } = await supabase
+      .from("files")
+      .delete()
+      .eq("project_id", projectId);
+    
+    if (filesError) {
+      console.error("Error deleting files:", filesError);
+      throw filesError;
+    }
+
+    // Delete supplier proposals
+    const { error: budgetsError } = await supabase
+      .from("supplier_proposals")
+      .delete()
+      .eq("project_id", projectId);
+    
+    if (budgetsError) {
+      console.error("Error deleting budgets:", budgetsError);
+      throw budgetsError;
+    }
+
+    // Finally delete the project
     const { error } = await supabase
       .from("projects")
       .delete()
       .eq("id", projectId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error deleting project:", error);
+      throw error;
+    }
 
+    console.log("Project permanently deleted successfully");
     toast.success("Projeto excluído permanentemente");
     return { success: true };
   } catch (error) {
     console.error("Error permanently deleting project:", error);
-    toast.error("Erro ao excluir projeto permanentemente");
+    toast.error("Erro ao excluir projeto permanentemente", {
+      description: error instanceof Error ? error.message : "Tente novamente"
+    });
     return { success: false, error };
   }
 }
