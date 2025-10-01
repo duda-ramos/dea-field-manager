@@ -1,13 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom"
-import {
-  Home,
-  FolderOpen,
-  Users,
-  Settings,
-  BarChart3,
-  Plus,
-  Calendar,
-} from "lucide-react"
+import { Home, FolderOpen, Users, BarChart3, Plus, Calendar } from "lucide-react"
 
 import {
   Sidebar,
@@ -50,14 +42,6 @@ const navigationItems = [
     title: "Relatórios",
     url: "/relatorios",
     icon: BarChart3,
-  },
-]
-
-const supportItems = [
-  {
-    title: "Configurações",
-    url: "/configuracoes",
-    icon: Settings,
   },
 ]
 
@@ -122,28 +106,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs font-medium text-muted-foreground">
-            Suporte
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {supportItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-9">
-                    <NavLink
-                      to={item.url}
-                      className={getNavClasses(item.url)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span className="ml-2">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border p-2">
