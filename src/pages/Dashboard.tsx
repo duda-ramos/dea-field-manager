@@ -202,17 +202,20 @@ export default function Dashboard() {
     });
   };
 
-  const filteredProjects = projects.filter(project =>
+  // Filter out deleted and archived projects
+  const activeProjects = projects.filter(p => !p.deleted_at && !p.archived_at);
+
+  const filteredProjects = activeProjects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (project.city && project.city.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getProjectStats = () => {
-    const total = projects.length;
-    const active = projects.filter(p => p.status === 'in-progress').length;
-    const completed = projects.filter(p => p.status === 'completed').length;
-    const planning = projects.filter(p => p.status === 'planning').length;
+    const total = activeProjects.length;
+    const active = activeProjects.filter(p => p.status === 'in-progress').length;
+    const completed = activeProjects.filter(p => p.status === 'completed').length;
+    const planning = activeProjects.filter(p => p.status === 'planning').length;
 
     return { total, active, completed, planning };
   };
@@ -385,7 +388,7 @@ export default function Dashboard() {
       </div>
 
         {/* Installation Calendar */}
-        <InstallationCalendar projects={projects} />
+        <InstallationCalendar projects={activeProjects} />
 
         {/* Search and Filter */}
         <div className="flex items-center gap-3 sm:gap-4">
