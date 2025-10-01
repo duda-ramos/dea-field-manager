@@ -13,6 +13,7 @@ export interface Project {
   installation_time_estimate_days?: number; // Estimativa de tempo de instalação em dias úteis
   created_at: string;
   updated_at: string;
+  user_id?: string;
   deleted_at?: string | null;
   archived_at?: string | null;
   permanent_deletion_at?: string | null;

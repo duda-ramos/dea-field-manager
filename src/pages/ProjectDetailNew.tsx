@@ -13,11 +13,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { 
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
   Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
-  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users
+  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog
 } from "lucide-react";
 import { Project, Installation, ProjectReport } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { EnhancedImageUpload } from "@/components/image-upload";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
@@ -42,6 +43,7 @@ export default function ProjectDetailNew() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
@@ -103,6 +105,8 @@ export default function ProjectDetailNew() {
     setProject(updatedProject);
   };
 
+  const isOwner = project?.user_id ? project.user_id === user?.id : true;
+
   if (!project) return null;
 
   const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
@@ -110,6 +114,7 @@ export default function ProjectDetailNew() {
                         location.pathname.includes('/orcamentos') ? 'orcamentos' :
                         location.pathname.includes('/arquivos') ? 'arquivos' :
                         location.pathname.includes('/contatos') ? 'contatos' :
+                        location.pathname.includes('/colaboracao') ? 'colaboracao' :
                         'info';
 
   // Calculate stats for info section
@@ -509,6 +514,18 @@ export default function ProjectDetailNew() {
     );
   };
 
+  const renderColaboracaoSection = () => {
+    return (
+      <div className="space-y-6">
+        <CollaborationPanel
+          projectId={project.id}
+          isOwner={isOwner}
+          onCollaboratorAdded={loadProjectData}
+        />
+      </div>
+    );
+  };
+
   const renderPecasSection = () => {
     const groupedInstallations = filteredInstallations.reduce((groups, installation) => {
       const tipologia = installation.tipologia;
@@ -845,12 +862,14 @@ export default function ProjectDetailNew() {
                   {currentSection === 'orcamentos' && <Calculator className="h-4 w-4" />}
                   {currentSection === 'arquivos' && <Archive className="h-4 w-4" />}
                   {currentSection === 'contatos' && <Users className="h-4 w-4" />}
+                  {currentSection === 'colaboracao' && <UserCog className="h-4 w-4" />}
                   {currentSection === 'info' && 'Informações'}
                   {currentSection === 'pecas' && 'Peças'}
                   {currentSection === 'relatorios' && 'Relatórios'}
                   {currentSection === 'orcamentos' && 'Orçamentos'}
                   {currentSection === 'arquivos' && 'Arquivos'}
                   {currentSection === 'contatos' && 'Contatos'}
+                  {currentSection === 'colaboracao' && 'Colaboração'}
                 </div>
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -876,6 +895,10 @@ export default function ProjectDetailNew() {
                 <Archive className="h-4 w-4 mr-2" />
                 Arquivos
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/colaboracao`)}>
+                <UserCog className="h-4 w-4 mr-2" />
+                Colaboração
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/contatos`)}>
                 <Users className="h-4 w-4 mr-2" />
                 Contatos
@@ -891,6 +914,7 @@ export default function ProjectDetailNew() {
             { key: 'relatorios', label: 'Relatórios', path: `/projeto/${id}/relatorios`, icon: FileText },
             { key: 'orcamentos', label: 'Orçamentos', path: `/projeto/${id}/orcamentos`, icon: Calculator },
             { key: 'arquivos', label: 'Arquivos', path: `/projeto/${id}/arquivos`, icon: Archive },
+            { key: 'colaboracao', label: 'Colaboração', path: `/projeto/${id}/colaboracao`, icon: UserCog },
             { key: 'contatos', label: 'Contatos', path: `/projeto/${id}/contatos`, icon: Users }
           ].map(tab => (
             <Button
@@ -915,6 +939,7 @@ export default function ProjectDetailNew() {
           {currentSection === 'relatorios' && renderRelatoriosSection()}
           {currentSection === 'orcamentos' && renderOrcamentosSection()}
           {currentSection === 'arquivos' && renderArquivosSection()}
+          {currentSection === 'colaboracao' && renderColaboracaoSection()}
         </div>
       </div>
 
