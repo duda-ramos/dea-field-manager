@@ -178,6 +178,47 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_access_logs: {
+        Row: {
+          accessed_fields: Json | null
+          action: string
+          contact_id: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accessed_fields?: Json | null
+          action: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accessed_fields?: Json | null
+          action?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_access_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           access_count: number | null
@@ -804,6 +845,16 @@ export type Database = {
       delete_old_trashed_projects: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_contact_access_report: {
+        Args: { p_days?: number; p_project_id: string }
+        Returns: {
+          access_breakdown: Json
+          contact_name: string
+          last_accessed: string
+          total_accesses: number
+          unique_users: number
+        }[]
       }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
