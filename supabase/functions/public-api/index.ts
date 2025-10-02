@@ -82,7 +82,7 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
     .from('api_keys')
     .select('user_id, permissions, is_active, expires_at')
     .eq('key_hash', keyHash)
-    .single()
+    .maybeSingle()
 
   if (error || !keyData || !keyData.is_active) {
     return null
@@ -208,16 +208,16 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([{
+        .insert({
           name,
           client,
           city,
           code: code || '',
           status: status || 'planning',
           user_id: auth.user_id
-        }])
+        })
         .select()
-        .single()
+        .maybeSingle()
 
       if (error) throw error
 

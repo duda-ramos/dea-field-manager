@@ -103,7 +103,7 @@ serve(async (req) => {
     console.error('Sync error:', error)
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
         success: false 
       }),
       { 
