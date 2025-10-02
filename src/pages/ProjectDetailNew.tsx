@@ -285,6 +285,36 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
+        {/* Collaboration Card - New! */}
+        {isOwner && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Colaboradores</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Gerencie quem tem acesso ao projeto
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/projeto/${id}/colaboracao`)}
+                  className="gap-2"
+                >
+                  <UserCog className="h-4 w-4" />
+                  Gerenciar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-muted-foreground">
+                Adicione colaboradores para trabalhar em conjunto neste projeto
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Project Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
@@ -510,6 +540,62 @@ export default function ProjectDetailNew() {
           pendentes={pendingInstallations}
           emAndamento={0}
         />
+      </div>
+    );
+  };
+
+  const renderContatosSection = () => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Contatos do Projeto</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie os contatos relacionados a este projeto
+                </p>
+              </div>
+              <Button
+                onClick={() => navigate('/contatos')}
+                className="gap-2 w-full sm:w-auto"
+              >
+                <Users className="h-4 w-4" />
+                Ver Todos os Contatos
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Clientes</span>
+                  </div>
+                  <div className="text-2xl font-bold">{contadores.cliente}</div>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Obra</span>
+                  </div>
+                  <div className="text-2xl font-bold">{contadores.obra}</div>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Fornecedores</span>
+                  </div>
+                  <div className="text-2xl font-bold">{contadores.fornecedor}</div>
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground text-center">
+                Total de {contadores.total} contatos neste projeto
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   };
@@ -940,6 +1026,7 @@ export default function ProjectDetailNew() {
           {currentSection === 'orcamentos' && renderOrcamentosSection()}
           {currentSection === 'arquivos' && renderArquivosSection()}
           {currentSection === 'colaboracao' && renderColaboracaoSection()}
+          {currentSection === 'contatos' && renderContatosSection()}
         </div>
       </div>
 
