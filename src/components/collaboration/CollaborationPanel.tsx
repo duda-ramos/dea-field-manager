@@ -172,20 +172,65 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
   const handleInviteUser = async () => {
     if (!user || !inviteEmail.trim()) return;
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      toast({
+        title: 'Email inválido',
+        description: 'Por favor, insira um email válido',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
       setInviting(true);
 
-      // Check if user exists by email (simplified for demo)
-      // In production, you'd need a proper user lookup system
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
+      // Search for user by email using the security definer function
+      const { data: foundUserId, error: searchError } = await supabase
+        .rpc('get_user_by_email', { user_email: inviteEmail.toLowerCase().trim() });
 
-      if (profileError) {
+      if (searchError) {
+        console.error('Error searching user:', searchError);
         toast({
           title: 'Erro',
-          description: 'Erro ao verificar usuário',
+          description: 'Erro ao buscar usuário',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (!foundUserId) {
+        toast({
+          title: 'Usuário não encontrado',
+          description: 'O email fornecido não está cadastrado. O usuário precisa criar uma conta primeiro.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if user is the project owner
+      if (foundUserId === user.id) {
+        toast({
+          title: 'Erro',
+          description: 'Você não pode adicionar a si mesmo como colaborador',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if user is already a collaborator
+      const { data: existingCollaborator } = await supabase
+        .from('project_collaborators')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', foundUserId)
+        .maybeSingle();
+
+      if (existingCollaborator) {
+        toast({
+          title: 'Colaborador já existe',
+          description: 'Este usuário já é um colaborador do projeto',
           variant: 'destructive'
         });
         return;
@@ -197,38 +242,28 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         admin: inviteRole === 'admin'
       };
 
-      // For demo purposes, use a placeholder user ID
-      const placeholderUserId = `user_${Date.now()}`;
-
       const { error } = await supabase
         .from('project_collaborators')
         .insert([{
           project_id: projectId,
-          user_id: placeholderUserId,
+          user_id: foundUserId,
           role: inviteRole,
           permissions,
-          invited_by: user.id
+          invited_by: user.id,
+          status: 'accepted' // User exists, so mark as accepted immediately
         }]);
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          toast({
-            title: 'Usuário já convidado',
-            description: 'Este usuário já foi convidado para este projeto',
-            variant: 'destructive'
-          });
-        } else {
-          throw error;
-        }
-        return;
+        console.error('Error adding collaborator:', error);
+        throw error;
       }
 
       // Publish collaboration event
       await publishEvent('collaborator_added', { email: inviteEmail, role: inviteRole });
 
       toast({
-        title: 'Convite enviado',
-        description: `Convite enviado para ${inviteEmail}`
+        title: 'Sucesso',
+        description: `${inviteEmail} foi adicionado como colaborador`
       });
 
       setIsInviteModalOpen(false);
@@ -238,10 +273,10 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       onCollaboratorAdded?.();
 
     } catch (error) {
-      // Error logged via logger service
+      console.error('Error inviting user:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao enviar convite',
+        description: 'Erro ao adicionar colaborador',
         variant: 'destructive'
       });
     } finally {

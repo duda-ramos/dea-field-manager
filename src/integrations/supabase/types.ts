@@ -856,6 +856,10 @@ export type Database = {
           unique_users: number
         }[]
       }
+      get_user_by_email: {
+        Args: { user_email: string }
+        Returns: string
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
         Returns: undefined
