@@ -10,14 +10,27 @@ export interface ReportData {
   generatedAt: string;
 }
 
-export function generatePDFReport(data: ReportData): void {
+export async function generatePDFReport(data: ReportData): Promise<void> {
   const { project, installations, generatedBy, generatedAt } = data;
   
   const doc = new jsPDF();
   
+  // Add company logo
+  try {
+    const logoImg = new Image();
+    logoImg.src = '/logo-dea.png';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+    });
+    doc.addImage(logoImg, 'PNG', 20, 10, 30, 15);
+  } catch (error) {
+    console.error('Erro ao carregar logo:', error);
+  }
+  
   // Header
   doc.setFontSize(20);
-  doc.text('Relatório de Instalações - DEA Manager', 20, 20);
+  doc.text('Relatório de Instalações - DEA Manager', 55, 20);
   
   doc.setFontSize(12);
   doc.text(`Projeto: ${project.name}`, 20, 35);

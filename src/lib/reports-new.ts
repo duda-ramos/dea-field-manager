@@ -335,11 +335,24 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   let yPosition = reportTheme.spacing.margin;
 
+  // Add company logo
+  try {
+    const logoImg = new Image();
+    logoImg.src = '/logo-dea.png';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+    });
+    doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, 30, 15);
+  } catch (error) {
+    console.error('Erro ao carregar logo:', error);
+  }
+
   // Enhanced Header
   doc.setFontSize(reportTheme.fonts.title);
   doc.setTextColor('#000000');
-  doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin, yPosition);
-  yPosition += reportTheme.spacing.titleBottom;
+  doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin + 35, yPosition + 10);
+  yPosition += reportTheme.spacing.titleBottom + 15;
 
   doc.setFontSize(12);
   doc.text(`Cliente: ${data.project.client}`, reportTheme.spacing.margin, yPosition);
