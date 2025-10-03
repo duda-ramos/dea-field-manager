@@ -29,7 +29,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     inauguration_date: project.inauguration_date || '',
     project_files_link: project.project_files_link || '',
     suppliers: [...project.suppliers],
-    installation_time_estimate_days: (project as any).installation_time_estimate_days || ''
+    installation_time_estimate_days: (project as any).installation_time_estimate_days || '',
+    address: (project as any).address || '',
+    access_notes: (project as any).access_notes || ''
   });
 
   const handleSave = async () => {
@@ -198,6 +200,26 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
               value={formData.installation_time_estimate_days} 
               onChange={(e) => setFormData(prev => ({ ...prev, installation_time_estimate_days: e.target.value }))}
               placeholder="Ex: 15"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="address">Endereço do Projeto</Label>
+            <Input 
+              id="address" 
+              value={formData.address} 
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="Ex: Rua das Flores, 123 - Centro" 
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="access_notes">Observações sobre Acesso ao Local</Label>
+            <Input 
+              id="access_notes" 
+              value={formData.access_notes} 
+              onChange={(e) => setFormData(prev => ({ ...prev, access_notes: e.target.value }))}
+              placeholder="Ex: Entrada pela portaria lateral, solicitar crachá" 
             />
           </div>
 

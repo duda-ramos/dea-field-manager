@@ -271,6 +271,23 @@ export default function ProjectDetailNew() {
                 </div>
               )}
             </div>
+
+            {((project as any).address || (project as any).access_notes) && (
+              <div className="grid grid-cols-1 gap-4 pt-2 border-t">
+                {(project as any).address && (
+                  <div>
+                    <Label className="text-sm font-medium">Endereço</Label>
+                    <p className="text-sm text-muted-foreground">{(project as any).address}</p>
+                  </div>
+                )}
+                {(project as any).access_notes && (
+                  <div>
+                    <Label className="text-sm font-medium">Observações de Acesso</Label>
+                    <p className="text-sm text-muted-foreground">{(project as any).access_notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
             
             {project.suppliers && project.suppliers.length > 0 && (
               <div>

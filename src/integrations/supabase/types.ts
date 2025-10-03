@@ -692,6 +692,8 @@ export type Database = {
       }
       projects: {
         Row: {
+          access_notes: string | null
+          address: string | null
           archived_at: string | null
           city: string
           client: string
@@ -712,6 +714,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_notes?: string | null
+          address?: string | null
           archived_at?: string | null
           city: string
           client: string
@@ -732,6 +736,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_notes?: string | null
+          address?: string | null
           archived_at?: string | null
           city?: string
           client?: string
