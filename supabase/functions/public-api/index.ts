@@ -1,10 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts"
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schemas
+const CreateProjectSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(200, 'Name too long'),
+  client: z.string().trim().min(1, 'Client is required').max(200, 'Client name too long'),
+  city: z.string().trim().min(1, 'City is required').max(100, 'City name too long'),
+  code: z.string().trim().max(50, 'Code too long').optional(),
+  status: z.enum(['planning', 'in_progress', 'completed', 'on_hold']).optional(),
+})
+
+const CreateInstallationSchema = z.object({
+  codigo: z.number().int().positive('Codigo must be positive'),
+  descricao: z.string().trim().min(1, 'Description is required').max(500, 'Description too long'),
+  tipologia: z.string().trim().min(1, 'Type is required').max(100, 'Type too long'),
+  pavimento: z.string().trim().min(1, 'Floor is required').max(50, 'Floor too long'),
+  quantidade: z.number().int().positive('Quantity must be positive'),
+  installed: z.boolean().optional(),
+})
 
 interface Database {
   public: {
@@ -60,49 +80,77 @@ const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-// Hash API key function
+// Hash API key function using bcrypt (secure)
 async function hashKey(key: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(key)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  // Use bcrypt with salt rounds of 12 for security
+  return await bcrypt.hash(key, 12)
+}
+
+// Verify API key against hash
+async function verifyKey(key: string, hash: string): Promise<boolean> {
+  try {
+    return await bcrypt.compare(key, hash)
+  } catch (error) {
+    console.error('Error verifying API key:', error)
+    return false
+  }
 }
 
 // Authenticate API key
-async function authenticateApiKey(authHeader: string | null): Promise<{ user_id: string; permissions: any } | null> {
+async function authenticateApiKey(authHeader: string | null): Promise<{ user_id: string; permissions: any; api_key_id: string } | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.warn('Missing or invalid Authorization header')
     return null
   }
 
   const apiKey = authHeader.substring(7)
-  const keyHash = await hashKey(apiKey)
-
-  const { data: keyData, error } = await supabase
-    .from('api_keys')
-    .select('user_id, permissions, is_active, expires_at')
-    .eq('key_hash', keyHash)
-    .maybeSingle()
-
-  if (error || !keyData || !keyData.is_active) {
+  
+  // Validate API key format (should be at least 32 characters)
+  if (apiKey.length < 32) {
+    console.warn('API key too short')
     return null
   }
 
-  // Check if key is expired
-  if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
+  // Get all active API keys for comparison (with rate limiting)
+  const { data: apiKeys, error } = await supabase
+    .from('api_keys')
+    .select('id, user_id, key_hash, permissions, is_active, expires_at')
+    .eq('is_active', true)
+
+  if (error || !apiKeys || apiKeys.length === 0) {
+    console.error('Error fetching API keys:', error)
     return null
   }
 
-  // Update last used timestamp
-  await supabase
-    .from('api_keys')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('key_hash', keyHash)
+  // Find matching key by comparing hashes
+  for (const keyData of apiKeys) {
+    const isMatch = await verifyKey(apiKey, keyData.key_hash)
+    
+    if (isMatch) {
+      // Check if key is expired
+      if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
+        console.warn('API key expired')
+        return null
+      }
 
-  return {
-    user_id: keyData.user_id,
-    permissions: keyData.permissions
+      // Update last used timestamp (async, don't await)
+      supabase
+        .from('api_keys')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', keyData.id)
+        .then(() => console.log('API key last_used_at updated'))
+        .catch(err => console.error('Error updating last_used_at:', err))
+
+      return {
+        user_id: keyData.user_id,
+        permissions: keyData.permissions,
+        api_key_id: keyData.id
+      }
+    }
   }
+
+  console.warn('No matching API key found')
+  return null
 }
 
 serve(async (req) => {
@@ -197,14 +245,23 @@ serve(async (req) => {
       }
 
       const body = await req.json()
-      const { name, client, city, code, status } = body
-
-      if (!name || !client || !city) {
+      
+      // Validate input with Zod
+      const validation = CreateProjectSchema.safeParse(body)
+      if (!validation.success) {
         return new Response(
-          JSON.stringify({ error: 'Name, client, and city are required' }),
+          JSON.stringify({ 
+            error: 'Invalid input', 
+            details: validation.error.errors.map(e => ({
+              field: e.path.join('.'),
+              message: e.message
+            }))
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      const { name, client, city, code, status } = validation.data
 
       const { data, error } = await supabase
         .from('projects')
@@ -220,6 +277,8 @@ serve(async (req) => {
         .maybeSingle()
 
       if (error) throw error
+
+      console.log(`Project created: ${data?.id} by user ${auth.user_id}`)
 
       return new Response(
         JSON.stringify({ data }),

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_key_audit_logs: {
+        Row: {
+          action: string
+          api_key_id: string
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          success: boolean | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          api_key_id: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          success?: boolean | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          api_key_id?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          success?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -218,6 +248,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_access_rate_limit: {
+        Row: {
+          access_count: number | null
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          access_count?: number | null
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          access_count?: number | null
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -504,6 +552,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_audit_logs: {
+        Row: {
+          action: string
+          changed_fields: Json | null
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          project_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          changed_fields?: Json | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          project_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          changed_fields?: Json | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          project_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       project_backups: {
         Row: {
           backup_data: Json
@@ -759,30 +840,74 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_integration_audit: {
+        Row: {
+          accessed_fields: Json | null
+          action: string
+          created_at: string | null
+          id: string
+          integration_id: string | null
+          ip_address: unknown | null
+          user_id: string
+        }
+        Insert: {
+          accessed_fields?: Json | null
+          action: string
+          created_at?: string | null
+          id?: string
+          integration_id?: string | null
+          ip_address?: unknown | null
+          user_id: string
+        }
+        Update: {
+          accessed_fields?: Json | null
+          action?: string
+          created_at?: string | null
+          id?: string
+          integration_id?: string | null
+          ip_address?: unknown | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_integration_audit_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "storage_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storage_integrations: {
         Row: {
           config: Json
+          config_encrypted: boolean | null
           created_at: string
           id: string
           is_active: boolean
+          last_accessed_at: string | null
           provider: string
           updated_at: string
           user_id: string
         }
         Insert: {
           config: Json
+          config_encrypted?: boolean | null
           created_at?: string
           id?: string
           is_active?: boolean
+          last_accessed_at?: string | null
           provider: string
           updated_at?: string
           user_id: string
         }
         Update: {
           config?: Json
+          config_encrypted?: boolean | null
           created_at?: string
           id?: string
           is_active?: boolean
+          last_accessed_at?: string | null
           provider?: string
           updated_at?: string
           user_id?: string
@@ -844,6 +969,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_audit_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_automatic_project_backup: {
+        Args: { p_backup_data: Json; p_project_id: string }
+        Returns: string
+      }
       delete_old_archived_projects: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -869,6 +1002,10 @@ export type Database = {
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
         Returns: undefined
+      }
+      mask_contact_data: {
+        Args: { p_contact_id: string; p_user_id: string }
+        Returns: Json
       }
       user_can_access_project_contacts: {
         Args: { contact_project_id: string }
