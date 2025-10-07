@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Upload, Image as ImageIcon, Download, Search, Filter } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { uploadToStorage } from '@/services/storage/filesStorage';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
@@ -32,12 +33,44 @@ export function EnhancedImageUpload({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
+  const [filterBy, setFilterBy] = useState<'all' | 'general' | 'installation'>('all');
   const [editingImage, setEditingImage] = useState<ProjectFile | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [installations, setInstallations] = useState<Map<string, { codigo: number; descricao: string }>>(new Map());
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Load all images from project (including from installations)
+  useEffect(() => {
+    loadAllImages();
+    loadInstallations();
+  }, [projectId]);
+
+  const loadAllImages = async () => {
+    try {
+      const allImages = await Storage.getFilesByProject(projectId);
+      const imageFiles = allImages.filter(f => f.type?.startsWith('image/'));
+      setImages(imageFiles);
+      onImagesChange?.(imageFiles);
+    } catch (error) {
+      console.error('Error loading images:', error);
+    }
+  };
+
+  const loadInstallations = async () => {
+    try {
+      const installs = await Storage.getInstallationsByProject(projectId);
+      const map = new Map();
+      installs.forEach(inst => {
+        map.set(inst.id, { codigo: inst.codigo, descricao: inst.descricao });
+      });
+      setInstallations(map);
+    } catch (error) {
+      console.error('Error loading installations:', error);
+    }
+  };
 
   // Generate automatic filename
   const generateFileName = (originalName: string, sequencial: number): string => {
@@ -171,16 +204,29 @@ export function EnhancedImageUpload({
 
   // Filter and sort images
   const filteredAndSortedImages = images
-    .filter(img => 
-      img.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      img.uploadedAt.includes(searchTerm)
-    )
+    .filter(img => {
+      // Filter by category
+      if (filterBy === 'general' && img.installationId) return false;
+      if (filterBy === 'installation' && !img.installationId) return false;
+      
+      // Filter by search term
+      return (
+        img.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (img.uploadedAt && img.uploadedAt.includes(searchTerm))
+      );
+    })
     .sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+        const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+        const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+        return dateB - dateA;
       }
       return a.name.localeCompare(b.name);
     });
+
+  // Count images by type
+  const generalCount = images.filter(img => !img.installationId).length;
+  const installationCount = images.filter(img => img.installationId).length;
 
   // Edit image
   const editImage = (image: ProjectFile) => {
@@ -286,6 +332,25 @@ export function EnhancedImageUpload({
         </Card>
       )}
 
+      {/* Image Counter */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  Total: {images.length} {images.length === 1 ? 'imagem' : 'imagens'}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                ({generalCount} {generalCount === 1 ? 'geral' : 'gerais'} + {installationCount} de peças)
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Search and Filter Controls */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -297,6 +362,16 @@ export function EnhancedImageUpload({
             className="pl-10"
           />
         </div>
+        <Select value={filterBy} onValueChange={(value: 'all' | 'general' | 'installation') => setFilterBy(value)}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as imagens</SelectItem>
+            <SelectItem value="general">Apenas gerais</SelectItem>
+            <SelectItem value="installation">Apenas de peças</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={sortBy} onValueChange={(value: 'date' | 'name') => setSortBy(value)}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
@@ -327,34 +402,58 @@ export function EnhancedImageUpload({
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {filteredAndSortedImages.map((image) => (
-            <Card key={image.id} className="group overflow-hidden">
-              <CardContent className="p-0">
-                <div className="aspect-square relative">
-                  <img
-                    src={image.url || ''}
-                    alt={image.name}
-                    className="w-full h-full object-cover transition-transform hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => editImage(image)}
-                    >
-                      Editar
-                    </Button>
+          {filteredAndSortedImages.map((image) => {
+            const installation = image.installationId ? installations.get(image.installationId) : null;
+            
+            return (
+              <Card key={image.id} className="group overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="aspect-square relative">
+                    <img
+                      src={image.url || ''}
+                      alt={image.name}
+                      className="w-full h-full object-cover transition-transform hover:scale-105"
+                    />
+                    {installation && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          Peça {installation.codigo}
+                        </Badge>
+                      </div>
+                    )}
+                    {!image.installationId && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <Badge variant="outline" className="text-xs bg-background/80">
+                          Geral
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => editImage(image)}
+                      >
+                        Editar
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <div className="p-2">
-                  <p className="text-xs font-medium truncate">{image.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(image.uploadedAt).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="p-2">
+                    <p className="text-xs font-medium truncate">{image.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {image.uploadedAt ? new Date(image.uploadedAt).toLocaleDateString('pt-BR') : 'Data indisponível'}
+                    </p>
+                    {installation && (
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {installation.descricao}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

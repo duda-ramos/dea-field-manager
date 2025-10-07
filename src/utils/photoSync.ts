@@ -48,13 +48,14 @@ export async function syncPhotoToProjectAlbum(
       _deleted: 0
     };
     
-    // Salvar no banco de dados local
+    // Salvar no banco de dados local com ID único
+    const fileId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await StorageManagerDexie.upsertFile({
       ...projectFile,
-      id: `img_${Date.now()}_${Math.random()}`
+      id: fileId
     });
     
-    console.log(`Foto da peça ${installationCode} sincronizada com o álbum do projeto`);
+    console.log(`Foto da peça ${installationCode} sincronizada com o álbum do projeto (ID: ${fileId})`);
   } catch (error) {
     console.error('Erro ao sincronizar foto com álbum do projeto:', error);
   }
