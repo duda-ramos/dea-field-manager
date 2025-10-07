@@ -79,9 +79,17 @@ export interface ProjectBudget {
   project_id?: string;
   projectId?: string; // Legacy field for compatibility
   supplier: string;
-  amount: number;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+  updated_at?: string;
+  fileName?: string;
+  file_name?: string; // Legacy field for compatibility with Supabase payloads
+  filePath?: string;
+  file_path?: string;
+  fileSize?: number;
+  file_size?: number;
+  uploadedAt?: string;
+  uploaded_at?: string;
   // Local timestamp for compatibility
   updatedAt?: number;
   createdAt?: number;

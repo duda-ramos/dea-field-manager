@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/db/indexedDb';
-import { getLastPulledAt, setLastPulledAt, setSyncStatus } from './localFlags';
+import { getLastPulledAt, setLastPulledAt } from './localFlags';
 import { withRetry, createBatches, createEmptyMetrics, type LegacySyncMetrics } from './utils';
 import { syncStateManager } from './syncState';
 import { fileSyncService } from './fileSync';
@@ -8,7 +8,30 @@ import { rateLimiter } from './rateLimiter';
 import { logger } from '@/services/logger';
 import { getFeatureFlag } from '@/config/featureFlags';
 import { uploadToStorage } from '@/services/storage/filesStorage';
-import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
+import type { ProjectBudget, ProjectFile } from '@/types';
+
+type EntityName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'item_versions' | 'files';
+type LocalTableName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'itemVersions' | 'files';
+
+const ENTITY_CONFIG: Record<EntityName, { local: LocalTableName; remote: string }> = {
+  projects: { local: 'projects', remote: 'projects' },
+  installations: { local: 'installations', remote: 'installations' },
+  contacts: { local: 'contacts', remote: 'contacts' },
+  budgets: { local: 'budgets', remote: 'supplier_proposals' },
+  item_versions: { local: 'itemVersions', remote: 'item_versions' },
+  files: { local: 'files', remote: 'files' }
+};
+
+const ENTITY_ORDER: EntityName[] = [
+  'projects',
+  'installations',
+  'contacts',
+  'budgets',
+  'item_versions',
+  'files'
+];
+
+const getLocalTable = (table: LocalTableName) => (db as any)[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
@@ -27,22 +50,14 @@ const denormalizeTimestamps = (obj: any) => ({
 });
 
 // Generic push/pull operations
-async function pushEntityType(entityName: string, tableName: string): Promise<{ pushed: number; deleted: number; errors: string[] }> {
+async function pushEntityType(entityName: EntityName): Promise<{ pushed: number; deleted: number; errors: string[] }> {
+  const { local, remote } = ENTITY_CONFIG[entityName];
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) throw new Error('User not authenticated');
   const user = session.user;
 
-  const tableMap: Record<string, string> = {
-    'projects': 'projects',
-    'installations': 'installations', 
-    'contacts': 'contacts',
-    'budgets': 'budgets',
-    'item_versions': 'itemVersions',
-    'files': 'files'
-  };
-
-  const localTableName = tableMap[entityName] || entityName;
-  const dirtyRecords = await (db as any)[localTableName].where('_dirty').equals(1).toArray();
+  const localTable = getLocalTable(local);
+  const dirtyRecords = await localTable.where('_dirty').equals(1).toArray();
   if (dirtyRecords.length === 0) return { pushed: 0, deleted: 0, errors: [] };
 
   logger.debug(`📤 Pushing ${dirtyRecords.length} ${entityName}...`);
@@ -59,15 +74,15 @@ async function pushEntityType(entityName: string, tableName: string): Promise<{ 
       const operations = batch.map(async (record: any) => {
         try {
           if (record._deleted) {
-            await supabase.from(tableName as any).delete().eq('id', record.id);
+            await supabase.from(remote as any).delete().eq('id', record.id);
             deleted++;
-            await (db as any)[localTableName].delete(record.id);
+            await localTable.delete(record.id);
           } else {
             // Transform record for Supabase
             const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
-            await supabase.from(tableName as any).upsert(normalizedRecord);
+            await supabase.from(remote as any).upsert(normalizedRecord);
             pushed++;
-            await (db as any)[localTableName].update(record.id, { _dirty: 0 });
+            await localTable.update(record.id, { _dirty: 0 });
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -83,7 +98,8 @@ async function pushEntityType(entityName: string, tableName: string): Promise<{ 
   return { pushed, deleted, errors };
 }
 
-async function pullEntityType(entityName: string, tableName: string, lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
+async function pullEntityType(entityName: EntityName, lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
+  const { local, remote } = ENTITY_CONFIG[entityName];
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) throw new Error('User not authenticated');
   const user = session.user;
@@ -94,22 +110,13 @@ async function pullEntityType(entityName: string, tableName: string, lastPulledA
   const errors: string[] = [];
   const lastPulledDate = new Date(lastPulledAt).toISOString();
 
-  const tableMap: Record<string, string> = {
-    'projects': 'projects',
-    'installations': 'installations',
-    'contacts': 'contacts', 
-    'budgets': 'budgets',
-    'item_versions': 'itemVersions',
-    'files': 'files'
-  };
-
-  const localTableName = tableMap[entityName] || entityName;
+  const localTable = getLocalTable(local);
 
   while (hasMore) {
     try {
       const { data: records, error } = await withRetry(async () => {
         return await supabase
-          .from(tableName as any)
+          .from(remote as any)
           .select('*')
           .eq('user_id', user.id)
           .gt('updated_at', lastPulledDate)
@@ -118,15 +125,20 @@ async function pullEntityType(entityName: string, tableName: string, lastPulledA
           .range(page * PULL_PAGE_SIZE, (page + 1) * PULL_PAGE_SIZE - 1);
       });
 
-      if (error) throw error;
+      if (error) {
+        if ((error as any)?.code === 'PGRST301' || (error as any)?.status === 404) {
+          throw new Error(`Tabela remota "${remote}" não encontrada. Verifique se as migrações Supabase foram aplicadas.`);
+        }
+        throw error;
+      }
 
       if (records && records.length > 0) {
         logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
-        
+
         for (const record of records) {
           try {
             const localRecord = transformRecordForLocal(record, entityName);
-            await (db as any)[localTableName].put(localRecord);
+            await localTable.put(localRecord);
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
@@ -181,11 +193,29 @@ function transformRecordForSupabase(record: any, entityName: string, userId: str
         created_at: base.created_at,
         updated_at: base.updated_at
       };
-    case 'budgets':
+    case 'budgets': {
+      const projectId = record.projectId || record.project_id;
+      const createdAtISO =
+        record.created_at ||
+        (record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString());
+      const updatedAtISO =
+        record.updated_at ||
+        (record.updatedAt ? new Date(record.updatedAt).toISOString() : new Date().toISOString());
+
       return {
-        ...base,
-        project_id: record.projectId
+        id: record.id,
+        project_id: projectId,
+        supplier: record.supplier,
+        status: record.status ?? 'pending',
+        file_name: record.fileName ?? record.file_name ?? null,
+        file_path: record.filePath ?? record.file_path ?? null,
+        file_size: record.fileSize ?? record.file_size ?? null,
+        uploaded_at: record.uploadedAt ?? record.uploaded_at ?? null,
+        user_id: userId,
+        created_at: createdAtISO,
+        updated_at: updatedAtISO
       };
+    }
     case 'item_versions':
       return {
         id: record.id,
@@ -237,11 +267,22 @@ function transformRecordForLocal(record: any, entityName: string): any {
         _dirty: 0,
         _deleted: 0
       };
-    case 'budgets':
+    case 'budgets': {
+      const fileName = record.file_name ?? (record as any).fileName;
+      const filePath = record.file_path ?? (record as any).filePath;
+      const fileSize = record.file_size ?? (record as any).fileSize;
+      const uploadedAt = record.uploaded_at ?? (record as any).uploadedAt;
+
       return {
         ...base,
-        projectId: record.project_id
+        projectId: record.project_id,
+        fileName,
+        filePath,
+        fileSize,
+        uploadedAt,
+        status: (record.status as ProjectBudget['status']) ?? 'pending'
       };
+    }
     case 'item_versions':
       return {
         id: record.id,
@@ -357,30 +398,21 @@ export async function syncPush(): Promise<LegacySyncMetrics> {
     }
 
     // Push all entity types
-    const entityTypes = [
-      { name: 'projects', table: 'projects' },
-      { name: 'installations', table: 'installations' },
-      { name: 'contacts', table: 'contacts' },
-      { name: 'budgets', table: 'budgets' },
-      { name: 'item_versions', table: 'item_versions' },
-      { name: 'files', table: 'files' }
-    ];
+    for (let i = 0; i < ENTITY_ORDER.length; i++) {
+      const entity = ENTITY_ORDER[i];
+      const progress = ((i + 1) / ENTITY_ORDER.length) * 100;
 
-    for (let i = 0; i < entityTypes.length; i++) {
-      const entity = entityTypes[i];
-      const progress = ((i + 1) / entityTypes.length) * 100;
-      
-      syncStateManager.setProgress(progress, 100, `Uploading ${entity.name}...`);
-      
+      syncStateManager.setProgress(progress, 100, `Uploading ${entity}...`);
+
       let result;
-      if (entity.name === 'files') {
+      if (entity === 'files') {
         // Use specialized file sync service
         result = await fileSyncService.pushFiles();
       } else {
-        result = await pushEntityType(entity.name, entity.table);
+        result = await pushEntityType(entity);
       }
-      
-      metrics.push[entity.name as keyof typeof metrics.push] = result;
+
+      metrics.push[entity as keyof typeof metrics.push] = result;
     }
 
     syncStateManager.setProgress(100, 100, 'Upload complete');
@@ -416,30 +448,21 @@ export async function syncPull(): Promise<LegacySyncMetrics> {
     await rateLimiter.waitForLimit('sync_pull');
 
     // Pull all entity types
-    const entityTypes = [
-      { name: 'projects', table: 'projects' },
-      { name: 'installations', table: 'installations' },
-      { name: 'contacts', table: 'contacts' },
-      { name: 'budgets', table: 'budgets' },
-      { name: 'item_versions', table: 'item_versions' },
-      { name: 'files', table: 'files' }
-    ];
+    for (let i = 0; i < ENTITY_ORDER.length; i++) {
+      const entity = ENTITY_ORDER[i];
+      const progress = ((i + 1) / ENTITY_ORDER.length) * 100;
 
-    for (let i = 0; i < entityTypes.length; i++) {
-      const entity = entityTypes[i];
-      const progress = ((i + 1) / entityTypes.length) * 100;
-      
-      syncStateManager.setProgress(progress, 100, `Downloading ${entity.name}...`);
-      
+      syncStateManager.setProgress(progress, 100, `Downloading ${entity}...`);
+
       let result;
-      if (entity.name === 'files') {
+      if (entity === 'files') {
         // Use specialized file sync service
         result = await fileSyncService.pullFiles(lastPulledAt);
       } else {
-        result = await pullEntityType(entity.name, entity.table, lastPulledAt);
+        result = await pullEntityType(entity, lastPulledAt);
       }
-      
-      metrics.pull[entity.name as keyof typeof metrics.pull] = result;
+
+      metrics.pull[entity as keyof typeof metrics.pull] = result;
     }
 
     // Update last pulled timestamp
