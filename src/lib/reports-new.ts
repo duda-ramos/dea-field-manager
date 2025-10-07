@@ -343,7 +343,13 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
       logoImg.onload = resolve;
       logoImg.onerror = reject;
     });
-    doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, 30, 15);
+
+    // Define apenas a largura máxima, a altura será proporcional
+    const maxWidth = 30;
+    const aspectRatio = logoImg.width / logoImg.height;
+    const logoHeight = maxWidth / aspectRatio;
+    
+    doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
   } catch (error) {
     console.error('Erro ao carregar logo:', error);
   }
