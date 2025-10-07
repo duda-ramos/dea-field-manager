@@ -19,8 +19,7 @@ import { Project, Installation, ProjectReport } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { PhotoGallery } from "@/components/photo-gallery";
-import { EnhancedImageUpload } from "@/components/image-upload";
+import { ProjectUnifiedGallery } from "@/components/project-unified-gallery";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { EditProjectModal } from "@/components/edit-project-modal";
@@ -54,6 +53,7 @@ export default function ProjectDetailNew() {
   const [itemStatusFilter, setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
+  const [showInstallationDetail, setShowInstallationDetail] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedInterlocutor, setSelectedInterlocutor] = useState<'cliente' | 'fornecedor'>('cliente');
@@ -526,11 +526,15 @@ export default function ProjectDetailNew() {
             </p>
           </CardHeader>
           <CardContent>
-            <EnhancedImageUpload 
+            <ProjectUnifiedGallery 
               projectId={project.id}
-              context="projeto"
-              onImagesChange={(images) => {
-                console.log('Images updated:', images);
+              onNavigateToInstallation={(installationId) => {
+                // Abrir o modal de detalhes da peça
+                const installation = installations.find(inst => inst.id === installationId);
+                if (installation) {
+                  setSelectedInstallation(installation);
+                  setShowInstallationDetail(true);
+                }
               }}
             />
           </CardContent>
@@ -1047,12 +1051,14 @@ export default function ProjectDetailNew() {
         </div>
       </div>
 
-      {/* Modals */}
-      {selectedInstallation && (
+      {selectedInstallation && showInstallationDetail && (
         <InstallationDetailModalNew
           installation={selectedInstallation}
-          isOpen={!!selectedInstallation}
-          onClose={() => setSelectedInstallation(null)}
+          isOpen={showInstallationDetail}
+          onClose={() => {
+            setShowInstallationDetail(false);
+            setSelectedInstallation(null);
+          }}
           onUpdate={loadProjectData}
         />
       )}

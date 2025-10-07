@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
-import { PhotoGallery } from "@/components/photo-gallery";
+import { InstallationImageGallery } from "@/components/installation-image-gallery";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { History, Edit3, Eye, Plus } from "lucide-react";
 
@@ -37,7 +37,6 @@ export function InstallationDetailModalNew({
   const [observationHistory, setObservationHistory] = useState<string[]>([]);
   const [currentSupplierComment, setCurrentSupplierComment] = useState("");
   const [supplierCommentHistory, setSupplierCommentHistory] = useState<string[]>([]);
-  const [photos, setPhotos] = useState<string[]>(installation.photos);
   const [versions, setVersions] = useState<ItemVersion[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
@@ -48,7 +47,6 @@ export function InstallationDetailModalNew({
 
   useEffect(() => {
     setInstalled(installation.installed);
-    setPhotos(installation.photos);
     setPendenciaTipo(installation.pendencia_tipo || '');
     setPendenciaDescricao(installation.pendencia_descricao || '');
     
@@ -104,7 +102,6 @@ export function InstallationDetailModalNew({
       pendencia_descricao: pendenciaDescricao || undefined, 
       observacoes: newObservations || undefined, 
       comentarios_fornecedor: newSupplierComments || undefined,
-      photos 
     };
     const updated = await storage.upsertInstallation(updatedInstallation);
 
@@ -452,13 +449,13 @@ export function InstallationDetailModalNew({
               )}
             </div>
 
-            {/* Photo Gallery */}
-            <PhotoGallery
-              photos={photos}
-              onPhotosChange={setPhotos}
+            {/* Galeria de Imagens da Peça (sincronizada com galeria geral) */}
+            <InstallationImageGallery
               projectId={installation.project_id}
               installationId={installation.id}
               installationCode={String(installation.codigo)}
+              installation={installation}
+              onImagesChange={() => {}}
             />
 
             {/* Revision Actions */}

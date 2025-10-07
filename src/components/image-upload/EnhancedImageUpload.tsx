@@ -19,14 +19,16 @@ interface EnhancedImageUploadProps {
   installationId?: string;
   context?: string; // For naming convention
   onImagesChange?: (images: ProjectFile[]) => void;
+  onImageClick?: (image: ProjectFile) => void;
   className?: string;
 }
 
 export function EnhancedImageUpload({ 
-  projectId, 
+  projectId,
   installationId, 
   context = 'arquivo',
   onImagesChange,
+  onImageClick,
   className 
 }: EnhancedImageUploadProps) {
   const [images, setImages] = useState<ProjectFile[]>([]);
@@ -437,6 +439,15 @@ export function EnhancedImageUpload({
                       >
                         Editar
                       </Button>
+                      {onImageClick && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => onImageClick(image)}
+                        >
+                          Ver Peça
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="p-2">
