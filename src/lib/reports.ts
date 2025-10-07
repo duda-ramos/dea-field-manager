@@ -23,7 +23,22 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
       logoImg.onload = resolve;
       logoImg.onerror = reject;
     });
-    doc.addImage(logoImg, 'PNG', 20, 10, 30, 15);
+    
+    // Calculate aspect ratio to maintain original proportions
+    const maxWidth = 40;
+    const maxHeight = 20;
+    const aspectRatio = logoImg.width / logoImg.height;
+    
+    let logoWidth = maxWidth;
+    let logoHeight = maxWidth / aspectRatio;
+    
+    // If height exceeds max, recalculate based on height
+    if (logoHeight > maxHeight) {
+      logoHeight = maxHeight;
+      logoWidth = maxHeight * aspectRatio;
+    }
+    
+    doc.addImage(logoImg, 'PNG', 20, 10, logoWidth, logoHeight);
   } catch (error) {
     console.error('Erro ao carregar logo:', error);
   }
