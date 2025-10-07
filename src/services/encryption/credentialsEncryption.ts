@@ -43,7 +43,7 @@ class CredentialsEncryptionService {
     return crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: salt.buffer as ArrayBuffer,
         iterations: 100000,
         hash: 'SHA-256'
       },
@@ -74,7 +74,7 @@ class CredentialsEncryptionService {
       const dataBuffer = encoder.encode(data);
 
       const encryptedBuffer = await crypto.subtle.encrypt(
-        { name: this.ALGORITHM, iv: iv },
+        { name: this.ALGORITHM, iv },
         key,
         dataBuffer
       );
@@ -116,9 +116,9 @@ class CredentialsEncryptionService {
 
       // Decrypt data
       const decryptedBuffer = await crypto.subtle.decrypt(
-        { name: this.ALGORITHM, iv: iv },
+        { name: this.ALGORITHM, iv: iv.buffer as ArrayBuffer },
         key,
-        encrypted
+        encrypted.buffer as ArrayBuffer
       );
 
       const decoder = new TextDecoder();
