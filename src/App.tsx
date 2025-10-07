@@ -10,6 +10,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicRoute } from "@/components/auth/PublicRoute";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
+import { useEffect } from "react";
+import { onlineMonitor } from "@/services/sync/onlineMonitor";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -43,14 +45,24 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-const App = () => (
-  <ThemeProvider defaultTheme="system" storageKey="dea-theme">
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+const App = () => {
+  useEffect(() => {
+    // Inicializar monitor de conexão
+    onlineMonitor.initialize();
+    
+    return () => {
+      onlineMonitor.cleanup();
+    };
+  }, []);
+
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="dea-theme">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <Routes>
               {/* Public routes */}
               <Route path="/auth/login" element={
@@ -170,6 +182,7 @@ const App = () => (
       </AuthProvider>
     </QueryClientProvider>
   </ThemeProvider>
-);
+  );
+};
 
 export default App;

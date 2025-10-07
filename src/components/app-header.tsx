@@ -1,11 +1,13 @@
-import { Search, Moon, Sun } from "lucide-react"
+import { Search, Moon, Sun, Wifi, WifiOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { UserMenu } from "@/components/auth/UserMenu"
-
+import { Badge } from "@/components/ui/badge"
 import { NotificationSystem } from "@/components/notifications/NotificationSystem"
 import { useTheme } from "@/providers/theme-provider"
+import { useState, useEffect } from "react"
+import { syncStateManager, type SyncState } from "@/services/sync/syncState"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +17,60 @@ import {
 
 export function AppHeader() {
   const { theme, setTheme } = useTheme()
+  const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState())
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  useEffect(() => {
+    const unsubscribe = syncStateManager.subscribe(setSyncState)
+    
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      unsubscribe()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  const getStatusBadge = () => {
+    if (!isOnline) {
+      return (
+        <Badge variant="destructive" className="gap-1">
+          <WifiOff className="h-3 w-3" />
+          Offline {syncState.pendingPush > 0 && `- ${syncState.pendingPush} pendente${syncState.pendingPush > 1 ? 's' : ''}`}
+        </Badge>
+      )
+    }
+
+    if (syncState.status === 'syncing') {
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Sincronizando...
+        </Badge>
+      )
+    }
+
+    if (syncState.pendingPush > 0) {
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <Wifi className="h-3 w-3" />
+          {syncState.pendingPush} pendente{syncState.pendingPush > 1 ? 's' : ''}
+        </Badge>
+      )
+    }
+
+    return (
+      <Badge variant="default" className="gap-1">
+        <Wifi className="h-3 w-3" />
+        Online
+      </Badge>
+    )
+  }
 
   return (
     <header className="page-header sticky top-0 z-50 w-full h-14 px-4">
@@ -33,6 +89,7 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          {getStatusBadge()}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
