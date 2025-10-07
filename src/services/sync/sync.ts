@@ -181,11 +181,29 @@ function transformRecordForSupabase(record: any, entityName: string, userId: str
         created_at: base.created_at,
         updated_at: base.updated_at
       };
-    case 'budgets':
+    case 'budgets': {
+      const projectId = record.projectId || record.project_id;
+      const createdAtISO =
+        record.created_at ||
+        (record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString());
+      const updatedAtISO =
+        record.updated_at ||
+        (record.updatedAt ? new Date(record.updatedAt).toISOString() : new Date().toISOString());
+
       return {
-        ...base,
-        project_id: record.projectId
+        id: record.id,
+        project_id: projectId,
+        supplier: record.supplier,
+        status: record.status ?? 'pending',
+        file_name: record.fileName ?? record.file_name ?? null,
+        file_path: record.filePath ?? record.file_path ?? null,
+        file_size: record.fileSize ?? record.file_size ?? null,
+        uploaded_at: record.uploadedAt ?? record.uploaded_at ?? null,
+        user_id: userId,
+        created_at: createdAtISO,
+        updated_at: updatedAtISO
       };
+    }
     case 'item_versions':
       return {
         id: record.id,
@@ -237,11 +255,22 @@ function transformRecordForLocal(record: any, entityName: string): any {
         _dirty: 0,
         _deleted: 0
       };
-    case 'budgets':
+    case 'budgets': {
+      const fileName = record.file_name ?? (record as any).fileName;
+      const filePath = record.file_path ?? (record as any).filePath;
+      const fileSize = record.file_size ?? (record as any).fileSize;
+      const uploadedAt = record.uploaded_at ?? (record as any).uploadedAt;
+
       return {
         ...base,
-        projectId: record.project_id
+        projectId: record.project_id,
+        fileName,
+        filePath,
+        fileSize,
+        uploadedAt,
+        status: (record.status as ProjectBudget['status']) ?? 'pending'
       };
+    }
     case 'item_versions':
       return {
         id: record.id,
@@ -361,7 +390,7 @@ export async function syncPush(): Promise<LegacySyncMetrics> {
       { name: 'projects', table: 'projects' },
       { name: 'installations', table: 'installations' },
       { name: 'contacts', table: 'contacts' },
-      { name: 'budgets', table: 'budgets' },
+      { name: 'budgets', table: 'supplier_proposals' },
       { name: 'item_versions', table: 'item_versions' },
       { name: 'files', table: 'files' }
     ];
@@ -420,7 +449,7 @@ export async function syncPull(): Promise<LegacySyncMetrics> {
       { name: 'projects', table: 'projects' },
       { name: 'installations', table: 'installations' },
       { name: 'contacts', table: 'contacts' },
-      { name: 'budgets', table: 'budgets' },
+      { name: 'budgets', table: 'supplier_proposals' },
       { name: 'item_versions', table: 'item_versions' },
       { name: 'files', table: 'files' }
     ];
