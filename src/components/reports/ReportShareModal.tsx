@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,8 @@ import {
   CheckCircle,
   ExternalLink
 } from 'lucide-react';
-import { Project } from '@/types';
+import { Project, ReportHistoryEntry } from '@/types';
+import { storage } from '@/lib/storage';
 import { ReportConfig } from './ReportCustomizationModal';
 
 interface ReportShareModalProps {
@@ -50,7 +51,53 @@ export function ReportShareModal({
     message: `Segue anexo o relatório de instalações do projeto ${project.name}.\n\nGerado em: ${new Date().toLocaleString('pt-BR')}`,
   });
 
+  const hasSavedRef = useRef(false);
   const fileName = `Relatorio_${project.name}_${new Date().toISOString().split('T')[0]}_${interlocutor.toUpperCase()}.${format}`;
+
+  const saveReportToHistory = useCallback(async () => {
+    if (!blob || !project) return;
+
+    try {
+      const generatedAt = new Date().toISOString();
+      const reportRecord: ReportHistoryEntry = {
+        id: `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+        projectId: project.id,
+        project_id: project.id,
+        fileName,
+        format,
+        interlocutor,
+        config,
+        blob,
+        size: blob.size,
+        mimeType:
+          blob.type ||
+          (format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        generatedAt,
+        generated_at: generatedAt,
+        generatedBy: project.owner || 'Sistema',
+        generated_by: project.owner || 'Sistema',
+        createdAt: Date.now(),
+      };
+
+      await storage.saveReport(reportRecord);
+      console.log('✅ Report saved to history successfully');
+    } catch (error) {
+      console.error('❌ Error saving report to history:', error);
+    }
+  }, [blob, project, fileName, format, interlocutor, config]);
+
+  useEffect(() => {
+    if (isOpen && blob && project && !hasSavedRef.current) {
+      hasSavedRef.current = true;
+      void saveReportToHistory();
+    }
+
+    if (!isOpen) {
+      hasSavedRef.current = false;
+    }
+  }, [isOpen, blob, project, saveReportToHistory]);
 
   const handleDownload = () => {
     const url = URL.createObjectURL(blob);

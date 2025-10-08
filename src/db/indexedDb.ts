@@ -1,7 +1,7 @@
 import Dexie, { Table } from 'dexie';
 
 // Se existirem, importe os tipos reais:
-import type { Project, Installation, ItemVersion, FileAttachment } from '@/types';
+import type { Project, Installation, ItemVersion, FileAttachment, ReportHistoryEntry } from '@/types';
 
 // Temporário (trocar por tipos reais quando possível):
 export type Contact = any;
@@ -15,6 +15,7 @@ class DeaFieldManagerDB extends Dexie {
   itemVersions!: Table<ItemVersion, string>;
   files!: Table<FileAttachment, string>;
   meta!: Table<{ key: string; value: any }, string>;
+  reports!: Table<ReportHistoryEntry, string>;
 
   constructor() {
     super('DeaFieldManagerDB');
@@ -71,6 +72,17 @@ class DeaFieldManagerDB extends Dexie {
         itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
         files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
         meta: 'key'
+      });
+
+      this.version(6).stores({
+        projects: 'id, updatedAt, name, _dirty, _deleted',
+        installations: 'id, project_id, updatedAt, status, _dirty, _deleted',
+        contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+        budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+        itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
+        files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+        meta: 'key',
+        reports: 'id, projectId, project_id, createdAt, generatedAt'
       });
   }
 }
