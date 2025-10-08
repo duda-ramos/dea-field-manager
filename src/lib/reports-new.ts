@@ -400,20 +400,20 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items
   if (sections.pendencias.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name, data.project.id);
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name, data.project.id);
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name, data.project.id);
   }
 
   if (sections.emAndamento.length > 0) {
     const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name, data.project.id);
   }
 
   // Add footer to all pages
@@ -516,7 +516,8 @@ async function addEnhancedSectionToPDF(
   yPosition: number, 
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectName?: string
+  projectName?: string,
+  projectId?: string
 ): Promise<number> {
   if (items.length === 0) return yPosition;
 
@@ -544,7 +545,7 @@ async function addEnhancedSectionToPDF(
     });
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows, photosMap } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
+    const { columns, rows, photosMap } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
     // Generate single flat table
     autoTable(doc, {
@@ -696,7 +697,8 @@ async function addEnhancedSectionToPDF(
 async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'revisao'
+  sectionType: 'pendencias' | 'revisao',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -817,7 +819,8 @@ function getAggregatedColumnStyles(): any {
 async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -889,7 +892,8 @@ async function prepareTableData(
 async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -1171,7 +1175,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items with flat formatting
   if (sections.pendencias.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
+    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias', data.project.id);
   }
 
   if (sections.concluidas.length > 0) {
@@ -1179,7 +1183,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   }
 
   if (sections.emRevisao.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
+    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao', data.project.id);
   }
 
   if (sections.emAndamento.length > 0) {
@@ -1268,10 +1272,11 @@ async function addEnhancedSectionToXLSX(
   sheetName: string,
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ) {
   // Use compact columns (without Pavimento and Tipologia)
-  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType);
+  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, projectId);
   const allData: any[][] = [compactColumns]; // Headers
 
   // Group by pavimento
@@ -1334,7 +1339,7 @@ async function addEnhancedSectionToXLSX(
       });
 
       // Add items data (compact format)
-      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType);
+      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, projectId);
       allData.push(...rows);
     }
 
@@ -1358,7 +1363,8 @@ async function addFlatSectionToXLSX(
   sheetName: string,
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'revisao'
+  sectionType: 'pendencias' | 'revisao',
+  projectId?: string
 ) {
   // Sort items by Pavimento, Tipologia, Código
   const sortedItems = [...items].sort((a, b) => {
@@ -1370,7 +1376,7 @@ async function addFlatSectionToXLSX(
   });
 
   // Prepare flat table data (includes Pavimento and Tipologia)
-  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
+  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
   const wsData = [columns, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
