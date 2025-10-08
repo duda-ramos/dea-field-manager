@@ -544,7 +544,7 @@ async function addEnhancedSectionToPDF(
     });
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
+    const { columns, rows, photosMap } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
 
     // Generate single flat table
     autoTable(doc, {
@@ -579,6 +579,55 @@ async function addEnhancedSectionToPDF(
         doc.setTextColor(reportTheme.colors.footer);
         const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
         doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+      },
+      didDrawCell: (data: any) => {
+        // Add clickable links for photo cells
+        // For cliente: photo column is 5, for fornecedor: photo column is 5 (in flat view they combine observacoes and comentarios)
+        if (sectionType === 'pendencias' && data.column.index === 5 && data.section === 'body') {
+          const rowIndex = data.row.index;
+          const photos = photosMap.get(rowIndex);
+          
+          if (photos && photos.length > 0) {
+            const cell = data.cell;
+            const x = cell.x;
+            const y = cell.y;
+            const width = cell.width;
+            const height = cell.height;
+            
+            // Clear the cell text
+            doc.setFillColor(data.row.index % 2 === 0 ? 250 : 255, data.row.index % 2 === 0 ? 250 : 255, data.row.index % 2 === 0 ? 251 : 255);
+            doc.rect(x, y, width, height, 'F');
+            
+            // Calculate spacing for multiple photo links
+            const linkSpacing = 2;
+            const linkWidth = photos.length === 1 ? width : (width - (photos.length - 1) * linkSpacing) / photos.length;
+            
+            photos.forEach((photoUrl, photoIndex) => {
+              const linkX = x + (photoIndex * (linkWidth + linkSpacing)) + 1;
+              const linkY = y + height / 2;
+              
+              // Draw blue clickable text
+              doc.setTextColor(0, 0, 255);
+              doc.setFontSize(10);
+              
+              const linkText = photos.length === 1 ? '📷 Ver foto' : `📷 Foto ${photoIndex + 1}`;
+              const textWidth = doc.getTextWidth(linkText);
+              
+              // Center the text in the available space
+              const textX = linkX + (linkWidth - textWidth) / 2;
+              
+              doc.textWithLink(linkText, textX, linkY, { url: photoUrl });
+              
+              // Underline the link
+              doc.setDrawColor(0, 0, 255);
+              doc.setLineWidth(0.1);
+              doc.line(textX, linkY + 0.5, textX + textWidth, linkY + 0.5);
+            });
+            
+            // Reset text color
+            doc.setTextColor(0, 0, 0);
+          }
+        }
       }
     });
 
@@ -648,28 +697,38 @@ async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao'
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
+  const photosMap = new Map<number, string[]>(); // Map row index to photos array
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
+      rows = items.map((item, index) => {
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
+        return [
+          item.pavimento,
+          item.tipologia,
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        ];
+      });
     } else {
       // For Fornecedor, combine observações and comentários
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => {
+      rows = items.map((item, index) => {
         const observacao = [];
         if (item.observacoes) observacao.push(`Obs: ${item.observacoes}`);
         if (item.comentarios_fornecedor) observacao.push(`Coment.: ${item.comentarios_fornecedor}`);
+        
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
         
         return [
           item.pavimento,
@@ -699,7 +758,7 @@ async function prepareFlatTableData(
     }));
   }
 
-  return { columns, rows };
+  return { columns, rows, photosMap };
 }
 
 // Aggregate items by Pavimento and Tipologia for summary sections
@@ -759,32 +818,43 @@ async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
+  const photosMap = new Map<number, string[]>();
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
+      rows = items.map((item, index) => {
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
+        return [
+          item.pavimento,
+          item.tipologia,
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        ];
+      });
     } else {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
+      rows = items.map((item, index) => {
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
+        return [
+          item.pavimento,
+          item.tipologia,
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          item.comentarios_fornecedor || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        ];
+      });
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
@@ -812,7 +882,7 @@ async function prepareTableData(
     ]);
   }
 
-  return { columns, rows };
+  return { columns, rows, photosMap };
 }
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
@@ -820,28 +890,39 @@ async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
   let columns: string[] = [];
   let rows: any[][] = [];
+  const photosMap = new Map<number, string[]>();
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
+      rows = items.map((item, index) => {
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
+        return [
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        ];
+      });
     } else {
       columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map(item => [
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
+      rows = items.map((item, index) => {
+        if (item.photos && item.photos.length > 0) {
+          photosMap.set(index, item.photos);
+        }
+        return [
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          item.comentarios_fornecedor || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        ];
+      });
     }
   } else if (sectionType === 'revisao') {
     columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
@@ -865,7 +946,7 @@ async function prepareCompactTableData(
     ]);
   }
 
-  return { columns, rows };
+  return { columns, rows, photosMap };
 }
 
 // Get column styles based on section type
