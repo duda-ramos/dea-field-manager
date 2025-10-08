@@ -1,5 +1,13 @@
 import { db } from '@/db/indexedDb';
-import type { Project, Installation, ProjectContact, ProjectBudget, ItemVersion, ProjectFile } from '@/types';
+import type {
+  Project,
+  Installation,
+  ProjectContact,
+  ProjectBudget,
+  ItemVersion,
+  ProjectFile,
+  ReportHistoryEntry
+} from '@/types';
 import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
@@ -426,48 +434,184 @@ export const StorageManagerDexie = {
 // Files
 (StorageManagerDexie as any).saveFile = StorageManagerDexie.upsertFile;
 
-// Reports - LocalStorage implementation
-(StorageManagerDexie as any).getReports = async (projectId?: string) => {
+// Reports - IndexedDB implementation
+const REPORT_HISTORY_STORAGE_KEY = 'dea_manager_reports-new';
+let legacyReportHistoryMigrated = false;
+
+function inferReportMimeType(format?: string, fallback?: string) {
+  if (fallback) return fallback;
+  if (format === 'xlsx') {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
+  if (format === 'pdf') {
+    return 'application/pdf';
+  }
+  return 'application/octet-stream';
+}
+
+function decodeBase64ToUint8Array(base64: string) {
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).atob === 'function') {
+    const binaryString = (globalThis as any).atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  if (typeof globalThis !== 'undefined' && (globalThis as any).Buffer) {
+    const buffer = (globalThis as any).Buffer.from(base64, 'base64');
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  }
+
+  throw new Error('No base64 decoder available in this environment');
+}
+
+function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
+  const [header, data] = dataUrl.split(',');
+  if (!header || !data) {
+    throw new Error('Invalid data URL');
+  }
+
+  const mimeMatch = header.match(/data:(.*);base64/);
+  const mimeType = mimeMatch?.[1] ?? 'application/octet-stream';
+  const bytes = decodeBase64ToUint8Array(data);
+
+  return {
+    blob: new Blob([bytes], { type: mimeType }),
+    mimeType,
+  };
+}
+
+function normalizeReportHistoryEntry(report: any): ReportHistoryEntry {
+  if (!report) {
+    throw new Error('Report payload is required');
+  }
+
+  const { blobData, blob, ...rest } = report;
+  const projectId = rest.projectId ?? rest.project_id;
+  const generatedAt = rest.generatedAt ?? rest.generated_at ?? new Date().toISOString();
+  const createdAtCandidate = rest.createdAt ?? rest.created_at;
+  let storedBlob: Blob | undefined = blob instanceof Blob ? blob : undefined;
+  let mimeType = rest.mimeType ?? rest.mime_type ?? storedBlob?.type;
+
+  if (!storedBlob && typeof blobData === 'string') {
+    try {
+      const converted = dataUrlToBlob(blobData);
+      storedBlob = converted.blob;
+      mimeType = mimeType ?? converted.mimeType;
+    } catch (error) {
+      console.error('Failed to convert legacy report blobData:', error);
+    }
+  }
+
+  const createdAt =
+    typeof createdAtCandidate === 'number'
+      ? createdAtCandidate
+      : Number.isFinite(Date.parse(generatedAt))
+        ? Date.parse(generatedAt)
+        : Date.now();
+
+  const generatedBy = rest.generatedBy ?? rest.generated_by ?? 'Sistema';
+  const size = rest.size ?? storedBlob?.size ?? 0;
+
+  const normalized: ReportHistoryEntry = {
+    ...rest,
+    id: rest.id ?? `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+    projectId,
+    project_id: projectId,
+    generatedAt,
+    generated_at: generatedAt,
+    generatedBy,
+    generated_by: generatedBy,
+    size,
+    mimeType: inferReportMimeType(rest.format, mimeType),
+    blob: storedBlob,
+    createdAt,
+  };
+
+  return normalized;
+}
+
+async function migrateLegacyReportHistory() {
+  if (legacyReportHistoryMigrated) return;
+  legacyReportHistoryMigrated = true;
+
+  if (typeof window === 'undefined' || !('localStorage' in window)) {
+    return;
+  }
+
   try {
-    const key = 'dea_manager_reports-new';
-    const stored = localStorage.getItem(key);
+    const stored = window.localStorage.getItem(REPORT_HISTORY_STORAGE_KEY);
+    if (!stored) return;
 
-    if (!stored) return [];
-
-    const allReports = JSON.parse(stored);
-
-    if (projectId) {
-      return allReports.filter((r: any) => r.projectId === projectId);
+    const legacyReports = JSON.parse(stored);
+    if (!Array.isArray(legacyReports) || legacyReports.length === 0) {
+      window.localStorage.removeItem(REPORT_HISTORY_STORAGE_KEY);
+      return;
     }
 
-    return allReports;
+    await db.transaction('rw', db.reports, async () => {
+      for (const legacyReport of legacyReports) {
+        try {
+          const normalized = normalizeReportHistoryEntry(legacyReport);
+          await db.reports.put(normalized);
+        } catch (error) {
+          console.error('Failed to migrate legacy report history entry:', error);
+        }
+      }
+    });
+
+    window.localStorage.removeItem(REPORT_HISTORY_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error migrating legacy report history:', error);
+  }
+}
+
+(StorageManagerDexie as any).getReports = async (projectId?: string) => {
+  try {
+    await migrateLegacyReportHistory();
+
+    const reports = projectId
+      ? await db.reports.where('projectId').equals(projectId).toArray()
+      : await db.reports.toArray();
+
+    return reports
+      .map((report) => normalizeReportHistoryEntry(report))
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   } catch (error) {
     console.error('Error getting reports:', error);
     return [];
   }
 };
 
-(StorageManagerDexie as any).saveReport = async (report: any) => {
+(StorageManagerDexie as any).saveReport = async (report: ReportHistoryEntry) => {
   try {
-    const key = 'dea_manager_reports-new';
-    const stored = localStorage.getItem(key);
-    const reports = stored ? JSON.parse(stored) : [];
+    await migrateLegacyReportHistory();
+    const normalized = normalizeReportHistoryEntry(report);
 
-    reports.unshift(report);
-
-    const projectReports = reports.filter((r: any) => r.projectId === report.projectId);
-    if (projectReports.length > 20) {
-      const reportsToKeep = new Set(projectReports.slice(0, 20).map((r: any) => r.id));
-      const filtered = reports.filter(
-        (r: any) => r.projectId !== report.projectId || reportsToKeep.has(r.id)
-      );
-      localStorage.setItem(key, JSON.stringify(filtered));
-    } else {
-      localStorage.setItem(key, JSON.stringify(reports));
+    if (!normalized.projectId) {
+      throw new Error('Report must include a projectId');
     }
 
-    console.log('✅ Report saved to history:', report.id);
-    return report;
+    await db.transaction('rw', db.reports, async () => {
+      await db.reports.put(normalized);
+
+      const projectReports = await db.reports.where('projectId').equals(normalized.projectId).toArray();
+      if (projectReports.length > 20) {
+        const sorted = projectReports
+          .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+          .slice(20);
+
+        if (sorted.length > 0) {
+          await db.reports.bulkDelete(sorted.map((entry) => entry.id));
+        }
+      }
+    });
+
+    console.log('✅ Report saved to history:', normalized.id);
+    return normalized;
   } catch (error) {
     console.error('❌ Error saving report:', error);
     throw error;
@@ -476,15 +620,8 @@ export const StorageManagerDexie = {
 
 (StorageManagerDexie as any).deleteReport = async (reportId: string) => {
   try {
-    const key = 'dea_manager_reports-new';
-    const stored = localStorage.getItem(key);
-
-    if (!stored) return;
-
-    const reports = JSON.parse(stored);
-    const filtered = reports.filter((r: any) => r.id !== reportId);
-
-    localStorage.setItem(key, JSON.stringify(filtered));
+    await migrateLegacyReportHistory();
+    await db.reports.delete(reportId);
     console.log('✅ Report deleted from history:', reportId);
   } catch (error) {
     console.error('❌ Error deleting report:', error);

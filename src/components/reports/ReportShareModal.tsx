@@ -19,7 +19,7 @@ import {
   CheckCircle,
   ExternalLink
 } from 'lucide-react';
-import { Project } from '@/types';
+import { Project, ReportHistoryEntry } from '@/types';
 import { storage } from '@/lib/storage';
 import { ReportConfig } from './ReportCustomizationModal';
 
@@ -54,50 +54,44 @@ export function ReportShareModal({
   const hasSavedRef = useRef(false);
   const fileName = `Relatorio_${project.name}_${new Date().toISOString().split('T')[0]}_${interlocutor.toUpperCase()}.${format}`;
 
-  const saveReportToHistory = useCallback(() => {
+  const saveReportToHistory = useCallback(async () => {
     if (!blob || !project) return;
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64data = reader.result as string;
-          const generatedAt = new Date().toISOString();
-          const reportRecord = {
-            id: `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-            projectId: project.id,
-            project_id: project.id,
-            fileName,
-            format,
-            interlocutor,
-            config,
-            blobData: base64data,
-            size: blob.size,
-            generatedAt,
-            generated_at: generatedAt,
-            generatedBy: project.owner || 'Sistema',
-            generated_by: project.owner || 'Sistema'
-          };
+      const generatedAt = new Date().toISOString();
+      const reportRecord: ReportHistoryEntry = {
+        id: `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+        projectId: project.id,
+        project_id: project.id,
+        fileName,
+        format,
+        interlocutor,
+        config,
+        blob,
+        size: blob.size,
+        mimeType:
+          blob.type ||
+          (format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        generatedAt,
+        generated_at: generatedAt,
+        generatedBy: project.owner || 'Sistema',
+        generated_by: project.owner || 'Sistema',
+        createdAt: Date.now(),
+      };
 
-          await storage.saveReport(reportRecord);
-          console.log('✅ Report saved to history successfully');
-        } catch (error) {
-          console.error('❌ Error saving report to history:', error);
-        }
-      };
-      reader.onerror = (error) => {
-        console.error('❌ Error reading report blob:', error);
-      };
-      reader.readAsDataURL(blob);
+      await storage.saveReport(reportRecord);
+      console.log('✅ Report saved to history successfully');
     } catch (error) {
-      console.error('❌ Error preparing report for history:', error);
+      console.error('❌ Error saving report to history:', error);
     }
   }, [blob, project, fileName, format, interlocutor, config]);
 
   useEffect(() => {
     if (isOpen && blob && project && !hasSavedRef.current) {
       hasSavedRef.current = true;
-      saveReportToHistory();
+      void saveReportToHistory();
     }
 
     if (!isOpen) {

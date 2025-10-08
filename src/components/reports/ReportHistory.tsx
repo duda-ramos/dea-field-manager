@@ -8,13 +8,14 @@ import { storage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { ReportHistoryEntry } from '@/types';
 
 interface ReportHistoryProps {
   projectId: string;
 }
 
 export function ReportHistory({ projectId }: ReportHistoryProps) {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -39,19 +40,43 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
-  const handleDownload = (report: any) => {
+  const convertBase64ToBlob = (dataUrl: string, fallbackMime?: string) => {
+    const [header, data] = dataUrl.split(',');
+    if (!header || !data) {
+      throw new Error('Dados do relatório inválidos');
+    }
+
+    const mimeMatch = header.match(/data:(.*);base64/);
+    const mimeType = mimeMatch?.[1] ?? fallbackMime ?? 'application/octet-stream';
+    const byteCharacters = atob(data);
+    const byteNumbers = new Array(byteCharacters.length);
+
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+  };
+
+  const resolveReportBlob = (report: ReportHistoryEntry) => {
+    if (report.blob instanceof Blob) {
+      return report.blob;
+    }
+
+    if (typeof report.blobData === 'string') {
+      return convertBase64ToBlob(report.blobData, report.mimeType);
+    }
+
+    return undefined;
+  };
+
+  const handleDownload = (report: ReportHistoryEntry) => {
     try {
-      const [header, data] = report.blobData.split(',');
-      const byteString = atob(data);
-      const mimeString = header.split(':')[1].split(';')[0];
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
+      const blob = resolveReportBlob(report);
+      if (!blob) {
+        throw new Error('Arquivo do relatório indisponível');
       }
-
-      const blob = new Blob([ab], { type: mimeString });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -96,8 +121,8 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -105,7 +130,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     return `${Math.round(value * 100) / 100} ${sizes[i]}`;
   };
 
-  const formatGeneratedAt = (report: any) => {
+  const formatGeneratedAt = (report: ReportHistoryEntry) => {
     const dateValue = report.generatedAt || report.generated_at;
     if (!dateValue) return 'Data desconhecida';
 
@@ -180,19 +205,19 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                           {formatGeneratedAt(report)}
                         </div>
 
-                        {report.generatedBy && (
+                        {(report.generatedBy || report.generated_by) && (
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            {report.generatedBy}
+                            {report.generatedBy || report.generated_by}
                           </div>
                         )}
 
                         <Badge variant="outline" className="text-xs">
-                          {report.interlocutor}
+                          {report.interlocutor || 'N/A'}
                         </Badge>
 
                         <span className="text-xs">
-                          {formatFileSize(report.size)}
+                          {formatFileSize(report.size ?? report.blob?.size)}
                         </span>
                       </div>
                     </div>
