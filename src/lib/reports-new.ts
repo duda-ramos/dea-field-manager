@@ -573,6 +573,46 @@ async function addEnhancedSectionToPDF(
       },
       columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
+      didDrawCell: (data) => {
+        // Add clickable photo links in the "Foto" column for pendencias
+        if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === 5) {
+          const item = sortedItems[data.row.index];
+          if (item.photos && item.photos.length > 0) {
+            // Clear the cell text first
+            doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            
+            // Add clickable links for each photo
+            let linkX = data.cell.x + 2;
+            const linkY = data.cell.y + data.cell.height / 2 + 2;
+            
+            item.photos.forEach((photoUrl, idx) => {
+              const linkText = item.photos.length > 1 ? `Foto ${idx + 1}` : 'Ver foto';
+              
+              // Set blue color for links
+              doc.setTextColor(0, 0, 255);
+              doc.setFontSize(9);
+              
+              // Add clickable link
+              doc.textWithLink(linkText, linkX, linkY, { url: photoUrl });
+              
+              // Add separator if there are multiple photos
+              if (idx < item.photos.length - 1) {
+                const linkWidth = doc.getTextWidth(linkText);
+                linkX += linkWidth;
+                doc.setTextColor(100, 100, 100);
+                doc.text(' | ', linkX, linkY);
+                linkX += doc.getTextWidth(' | ');
+              } else {
+                linkX += doc.getTextWidth(linkText);
+              }
+            });
+            
+            // Reset text color
+            doc.setTextColor(0, 0, 0);
+          }
+        }
+      },
       didDrawPage: () => {
         const pageHeight = doc.internal.pageSize.height;
         doc.setFontSize(reportTheme.fonts.footer);
