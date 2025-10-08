@@ -15,7 +15,7 @@ import {
   Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
   ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog
 } from "lucide-react";
-import { Project, Installation, ProjectReport } from "@/types";
+import { Project, Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +37,7 @@ import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
 import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
 import { ReportShareModal } from "@/components/reports/ReportShareModal";
+import { ReportHistory } from "@/components/reports/ReportHistory";
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +49,6 @@ export default function ProjectDetailNew() {
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
-  const [reports, setReports] = useState<ProjectReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
   const [itemStatusFilter, setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
@@ -96,9 +96,7 @@ export default function ProjectDetailNew() {
     
     setProject(projectData);
     const projectInstallations = await storage.getInstallationsByProject(id);
-    const projectReports = await (storage as any).getReports();
     setInstallations(projectInstallations);
-    setReports(projectReports);
   };
 
   const handleProjectUpdated = (updatedProject: Project) => {
@@ -445,42 +443,17 @@ export default function ProjectDetailNew() {
             </div>
           </CardHeader>
           <CardContent>
-            {reports.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhum relatório gerado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Clique no botão acima para gerar seu primeiro relatório
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {reports.map((report, index) => (
-                  <Card key={index} className="border">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="min-w-0">
-                          <h4 className="font-medium truncate">
-                            Relatório - {new Date(report.generated_at).toLocaleDateString('pt-BR')}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {report.observacoes || 'Sem observações'}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <Download className="h-4 w-4" />
-                            Baixar
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Gere relatórios personalizados</h3>
+              <p className="text-muted-foreground mb-4">
+                Utilize a personalização para criar relatórios específicos para cada interlocutor
+              </p>
+            </div>
           </CardContent>
         </Card>
+
+        <ReportHistory projectId={project.id} />
       </div>
     );
   };

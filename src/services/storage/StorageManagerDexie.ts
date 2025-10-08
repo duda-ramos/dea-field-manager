@@ -426,6 +426,68 @@ export const StorageManagerDexie = {
 // Files
 (StorageManagerDexie as any).saveFile = StorageManagerDexie.upsertFile;
 
-// Reports (mock for compatibility)
-(StorageManagerDexie as any).getReports = async () => [];
-(StorageManagerDexie as any).saveReport = async (report: any) => report;
+// Reports - LocalStorage implementation
+(StorageManagerDexie as any).getReports = async (projectId?: string) => {
+  try {
+    const key = 'dea_manager_reports-new';
+    const stored = localStorage.getItem(key);
+
+    if (!stored) return [];
+
+    const allReports = JSON.parse(stored);
+
+    if (projectId) {
+      return allReports.filter((r: any) => r.projectId === projectId);
+    }
+
+    return allReports;
+  } catch (error) {
+    console.error('Error getting reports:', error);
+    return [];
+  }
+};
+
+(StorageManagerDexie as any).saveReport = async (report: any) => {
+  try {
+    const key = 'dea_manager_reports-new';
+    const stored = localStorage.getItem(key);
+    const reports = stored ? JSON.parse(stored) : [];
+
+    reports.unshift(report);
+
+    const projectReports = reports.filter((r: any) => r.projectId === report.projectId);
+    if (projectReports.length > 20) {
+      const reportsToKeep = new Set(projectReports.slice(0, 20).map((r: any) => r.id));
+      const filtered = reports.filter(
+        (r: any) => r.projectId !== report.projectId || reportsToKeep.has(r.id)
+      );
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } else {
+      localStorage.setItem(key, JSON.stringify(reports));
+    }
+
+    console.log('✅ Report saved to history:', report.id);
+    return report;
+  } catch (error) {
+    console.error('❌ Error saving report:', error);
+    throw error;
+  }
+};
+
+(StorageManagerDexie as any).deleteReport = async (reportId: string) => {
+  try {
+    const key = 'dea_manager_reports-new';
+    const stored = localStorage.getItem(key);
+
+    if (!stored) return;
+
+    const reports = JSON.parse(stored);
+    const filtered = reports.filter((r: any) => r.id !== reportId);
+
+    localStorage.setItem(key, JSON.stringify(filtered));
+    console.log('✅ Report deleted from history:', reportId);
+  } catch (error) {
+    console.error('❌ Error deleting report:', error);
+    throw error;
+  }
+};
