@@ -3,6 +3,9 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Project, Installation, ItemVersion } from '@/types';
 import { storage } from './storage';
+import { supabase } from '@/integrations/supabase/client';
+
+const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 
 export interface ReportData {
   project: Project;
@@ -400,20 +403,20 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items
   if (sections.pendencias.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name, data.project.id);
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name, data.project.id);
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name, data.project.id);
   }
 
   if (sections.emAndamento.length > 0) {
     const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name);
+    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name, data.project.id);
   }
 
   // Add footer to all pages
@@ -516,7 +519,8 @@ async function addEnhancedSectionToPDF(
   yPosition: number, 
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectName?: string
+  projectName?: string,
+  projectId?: string
 ): Promise<number> {
   if (items.length === 0) return yPosition;
 
@@ -543,8 +547,21 @@ async function addEnhancedSectionToPDF(
       return codeA - codeB;
     });
 
+    // Pre-load photo URLs for all items to avoid async in didDrawCell
+    const photoUrlsMap = new Map<string, string[]>();
+    if (sectionType === 'pendencias' && projectId) {
+      for (const item of sortedItems) {
+        if (item.photos && item.photos.length > 0) {
+          const urls = await getPhotoPublicUrls(projectId, item.id);
+          if (urls.length > 0) {
+            photoUrlsMap.set(item.id, urls);
+          }
+        }
+      }
+    }
+
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
     // Generate single flat table
     autoTable(doc, {
@@ -577,7 +594,9 @@ async function addEnhancedSectionToPDF(
         // Add clickable photo links in the "Foto" column for pendencias
         if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === 5) {
           const item = sortedItems[data.row.index];
-          if (item.photos && item.photos.length > 0) {
+          const photoUrls = photoUrlsMap.get(item.id);
+          
+          if (photoUrls && photoUrls.length > 0) {
             // Clear the cell text first
             doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
             doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
@@ -586,8 +605,8 @@ async function addEnhancedSectionToPDF(
             let linkX = data.cell.x + 2;
             const linkY = data.cell.y + data.cell.height / 2 + 2;
             
-            item.photos.forEach((photoUrl, idx) => {
-              const linkText = item.photos.length > 1 ? `Foto ${idx + 1}` : 'Ver foto';
+            photoUrls.forEach((photoUrl, idx) => {
+              const linkText = photoUrls.length > 1 ? `Foto ${idx + 1}` : 'Ver foto';
               
               // Set blue color for links
               doc.setTextColor(0, 0, 255);
@@ -597,7 +616,7 @@ async function addEnhancedSectionToPDF(
               doc.textWithLink(linkText, linkX, linkY, { url: photoUrl });
               
               // Add separator if there are multiple photos
-              if (idx < item.photos.length - 1) {
+              if (idx < photoUrls.length - 1) {
                 const linkWidth = doc.getTextWidth(linkText);
                 linkX += linkWidth;
                 doc.setTextColor(100, 100, 100);
@@ -683,11 +702,43 @@ async function addEnhancedSectionToPDF(
   return yPosition;
 }
 
+// Get public URLs for photos from Supabase Storage
+async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
+  try {
+    if (!bucket) return [];
+    
+    // Get files for this installation from the database
+    const files = await storage.getFilesByProject(projectId);
+    const installationFiles = files.filter(f => 
+      f.installationId === installationId && 
+      f.type === 'image' && 
+      f.storagePath
+    );
+    
+    // Get public URLs for each file
+    const urls: string[] = [];
+    for (const file of installationFiles) {
+      if (file.storagePath) {
+        const { data } = supabase.storage.from(bucket).getPublicUrl(file.storagePath);
+        if (data?.publicUrl) {
+          urls.push(data.publicUrl);
+        }
+      }
+    }
+    
+    return urls;
+  } catch (error) {
+    console.error('Error getting photo public URLs:', error);
+    return [];
+  }
+}
+
 // Prepare flat table data for Pendencias and Em Revisao sections (includes Pavimento and Tipologia)
 async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'revisao'
+  sectionType: 'pendencias' | 'revisao',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
