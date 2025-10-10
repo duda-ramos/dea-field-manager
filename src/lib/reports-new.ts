@@ -638,55 +638,6 @@ async function addEnhancedSectionToPDF(
         doc.setTextColor(reportTheme.colors.footer);
         const footerText = `DEA Manager • ${projectName || 'Projeto'} • ${new Date().toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
         doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
-      },
-      didDrawCell: (data: any) => {
-        // Add clickable links for photo cells
-        // For cliente: photo column is 5, for fornecedor: photo column is 5 (in flat view they combine observacoes and comentarios)
-        if (sectionType === 'pendencias' && data.column.index === 5 && data.section === 'body') {
-          const rowIndex = data.row.index;
-          const photos = photosMap.get(rowIndex);
-          
-          if (photos && photos.length > 0) {
-            const cell = data.cell;
-            const x = cell.x;
-            const y = cell.y;
-            const width = cell.width;
-            const height = cell.height;
-            
-            // Clear the cell text
-            doc.setFillColor(data.row.index % 2 === 0 ? 250 : 255, data.row.index % 2 === 0 ? 250 : 255, data.row.index % 2 === 0 ? 251 : 255);
-            doc.rect(x, y, width, height, 'F');
-            
-            // Calculate spacing for multiple photo links
-            const linkSpacing = 2;
-            const linkWidth = photos.length === 1 ? width : (width - (photos.length - 1) * linkSpacing) / photos.length;
-            
-            photos.forEach((photoUrl, photoIndex) => {
-              const linkX = x + (photoIndex * (linkWidth + linkSpacing)) + 1;
-              const linkY = y + height / 2;
-              
-              // Draw blue clickable text
-              doc.setTextColor(0, 0, 255);
-              doc.setFontSize(10);
-              
-              const linkText = photos.length === 1 ? '📷 Ver foto' : `📷 Foto ${photoIndex + 1}`;
-              const textWidth = doc.getTextWidth(linkText);
-              
-              // Center the text in the available space
-              const textX = linkX + (linkWidth - textWidth) / 2;
-              
-              doc.textWithLink(linkText, textX, linkY, { url: photoUrl });
-              
-              // Underline the link
-              doc.setDrawColor(0, 0, 255);
-              doc.setLineWidth(0.1);
-              doc.line(textX, linkY + 0.5, textX + textWidth, linkY + 0.5);
-            });
-            
-            // Reset text color
-            doc.setTextColor(0, 0, 0);
-          }
-        }
       }
     });
 
