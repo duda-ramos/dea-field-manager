@@ -996,32 +996,60 @@ async function getPhotoPublicUrls(projectId: string, installationId: string): Pr
 }
 
 // PERFORMANCE: Cache for item versions to avoid duplicate storage calls
-const versionCache = new Map<string, ItemVersion[]>();
+type CachedVersionEntry = {
+  versions: ItemVersion[];
+  latestRevision: number;
+};
+
+const versionCache = new Map<string, CachedVersionEntry>();
+
+function getLatestRevision(versions: ItemVersion[]): number {
+  if (!versions.length) return 0;
+  return versions.reduce((max, version) => Math.max(max, version.revisao ?? 0), 0);
+}
 
 // PERFORMANCE: Batch fetch versions for multiple items at once
-async function batchFetchVersions(itemIds: string[]): Promise<Map<string, ItemVersion[]>> {
-  const uncachedIds = itemIds.filter(id => !versionCache.has(id));
-  
+async function batchFetchVersions(
+  itemIds: string[],
+  revisionHints?: Map<string, number>
+): Promise<Map<string, ItemVersion[]>> {
+  const uncachedIds = itemIds.filter(id => {
+    const cached = versionCache.get(id);
+    if (!cached) return true;
+
+    const latestKnownRevision = revisionHints?.get(id);
+    if (latestKnownRevision != null && latestKnownRevision > cached.latestRevision) {
+      versionCache.delete(id);
+      return true;
+    }
+
+    return false;
+  });
+
   if (uncachedIds.length > 0) {
     // Fetch all uncached versions in parallel
     const versionPromises = uncachedIds.map(id => storage.getItemVersions(id));
     const versionResults = await Promise.all(versionPromises);
-    
+
     // Cache the results
     uncachedIds.forEach((id, index) => {
-      versionCache.set(id, versionResults[index]);
+      const versions = versionResults[index];
+      versionCache.set(id, {
+        versions,
+        latestRevision: revisionHints?.get(id) ?? getLatestRevision(versions)
+      });
     });
   }
-  
+
   // Return all versions (from cache)
   const result = new Map<string, ItemVersion[]>();
   itemIds.forEach(id => {
-    const versions = versionCache.get(id);
-    if (versions) {
-      result.set(id, versions);
+    const cached = versionCache.get(id);
+    if (cached) {
+      result.set(id, cached.versions);
     }
   });
-  
+
   return result;
 }
 
@@ -1082,7 +1110,8 @@ async function prepareDynamicTableData(
     
     // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
     const itemIds = items.map(item => item.id);
-    const versionsMap = await batchFetchVersions(itemIds);
+    const revisionHints = new Map(items.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
     
     rows = items.map(item => {
       const row: any[] = [];
@@ -1340,7 +1369,8 @@ async function addSectionToPDF(
     
     // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
     const itemIds = sortedItems.map(item => item.id);
-    const versionsMap = await batchFetchVersions(itemIds);
+    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
     
     rows = sortedItems.map(item => {
       const versions = versionsMap.get(item.id) || [];
@@ -1514,7 +1544,8 @@ async function addSectionToXLSX(
     
     // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
     const itemIds = sortedItems.map(item => item.id);
-    const versionsMap = await batchFetchVersions(itemIds);
+    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
     
     data = sortedItems.map(item => {
       const versions = versionsMap.get(item.id) || [];
