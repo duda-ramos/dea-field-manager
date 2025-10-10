@@ -758,7 +758,7 @@ async function prepareFlatTableData(
       ]);
     } else {
       // For Fornecedor, include separate Comentários column
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
       rows = items.map((item) => [
         item.pavimento,
         item.tipologia,
@@ -827,7 +827,7 @@ function getFlatColumnStyles(
         2: { halign: 'right', cellWidth: 12 },  // Código - 7%
         3: { halign: 'left', cellWidth: 42 },   // Descrição - 25%
         4: { halign: 'left', cellWidth: 28 },   // Observação - 17%
-        5: { halign: 'left', cellWidth: 28 },   // Comentários - 17%
+        5: { halign: 'left', cellWidth: 28 },   // Comentários do Fornecedor - 17%
         6: { halign: 'center', cellWidth: 12 }  // Foto - 7%
       };
     }
@@ -876,7 +876,7 @@ async function prepareTableData(
         (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
       rows = items.map((item) => [
         item.pavimento,
         item.tipologia,
@@ -936,7 +936,7 @@ async function prepareCompactTableData(
         (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
-      columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      columns = ['Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
       rows = items.map((item) => [
         item.codigo.toString(),
         item.descricao,
@@ -993,7 +993,7 @@ function getColumnStyles(
       return {
         ...baseStyles,
         4: { halign: 'left' }, // Observação
-        5: { halign: 'left' }, // Comentários
+        5: { halign: 'left' }, // Comentários do Fornecedor
         6: { halign: 'center' } // Foto
       };
     }
@@ -1072,7 +1072,7 @@ async function addSectionToPDF(
         (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
       rows = sortedItems.map(item => [
         item.pavimento,
         item.tipologia,
@@ -1241,7 +1241,7 @@ async function addSectionToXLSX(
         (item.photos && item.photos.length > 0) ? 'Arquivo de foto disponível' : ''
       ]);
     } else {
-      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
       data = sortedItems.map(item => [
         item.pavimento,
         item.tipologia,
