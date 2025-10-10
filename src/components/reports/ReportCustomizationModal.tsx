@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +8,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Eye, Download, FileText, Table } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Eye, Download, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
 import { Installation, Project } from '@/types';
 import { calculateReportSections, calculatePavimentoSummary } from '@/lib/reports-new';
 import { StorageBar } from '@/components/storage-bar';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportCustomizationModalProps {
   isOpen: boolean;
@@ -62,6 +67,8 @@ const defaultConfig: ReportConfig = {
   sortBy: 'codigo',
 };
 
+const STORAGE_KEY = 'report-config-preferences';
+
 export function ReportCustomizationModal({
   isOpen,
   onClose,
@@ -70,18 +77,39 @@ export function ReportCustomizationModal({
   project,
   installations,
 }: ReportCustomizationModalProps) {
+  const { toast } = useToast();
   const [config, setConfig] = useState<ReportConfig>(defaultConfig);
   const [previewData, setPreviewData] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingFormat, setGeneratingFormat] = useState<'pdf' | 'xlsx' | null>(null);
   const [activeTab, setActiveTab] = useState('sections');
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
+  // Load saved preferences from localStorage on mount
   useEffect(() => {
-    if (isOpen && installations.length > 0) {
-      updatePreview();
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const savedConfig = JSON.parse(saved);
+        setConfig(savedConfig);
+      }
+    } catch (error) {
+      console.error('Error loading saved preferences:', error);
     }
-  }, [isOpen, installations, config]);
+  }, []);
 
-  const updatePreview = () => {
+  // Save preferences to localStorage whenever config changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+    }
+  }, [config]);
+
+  // Calculate preview data with useMemo
+  const calculatePreview = useCallback(() => {
+    setIsLoadingPreview(true);
     try {
       const versions: any[] = []; // Simplified for preview
       const reportData = {
@@ -108,10 +136,33 @@ export function ReportCustomizationModal({
       });
     } catch (error) {
       console.error('Error updating preview:', error);
+      toast({
+        title: 'Erro ao atualizar prévia',
+        description: 'Não foi possível calcular a prévia do relatório.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingPreview(false);
     }
-  };
+  }, [project, installations, config.interlocutor, toast]);
 
-  const handleSectionToggle = (section: keyof ReportConfig['sections']) => {
+  // Debounced version of preview calculation (300ms delay)
+  const debouncedUpdatePreview = useDebounce(calculatePreview, 300);
+
+  // Update preview when modal opens or config changes
+  useEffect(() => {
+    if (isOpen && installations.length > 0) {
+      debouncedUpdatePreview();
+    }
+  }, [isOpen, installations, config, debouncedUpdatePreview]);
+
+  // Check if at least one section is selected
+  const hasSelectedSections = useMemo(() => {
+    return Object.values(config.sections).some(value => value);
+  }, [config.sections]);
+
+  // Memoized handlers with useCallback
+  const handleSectionToggle = useCallback((section: keyof ReportConfig['sections']) => {
     setConfig(prev => ({
       ...prev,
       sections: {
@@ -119,9 +170,9 @@ export function ReportCustomizationModal({
         [section]: !prev.sections[section],
       },
     }));
-  };
+  }, []);
 
-  const handleDetailToggle = (detail: keyof ReportConfig['includeDetails']) => {
+  const handleDetailToggle = useCallback((detail: keyof ReportConfig['includeDetails']) => {
     setConfig(prev => ({
       ...prev,
       includeDetails: {
@@ -129,21 +180,50 @@ export function ReportCustomizationModal({
         [detail]: !prev.includeDetails[detail],
       },
     }));
-  };
+  }, []);
 
-  const handleGenerate = async (format: 'pdf' | 'xlsx') => {
+  const handleRestoreDefaults = useCallback(() => {
+    setConfig(defaultConfig);
+    toast({
+      title: 'Preferências restauradas',
+      description: 'As configurações padrão foram restauradas.',
+    });
+  }, [toast]);
+
+  const handleGenerate = useCallback(async (format: 'pdf' | 'xlsx') => {
+    if (!hasSelectedSections) {
+      toast({
+        title: 'Seleção necessária',
+        description: 'Selecione pelo menos uma seção para gerar o relatório.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsGenerating(true);
+    setGeneratingFormat(format);
     try {
       const blob = await onGenerate(config, format);
       onShare(blob, format, config);
+      toast({
+        title: 'Relatório gerado com sucesso',
+        description: `O relatório ${format.toUpperCase()} foi gerado.`,
+      });
+      onClose();
     } catch (error) {
       console.error('Error generating report:', error);
+      toast({
+        title: 'Erro ao gerar relatório',
+        description: error instanceof Error ? error.message : 'Não foi possível gerar o relatório. Tente novamente.',
+        variant: 'destructive',
+      });
     } finally {
       setIsGenerating(false);
+      setGeneratingFormat(null);
     }
-  };
+  }, [config, hasSelectedSections, onGenerate, onShare, onClose, toast]);
 
-  const getSectionLabel = (section: string) => {
+  const getSectionLabel = useCallback((section: string) => {
     const labels = {
       pendencias: 'Pendências',
       concluidas: 'Concluídas',
@@ -151,9 +231,9 @@ export function ReportCustomizationModal({
       emAndamento: config.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento',
     };
     return labels[section as keyof typeof labels] || section;
-  };
+  }, [config.interlocutor]);
 
-  const getDetailLabel = (detail: string) => {
+  const getDetailLabel = useCallback((detail: string) => {
     const labels = {
       photos: 'Fotos das Instalações',
       observations: 'Observações',
@@ -163,7 +243,10 @@ export function ReportCustomizationModal({
       storageChart: 'Gráfico de Status',
     };
     return labels[detail as keyof typeof labels] || detail;
-  };
+  }, []);
+
+  // Disable tabs during generation
+  const tabsDisabled = isGenerating;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -175,12 +258,31 @@ export function ReportCustomizationModal({
           </DialogDescription>
         </DialogHeader>
 
+        {!hasSelectedSections && (
+          <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950 flex-shrink-0">
+            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              Selecione pelo menos uma seção para gerar o relatório.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <Tabs 
+            value={activeTab} 
+            onValueChange={tabsDisabled ? undefined : setActiveTab} 
+            className="h-full flex flex-col"
+          >
             <TabsList className="grid w-full grid-cols-3 h-9 flex-shrink-0 mb-4">
-              <TabsTrigger value="sections" className="text-xs sm:text-sm">Seções</TabsTrigger>
-              <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
-              <TabsTrigger value="preview" className="text-xs sm:text-sm">Prévia</TabsTrigger>
+              <TabsTrigger value="sections" className="text-xs sm:text-sm" disabled={tabsDisabled}>
+                Seções
+              </TabsTrigger>
+              <TabsTrigger value="details" className="text-xs sm:text-sm" disabled={tabsDisabled}>
+                Detalhes
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="text-xs sm:text-sm" disabled={tabsDisabled}>
+                Prévia
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-hidden">
@@ -327,7 +429,17 @@ export function ReportCustomizationModal({
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {previewData && (
+                        {isLoadingPreview ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                              {[1, 2, 3, 4].map((i) => (
+                                <Skeleton key={i} className="h-20 w-full" />
+                              ))}
+                            </div>
+                            <Skeleton className="h-32 w-full" />
+                            <Skeleton className="h-24 w-full" />
+                          </>
+                        ) : previewData ? (
                           <>
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               <div className="text-center p-2 sm:p-3 border rounded-lg bg-muted/50">
@@ -399,7 +511,7 @@ export function ReportCustomizationModal({
                               </div>
                             </div>
                           </>
-                        )}
+                        ) : null}
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -410,26 +522,80 @@ export function ReportCustomizationModal({
         </div>
 
         <DialogFooter className="gap-2 flex-col sm:flex-row pt-4 flex-shrink-0 border-t mt-4">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            onClick={handleRestoreDefaults}
+            className="gap-2 w-full sm:w-auto"
+            disabled={isGenerating}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Restaurar Padrões
+          </Button>
+          <div className="flex-1" />
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto" disabled={isGenerating}>
             Cancelar
           </Button>
-          <Button
-            onClick={() => handleGenerate('pdf')}
-            disabled={isGenerating}
-            className="gap-2 w-full sm:w-auto"
-          >
-            <FileText className="h-4 w-4" />
-            {isGenerating ? 'Gerando...' : 'Gerar PDF'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleGenerate('xlsx')}
-            disabled={isGenerating}
-            className="gap-2 w-full sm:w-auto"
-          >
-            <Table className="h-4 w-4" />
-            {isGenerating ? 'Gerando...' : 'Gerar Excel'}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="w-full sm:w-auto inline-block">
+                  <Button
+                    onClick={() => handleGenerate('pdf')}
+                    disabled={isGenerating || !hasSelectedSections}
+                    className="gap-2 w-full sm:w-auto"
+                  >
+                    {isGenerating && generatingFormat === 'pdf' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Gerando PDF...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4" />
+                        Gerar PDF
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!hasSelectedSections && (
+                <TooltipContent>
+                  <p>Selecione pelo menos uma seção</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="w-full sm:w-auto inline-block">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleGenerate('xlsx')}
+                    disabled={isGenerating || !hasSelectedSections}
+                    className="gap-2 w-full sm:w-auto"
+                  >
+                    {isGenerating && generatingFormat === 'xlsx' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Gerando Excel...
+                      </>
+                    ) : (
+                      <>
+                        <Table className="h-4 w-4" />
+                        Gerar Excel
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!hasSelectedSections && (
+                <TooltipContent>
+                  <p>Selecione pelo menos uma seção</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </DialogFooter>
       </DialogContent>
     </Dialog>
