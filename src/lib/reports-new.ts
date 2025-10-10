@@ -547,14 +547,14 @@ async function addEnhancedSectionToPDF(
       return codeA - codeB;
     });
 
-    // Pre-load photo URLs for all items to avoid async in didDrawCell
-    const photoUrlsMap = new Map<string, string[]>();
-    if (sectionType === 'pendencias' && projectId) {
+    // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
+    const galleryUrlsMap = new Map<string, { url: string, count: number }>();
+    if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
-          const urls = await getPhotoPublicUrls(projectId, item.id);
-          if (urls.length > 0) {
-            photoUrlsMap.set(item.id, urls);
+          const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
+          if (galleryUrl) {
+            galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
           }
         }
       }
@@ -591,46 +591,41 @@ async function addEnhancedSectionToPDF(
       columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
       didDrawCell: (data) => {
-        // Add clickable photo links in the "Foto" column for pendencias
-        // Photo column index: 5 for cliente, 6 for fornecedor
-        const photoColumnIndex = interlocutor === 'cliente' ? 5 : 6;
-        if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === photoColumnIndex) {
-          const item = sortedItems[data.row.index];
-          const photoUrls = photoUrlsMap.get(item.id);
+        // Add clickable photo gallery links in the "Foto" column for pendencias and revisao
+        if (sectionType === 'pendencias' && data.section === 'body') {
+          // Photo column index: 5 for cliente, 6 for fornecedor
+          const photoColumnIndex = interlocutor === 'cliente' ? 5 : 6;
           
-          if (photoUrls && photoUrls.length > 0) {
-            // Clear the cell text first
-            doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
-            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          if (data.column.index === photoColumnIndex) {
+            const item = sortedItems[data.row.index];
+            const galleryInfo = galleryUrlsMap.get(item.id);
             
-            // Add clickable links for each photo
-            let linkX = data.cell.x + 2;
-            const linkY = data.cell.y + data.cell.height / 2 + 2;
-            
-            photoUrls.forEach((photoUrl, idx) => {
-              const linkText = photoUrls.length > 1 ? `Foto ${idx + 1}` : 'Ver foto';
+            if (galleryInfo) {
+              // Clear the cell text first
+              doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
+              doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
               
-              // Set blue color for links
+              // Add clickable link to gallery
+              const linkX = data.cell.x + 2;
+              const linkY = data.cell.y + data.cell.height / 2 + 2;
+              const linkText = `Ver Fotos (${galleryInfo.count})`;
+              
+              // Set blue color for link
               doc.setTextColor(0, 0, 255);
               doc.setFontSize(9);
               
               // Add clickable link
-              doc.textWithLink(linkText, linkX, linkY, { url: photoUrl });
+              doc.textWithLink(linkText, linkX, linkY, { url: galleryInfo.url });
               
-              // Add separator if there are multiple photos
-              if (idx < photoUrls.length - 1) {
-                const linkWidth = doc.getTextWidth(linkText);
-                linkX += linkWidth;
-                doc.setTextColor(100, 100, 100);
-                doc.text(' | ', linkX, linkY);
-                linkX += doc.getTextWidth(' | ');
-              } else {
-                linkX += doc.getTextWidth(linkText);
-              }
-            });
-            
-            // Reset text color
-            doc.setTextColor(0, 0, 0);
+              // Reset text color
+              doc.setTextColor(0, 0, 0);
+            } else if (item.photos && item.photos.length > 0) {
+              // If upload failed, show "Sem foto" instead of breaking
+              doc.setTextColor(100, 100, 100);
+              doc.setFontSize(9);
+              doc.text('Sem foto', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 2);
+              doc.setTextColor(0, 0, 0);
+            }
           }
         }
       },
@@ -702,6 +697,202 @@ async function addEnhancedSectionToPDF(
   }
 
   return yPosition;
+}
+
+// Upload photos to Supabase Storage and create HTML gallery
+async function uploadPhotosForReport(photos: string[], itemId: string): Promise<string> {
+  try {
+    if (!bucket || !photos || photos.length === 0) return '';
+    
+    const timestamp = Date.now();
+    const uploadedPhotoUrls: string[] = [];
+    
+    // Upload each photo to Supabase Storage
+    for (let index = 0; index < photos.length; index++) {
+      const photo = photos[index];
+      
+      // Convert data URL to blob
+      const response = await fetch(photo);
+      const blob = await response.blob();
+      
+      // Create unique filename
+      const filename = `reports/temp_${itemId}_${index}_${timestamp}.jpg`;
+      
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filename, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        continue;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filename);
+      if (urlData?.publicUrl) {
+        uploadedPhotoUrls.push(urlData.publicUrl);
+      }
+    }
+    
+    if (uploadedPhotoUrls.length === 0) return '';
+    
+    // Create HTML gallery page
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galeria de Fotos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .photo-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .photo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .photo-card img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-card .caption {
+      padding: 12px;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+    }
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox.active {
+      display: flex;
+    }
+    .lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      color: white;
+      font-size: 40px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1001;
+    }
+    .lightbox-close:hover {
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Galeria de Fotos (${uploadedPhotoUrls.length})</h1>
+    <div class="gallery">
+      ${uploadedPhotoUrls.map((url, idx) => `
+        <div class="photo-card" onclick="openLightbox('${url}')">
+          <img src="${url}" alt="Foto ${idx + 1}" loading="lazy">
+          <div class="caption">Foto ${idx + 1}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+    <img id="lightbox-img" src="" alt="Foto ampliada">
+  </div>
+  
+  <script>
+    function openLightbox(url) {
+      event.stopPropagation();
+      document.getElementById('lightbox').classList.add('active');
+      document.getElementById('lightbox-img').src = url;
+    }
+    
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+    
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+</body>
+</html>`;
+    
+    // Upload HTML page to Supabase Storage
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    const htmlFilename = `reports/gallery_${itemId}_${timestamp}.html`;
+    
+    const { data: htmlUploadData, error: htmlUploadError } = await supabase.storage
+      .from(bucket)
+      .upload(htmlFilename, htmlBlob, {
+        contentType: 'text/html',
+        upsert: true
+      });
+    
+    if (htmlUploadError) {
+      console.error('Error uploading HTML gallery:', htmlUploadError);
+      return '';
+    }
+    
+    // Get public URL for the HTML page
+    const { data: htmlUrlData } = supabase.storage.from(bucket).getPublicUrl(htmlFilename);
+    return htmlUrlData?.publicUrl || '';
+    
+  } catch (error) {
+    console.error('Error in uploadPhotosForReport:', error);
+    return '';
+  }
 }
 
 // Get public URLs for photos from Supabase Storage
@@ -1374,6 +1565,14 @@ async function addEnhancedSectionToXLSX(
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
 
+// Convert data URL to base64 string for Excel
+function dataUrlToBase64(dataUrl: string): string {
+  if (dataUrl.startsWith('data:')) {
+    return dataUrl.split(',')[1];
+  }
+  return dataUrl;
+}
+
 // Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
 async function addFlatSectionToXLSX(
   workbook: XLSX.WorkBook,
@@ -1395,18 +1594,86 @@ async function addFlatSectionToXLSX(
   // Prepare flat table data (includes Pavimento and Tipologia)
   const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
-  // For XLSX, if fornecedor and pendencias, replace photo text with 'Arquivo de foto disponível'
+  // For XLSX with pendencias section, keep empty strings for photo cells (will embed images)
   const xlsxRows = sectionType === 'pendencias' ? rows.map(row => {
     const newRow = [...row];
     const photoIdx = columns.indexOf('Foto');
-    if (photoIdx !== -1 && newRow[photoIdx] === 'Ver foto') {
-      newRow[photoIdx] = 'Arquivo de foto disponível';
+    if (photoIdx !== -1) {
+      newRow[photoIdx] = ''; // Empty cell, images will be embedded
     }
     return newRow;
   }) : rows;
 
   const wsData = [columns, ...xlsxRows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Set column widths
+  const colWidths = columns.map((col, idx) => {
+    if (col === 'Foto') return { wch: 15 };
+    if (col === 'Pavimento') return { wch: 15 };
+    if (col === 'Tipologia') return { wch: 20 };
+    if (col === 'Código') return { wch: 10 };
+    if (col === 'Descrição') return { wch: 30 };
+    if (col === 'Observação') return { wch: 25 };
+    if (col === 'Comentários do Fornecedor') return { wch: 25 };
+    return { wch: 12 };
+  });
+  worksheet['!cols'] = colWidths;
+  
+  // Set row heights for data rows if there are photos
+  const rowHeights: any[] = [{ hpt: 20 }]; // Header row
+  
+  // Add photo information for pendencias section
+  if (sectionType === 'pendencias') {
+    const photoColIndex = columns.indexOf('Foto');
+    if (photoColIndex !== -1) {
+      // Add styling and photo count for each row that has photos
+      for (let rowIdx = 0; rowIdx < sortedItems.length; rowIdx++) {
+        const item = sortedItems[rowIdx];
+        const hasPhotos = item.photos && item.photos.length > 0;
+        
+        // Set row height based on whether there are photos
+        rowHeights.push({ hpt: hasPhotos ? 25 : 20 });
+        
+        if (hasPhotos) {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
+          const photoCount = item.photos.length;
+          
+          try {
+            // Create a cell with photo count text and a note with instructions
+            worksheet[cellAddress] = {
+              t: 's',
+              v: `📷 ${photoCount} foto${photoCount > 1 ? 's' : ''}`,
+              c: [{
+                a: 'Sistema',
+                t: `${photoCount} foto(s) disponível(is). Consulte o relatório PDF para visualizar todas as fotos em alta qualidade.`
+              }],
+              s: {
+                font: { bold: true, color: { rgb: '0066CC' } },
+                alignment: { horizontal: 'center', vertical: 'center' }
+              }
+            };
+          } catch (error) {
+            console.error('Error processing photo for XLSX:', error);
+            worksheet[cellAddress] = { t: 's', v: 'Sem foto' };
+          }
+        } else {
+          // Add "Sem foto" for items without photos
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
+          worksheet[cellAddress] = {
+            t: 's',
+            v: 'Sem foto',
+            s: {
+              font: { color: { rgb: '999999' } },
+              alignment: { horizontal: 'center', vertical: 'center' }
+            }
+          };
+        }
+      }
+      
+      worksheet['!rows'] = rowHeights;
+    }
+  }
   
   // Freeze top row (header)
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
