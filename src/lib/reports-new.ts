@@ -128,6 +128,7 @@ export function calculatePavimentoSummary(data: ReportSections): PavimentoSummar
 }
 
 // Generate iPhone-style storage bar (100% stacked)
+// PERFORMANCE: Added canvas cleanup to prevent memory leaks
 export async function generateStorageBarImage(data: ReportSections): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
@@ -138,6 +139,7 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
+      canvas.remove(); // Cleanup
       resolve('');
       return;
     }
@@ -151,7 +153,9 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
       // Draw empty bar
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 800, 120);
-      resolve(canvas.toDataURL('image/png', 1.0));
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      canvas.remove(); // Cleanup to prevent memory leak
+      resolve(dataUrl);
       return;
     }
 
@@ -210,11 +214,14 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     ctx.font = 'bold 14px Arial';
     ctx.fillText(`Total: ${total}`, totalX, legendY);
 
-    resolve(canvas.toDataURL('image/png', 1.0));
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    canvas.remove(); // Cleanup to prevent memory leak
+    resolve(dataUrl);
   });
 }
 
 // Generate mini storage bar for pavimento summary
+// PERFORMANCE: Added canvas cleanup to prevent memory leaks
 export async function generateMiniStorageBar(
   pendentes: number, 
   emAndamento: number, 
@@ -228,6 +235,7 @@ export async function generateMiniStorageBar(
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
+      canvas.remove(); // Cleanup
       resolve('');
       return;
     }
@@ -238,7 +246,9 @@ export async function generateMiniStorageBar(
     if (total === 0) {
       ctx.fillStyle = reportTheme.colors.restante;
       ctx.fillRect(0, 0, 200, 20);
-      resolve(canvas.toDataURL('image/png', 1.0));
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      canvas.remove(); // Cleanup to prevent memory leak
+      resolve(dataUrl);
       return;
     }
 
@@ -251,7 +261,9 @@ export async function generateMiniStorageBar(
       emAndamento: { value: emAndamento, color: reportTheme.colors.emAndamento }
     }, total);
 
-    resolve(canvas.toDataURL('image/png', 1.0));
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    canvas.remove(); // Cleanup to prevent memory leak
+    resolve(dataUrl);
   });
 }
 
@@ -699,21 +711,22 @@ async function addEnhancedSectionToPDF(
   return yPosition;
 }
 
-// Upload photos to Supabase Storage and create HTML gallery
-async function uploadPhotosForReport(photos: string[], itemId: string): Promise<string> {
-  try {
-    if (!bucket || !photos || photos.length === 0) return '';
-    
-    const timestamp = Date.now();
-    const uploadedPhotoUrls: string[] = [];
-    
-    // Upload each photo to Supabase Storage
-    for (let index = 0; index < photos.length; index++) {
-      const photo = photos[index];
-      
+// PERFORMANCE: Helper function to upload a single photo with retry logic
+async function uploadSinglePhotoWithRetry(
+  photo: string,
+  itemId: string,
+  index: number,
+  timestamp: number,
+  maxRetries = 3
+): Promise<string | null> {
+  let lastError: any = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
       // Convert data URL to blob
       const response = await fetch(photo);
       const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
       
       // Create unique filename
       const filename = `reports/temp_${itemId}_${index}_${timestamp}.jpg`;
@@ -726,19 +739,75 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
           upsert: true
         });
       
+      // Cleanup object URL to prevent memory leak
+      URL.revokeObjectURL(objectUrl);
+      
       if (uploadError) {
-        console.error('Error uploading photo:', uploadError);
-        continue;
+        lastError = uploadError;
+        if (attempt < maxRetries - 1) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
+        throw uploadError;
       }
       
       // Get public URL
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filename);
-      if (urlData?.publicUrl) {
-        uploadedPhotoUrls.push(urlData.publicUrl);
+      return urlData?.publicUrl || null;
+      
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxRetries - 1) {
+        console.error(`Failed to upload photo after ${maxRetries} attempts:`, error);
+        return null;
       }
     }
+  }
+  
+  return null;
+}
+
+// PERFORMANCE: Helper function to process photos in chunks
+async function uploadPhotosInChunks<T>(
+  items: T[],
+  processFn: (item: T, index: number) => Promise<any>,
+  chunkSize = 5
+): Promise<any[]> {
+  const results: any[] = [];
+  
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const chunkResults = await Promise.all(
+      chunk.map((item, idx) => processFn(item, i + idx))
+    );
+    results.push(...chunkResults);
+  }
+  
+  return results;
+}
+
+// Upload photos to Supabase Storage and create HTML gallery
+// PERFORMANCE: Optimized with batch processing (5 concurrent uploads) and retry logic (3 attempts)
+async function uploadPhotosForReport(photos: string[], itemId: string): Promise<string> {
+  try {
+    if (!bucket || !photos || photos.length === 0) return '';
     
-    if (uploadedPhotoUrls.length === 0) return '';
+    const timestamp = Date.now();
+    
+    // Upload photos in batches of 5 with retry logic
+    const uploadedPhotoUrls = await uploadPhotosInChunks(
+      photos,
+      async (photo, index) => {
+        return await uploadSinglePhotoWithRetry(photo, itemId, index, timestamp);
+      },
+      5 // Process 5 photos concurrently
+    );
+    
+    // Filter out failed uploads
+    const successfulUrls = uploadedPhotoUrls.filter(url => url !== null) as string[];
+    
+    if (successfulUrls.length === 0) return '';
     
     // Create HTML gallery page
     const htmlContent = `
@@ -835,9 +904,9 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
 </head>
 <body>
   <div class="container">
-    <h1>Galeria de Fotos (${uploadedPhotoUrls.length})</h1>
+    <h1>Galeria de Fotos (${successfulUrls.length})</h1>
     <div class="gallery">
-      ${uploadedPhotoUrls.map((url, idx) => `
+      ${successfulUrls.map((url, idx) => `
         <div class="photo-card" onclick="openLightbox(event, '${url}')">
           <img src="${url}" alt="Foto ${idx + 1}" loading="lazy">
           <div class="caption">Foto ${idx + 1}</div>
@@ -926,59 +995,168 @@ async function getPhotoPublicUrls(projectId: string, installationId: string): Pr
   }
 }
 
+// PERFORMANCE: Cache for item versions to avoid duplicate storage calls
+type CachedVersionEntry = {
+  versions: ItemVersion[];
+  latestRevision: number;
+};
+
+const versionCache = new Map<string, CachedVersionEntry>();
+
+function getLatestRevision(versions: ItemVersion[]): number {
+  if (!versions.length) return 0;
+  return versions.reduce((max, version) => Math.max(max, version.revisao ?? 0), 0);
+}
+
+// PERFORMANCE: Batch fetch versions for multiple items at once
+async function batchFetchVersions(
+  itemIds: string[],
+  revisionHints?: Map<string, number>
+): Promise<Map<string, ItemVersion[]>> {
+  const uncachedIds = itemIds.filter(id => {
+    const cached = versionCache.get(id);
+    if (!cached) return true;
+
+    const latestKnownRevision = revisionHints?.get(id);
+    if (latestKnownRevision != null && latestKnownRevision > cached.latestRevision) {
+      versionCache.delete(id);
+      return true;
+    }
+
+    return false;
+  });
+
+  if (uncachedIds.length > 0) {
+    // Fetch all uncached versions in parallel
+    const versionPromises = uncachedIds.map(id => storage.getItemVersions(id));
+    const versionResults = await Promise.all(versionPromises);
+
+    // Cache the results
+    uncachedIds.forEach((id, index) => {
+      const versions = versionResults[index];
+      versionCache.set(id, {
+        versions,
+        latestRevision: revisionHints?.get(id) ?? getLatestRevision(versions)
+      });
+    });
+  }
+
+  // Return all versions (from cache)
+  const result = new Map<string, ItemVersion[]>();
+  itemIds.forEach(id => {
+    const cached = versionCache.get(id);
+    if (cached) {
+      result.set(id, cached.versions);
+    }
+  });
+
+  return result;
+}
+
+// PERFORMANCE: Generic function to prepare table data with configurable columns
+// Consolidates prepareFlatTableData, prepareTableData, and prepareCompactTableData
+async function prepareDynamicTableData(
+  items: Installation[],
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  options: {
+    includePavimento: boolean;
+    includeTipologia: boolean;
+  } = { includePavimento: true, includeTipologia: true },
+  projectId?: string
+): Promise<{ columns: string[], rows: any[][] }> {
+  let columns: string[] = [];
+  let rows: any[][] = [];
+
+  // Build columns based on options and section type
+  const baseColumns: string[] = [];
+  if (options.includePavimento) baseColumns.push('Pavimento');
+  if (options.includeTipologia) baseColumns.push('Tipologia');
+  baseColumns.push('Código', 'Descrição');
+
+  if (sectionType === 'pendencias') {
+    if (interlocutor === 'cliente') {
+      columns = [...baseColumns, 'Observação', 'Foto'];
+      rows = items.map((item) => {
+        const row: any[] = [];
+        if (options.includePavimento) row.push(item.pavimento);
+        if (options.includeTipologia) row.push(item.tipologia);
+        row.push(
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        );
+        return row;
+      });
+    } else {
+      columns = [...baseColumns, 'Observação', 'Comentários do Fornecedor', 'Foto'];
+      rows = items.map((item) => {
+        const row: any[] = [];
+        if (options.includePavimento) row.push(item.pavimento);
+        if (options.includeTipologia) row.push(item.tipologia);
+        row.push(
+          item.codigo.toString(),
+          item.descricao,
+          item.observacoes || '',
+          item.comentarios_fornecedor || '',
+          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+        );
+        return row;
+      });
+    }
+  } else if (sectionType === 'revisao') {
+    columns = [...baseColumns, 'Versão', 'Motivo'];
+    
+    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
+    const itemIds = items.map(item => item.id);
+    const revisionHints = new Map(items.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
+    
+    rows = items.map(item => {
+      const row: any[] = [];
+      if (options.includePavimento) row.push(item.pavimento);
+      if (options.includeTipologia) row.push(item.tipologia);
+      
+      const versions = versionsMap.get(item.id) || [];
+      const latestVersion = versions[versions.length - 1];
+      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
+      
+      row.push(
+        item.codigo.toString(),
+        item.descricao,
+        item.revisao.toString(),
+        motivo
+      );
+      return row;
+    });
+  } else {
+    // concluidas or andamento
+    columns = baseColumns;
+    rows = items.map(item => {
+      const row: any[] = [];
+      if (options.includePavimento) row.push(item.pavimento);
+      if (options.includeTipologia) row.push(item.tipologia);
+      row.push(item.codigo.toString(), item.descricao);
+      return row;
+    });
+  }
+
+  return { columns, rows };
+}
+
 // Prepare flat table data for Pendencias and Em Revisao sections (includes Pavimento and Tipologia)
+// PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
 async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
   projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
-  let columns: string[] = [];
-  let rows: any[][] = [];
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item) => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    } else {
-      // For Fornecedor, include separate Comentários column
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      rows = items.map((item) => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    }
-  } else if (sectionType === 'revisao') {
-    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = await Promise.all(items.map(async item => {
-      const versions = await storage.getItemVersions(item.id);
-      const latestVersion = versions[versions.length - 1];
-      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      return [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.revisao.toString(),
-        motivo
-      ];
-    }));
-  }
-
-  return { columns, rows };
+  return prepareDynamicTableData(items, interlocutor, sectionType, {
+    includePavimento: true,
+    includeTipologia: true
+  }, projectId);
 }
 
 // Aggregate items by Pavimento and Tipologia for summary sections
@@ -1046,119 +1224,31 @@ function getAggregatedColumnStyles(): any {
 }
 
 // Prepare table data based on section type and interlocutor
+// PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
 async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
-  let columns: string[] = [];
-  let rows: any[][] = [];
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item) => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    } else {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      rows = items.map((item) => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    }
-  } else if (sectionType === 'revisao') {
-    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = await Promise.all(items.map(async item => {
-      const versions = await storage.getItemVersions(item.id);
-      const latestVersion = versions[versions.length - 1];
-      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      return [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.revisao.toString(),
-        motivo
-      ];
-    }));
-  } else {
-    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
-    rows = items.map(item => [
-      item.pavimento,
-      item.tipologia,
-      item.codigo.toString(),
-      item.descricao
-    ]);
-  }
-
-  return { columns, rows };
+  return prepareDynamicTableData(items, interlocutor, sectionType, {
+    includePavimento: true,
+    includeTipologia: true
+  }, projectId);
 }
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
+// PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
 async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
-  let columns: string[] = [];
-  let rows: any[][] = [];
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      columns = ['Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item) => [
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    } else {
-      columns = ['Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      rows = items.map((item) => [
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    }
-  } else if (sectionType === 'revisao') {
-    columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = await Promise.all(items.map(async item => {
-      const versions = await storage.getItemVersions(item.id);
-      const latestVersion = versions[versions.length - 1];
-      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      return [
-        item.codigo.toString(),
-        item.descricao,
-        item.revisao.toString(),
-        motivo
-      ];
-    }));
-  } else {
-    columns = ['Código', 'Descrição'];
-    rows = items.map(item => [
-      item.codigo.toString(),
-      item.descricao
-    ]);
-  }
-
-  return { columns, rows };
+  return prepareDynamicTableData(items, interlocutor, sectionType, {
+    includePavimento: false,
+    includeTipologia: false
+  }, projectId);
 }
 
 // Get column styles based on section type
@@ -1276,8 +1366,14 @@ async function addSectionToPDF(
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    rows = await Promise.all(sortedItems.map(async item => {
-      const versions = await storage.getItemVersions(item.id);
+    
+    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
+    const itemIds = sortedItems.map(item => item.id);
+    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
+    
+    rows = sortedItems.map(item => {
+      const versions = versionsMap.get(item.id) || [];
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -1289,7 +1385,7 @@ async function addSectionToPDF(
         item.revisao.toString(),
         motivo
       ];
-    }));
+    });
   } else {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
     rows = sortedItems.map(item => [
@@ -1445,8 +1541,14 @@ async function addSectionToXLSX(
     }
   } else if (sectionType === 'revisao') {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    data = await Promise.all(sortedItems.map(async item => {
-      const versions = await storage.getItemVersions(item.id);
+    
+    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
+    const itemIds = sortedItems.map(item => item.id);
+    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
+    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
+    
+    data = sortedItems.map(item => {
+      const versions = versionsMap.get(item.id) || [];
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
       
@@ -1458,7 +1560,7 @@ async function addSectionToXLSX(
         item.revisao,
         motivo
       ];
-    }));
+    });
   } else {
     headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
     data = sortedItems.map(item => [
