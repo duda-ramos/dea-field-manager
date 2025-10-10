@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,8 +56,22 @@ export function ReportShareModal({
   });
 
   const hasSavedRef = useRef(false);
-  const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-  const fileName = `relatorio_${interlocutor}_${timestamp}.${format}`;
+  const fileIdentifier = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const randomPart =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().split('-')[0]
+        : Math.random().toString(36).slice(2, 8);
+
+    return `${year}${month}${day}_${hours}${minutes}${seconds}_${randomPart}`;
+  }, [interlocutor, format]);
+  const fileName = `relatorio_${interlocutor}_${fileIdentifier}.${format}`;
 
   const saveReportToHistory = useCallback(async () => {
     if (!blob || !project || !user) {
@@ -71,6 +85,7 @@ export function ReportShareModal({
 
     const generatedAt = new Date().toISOString();
     const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const storagePath = `${user.id}/${project.id}/${fileName}`;
 
     // Save to local storage first (for backward compatibility)
     try {
@@ -95,6 +110,8 @@ export function ReportShareModal({
         generatedBy: project.owner || 'Sistema',
         generated_by: project.owner || 'Sistema',
         createdAt: Date.now(),
+        storagePath,
+        storage_path: storagePath,
       };
 
       await storage.saveReport(reportRecord);
@@ -105,15 +122,13 @@ export function ReportShareModal({
     }
 
     // Upload to Supabase Storage
-    let fileUrl = '';
+    let uploadedFilePath = '';
     try {
-      const storagePath = `${user.id}/${project.id}/${fileName}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('reports')
         .upload(storagePath, blob, {
           contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-          upsert: true
+          upsert: false
         });
 
       if (uploadError) {
@@ -121,13 +136,8 @@ export function ReportShareModal({
         throw uploadError;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('reports')
-        .getPublicUrl(storagePath);
-
-      fileUrl = urlData.publicUrl;
-      console.log('✅ Report uploaded to Supabase Storage:', fileUrl);
+      uploadedFilePath = storagePath;
+      console.log('✅ Report uploaded to Supabase Storage:', uploadedFilePath);
     } catch (error) {
       console.error('❌ Error uploading report to Supabase Storage:', error);
       // Don't block the process if storage upload fails
@@ -167,7 +177,7 @@ export function ReportShareModal({
     }
 
     // Save to Supabase database
-    if (fileUrl) {
+    if (uploadedFilePath) {
       try {
         const { data, error } = await supabase
           .from('project_report_history')
@@ -177,7 +187,7 @@ export function ReportShareModal({
             format,
             generated_by: user.id,
             generated_at: generatedAt,
-            file_url: fileUrl,
+            file_url: uploadedFilePath,
             file_name: fileName,
             sections_included: config.sections || {},
             stats,

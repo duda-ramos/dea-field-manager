@@ -59,9 +59,10 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
               generated_at: report.generated_at,
               generatedBy: report.generated_by,
               generated_by: report.generated_by,
-              fileUrl: report.file_url,
+              storagePath: report.file_url,
               stats: report.stats,
-              source: 'supabase' // Mark as Supabase source
+              source: 'supabase', // Mark as Supabase source
+              userId: report.user_id
             }));
           }
         } catch (error) {
@@ -120,18 +121,19 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
 
   const handleDownload = async (report: ReportHistoryEntry) => {
     try {
-      // If report is from Supabase, download from fileUrl
-      if ((report as any).source === 'supabase' && (report as any).fileUrl) {
-        const fileUrl = (report as any).fileUrl;
-        
-        // Download file from URL
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
+      // If report is from Supabase, download directly from storage
+      if ((report as any).source === 'supabase' && (report as any).storagePath) {
+        const storagePath = (report as any).storagePath as string;
+
+        const { data, error } = await supabase.storage
+          .from('reports')
+          .download(storagePath);
+
+        if (error || !data) {
           throw new Error('Falha ao baixar arquivo do servidor');
         }
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
+
+        const url = URL.createObjectURL(data);
         const a = document.createElement('a');
         a.href = url;
         a.download = report.fileName;
@@ -174,6 +176,32 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
+  const handleOpenInBrowser = async (report: ReportHistoryEntry) => {
+    if (!((report as any).source === 'supabase' && (report as any).storagePath)) {
+      return;
+    }
+
+    try {
+      const storagePath = (report as any).storagePath as string;
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .createSignedUrl(storagePath, 60);
+
+      if (error || !data?.signedUrl) {
+        throw new Error('Não foi possível gerar o link do relatório');
+      }
+
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening report in browser:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível abrir o relatório na nuvem',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleDelete = async (reportId: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
@@ -193,11 +221,10 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
         }
 
         // Delete from storage
-        if ((report as any).fileUrl && user) {
-          const storagePath = `${user.id}/${report.projectId || report.project_id}/${report.fileName}`;
+        if ((report as any).storagePath && user) {
           const { error: storageError } = await supabase.storage
             .from('reports')
-            .remove([storagePath]);
+            .remove([(report as any).storagePath]);
 
           if (storageError) {
             console.error('Error deleting from Supabase storage:', storageError);
@@ -337,11 +364,11 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                   </div>
 
                   <div className="flex gap-2 shrink-0">
-                    {(report as any).source === 'supabase' && (report as any).fileUrl && (
+                    {(report as any).source === 'supabase' && (report as any).storagePath && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open((report as any).fileUrl, '_blank')}
+                        onClick={() => handleOpenInBrowser(report)}
                         title="Abrir no navegador"
                       >
                         <ExternalLink className="h-4 w-4" />
