@@ -1,47 +1,38 @@
-import { uploadToStorage } from '@/services/storage/filesStorage';
 import { StorageManagerDexie } from '@/services/StorageManager';
 import type { ProjectFile } from '@/types';
 
 /**
  * Sincroniza uma foto da peça com o álbum de mídias do projeto
+ * IMPORTANTE: Usa storagePath existente, NÃO faz upload duplicado
  */
 export async function syncPhotoToProjectAlbum(
   projectId: string,
   installationId: string,
   installationCode: string,
-  photoDataUrl: string,
+  storagePath: string,
   sequencial?: number
 ): Promise<void> {
   try {
-    // Converter data URL para blob
-    const response = await fetch(photoDataUrl);
-    const blob = await response.blob();
+    console.log(`🔄 Sincronizando foto da peça ${installationCode} com álbum do projeto...`);
+    console.log(`📁 Storage path: ${storagePath}`);
     
-    // Gerar nome do arquivo padronizado
+    // Gerar nome do arquivo padronizado: peca_[codigo]_[data]_[seq].jpg
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const nextSequencial = sequencial || await getNextSequentialForProject(projectId);
     const paddedSequencial = String(nextSequencial).padStart(3, '0');
     const fileName = `peca_${installationCode}_${date}_${paddedSequencial}.jpg`;
     
-    // Criar arquivo
-    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    console.log(`📝 Nome gerado: ${fileName}`);
     
-    // Upload para o storage
-    const uploadResult = await uploadToStorage(file, { 
-      projectId, 
-      installationId, 
-      id: `img_${Date.now()}` 
-    });
-    
-    // Criar registro no álbum do projeto
+    // Criar registro no álbum do projeto (apenas referência, sem upload)
     const projectFile: Omit<ProjectFile, 'id'> = {
       projectId,
       installationId,
       name: fileName,
       type: 'image',
-      size: file.size,
-      storagePath: uploadResult.storagePath,
-      uploadedAt: uploadResult.uploadedAtISO,
+      size: 0, // Tamanho será atualizado pela sincronização do storage
+      storagePath, // Usar storagePath existente diretamente
+      uploadedAt: new Date().toISOString(),
       updatedAt: Date.now(),
       createdAt: Date.now(),
       _dirty: 1,
@@ -55,9 +46,10 @@ export async function syncPhotoToProjectAlbum(
       id: fileId
     });
     
-    console.log(`Foto da peça ${installationCode} sincronizada com o álbum do projeto (ID: ${fileId})`);
+    console.log(`✅ Foto da peça ${installationCode} sincronizada com o álbum do projeto (ID: ${fileId})`);
   } catch (error) {
-    console.error('Erro ao sincronizar foto com álbum do projeto:', error);
+    console.error(`❌ Erro ao sincronizar foto da peça ${installationCode}:`, error);
+    // Erro isolado - não propaga para não quebrar o fluxo principal
   }
 }
 
@@ -77,22 +69,31 @@ async function getNextSequentialForProject(projectId: string): Promise<number> {
 
 /**
  * Sincroniza todas as fotos de uma peça com o álbum do projeto
+ * IMPORTANTE: Recebe storagePaths, NÃO faz upload duplicado
  */
 export async function syncAllInstallationPhotos(
   projectId: string,
   installationId: string,
   installationCode: string,
-  photos: string[]
+  storagePaths: string[]
 ): Promise<void> {
-  for (let i = 0; i < photos.length; i++) {
-    const photo = photos[i];
+  console.log(`🔄 Iniciando sincronização de ${storagePaths.length} foto(s) da peça ${installationCode}`);
+  
+  for (let i = 0; i < storagePaths.length; i++) {
+    const storagePath = storagePaths[i];
     const sequencial = await getNextSequentialForProject(projectId);
+    
+    console.log(`📸 Sincronizando foto ${i + 1}/${storagePaths.length}...`);
+    
+    // Sync não-bloqueante: falha em uma foto não quebra as outras
     await syncPhotoToProjectAlbum(
       projectId,
       installationId,
       installationCode,
-      photo,
+      storagePath,
       sequencial + i
     );
   }
+  
+  console.log(`✅ Sincronização concluída: ${storagePaths.length} foto(s) processadas`);
 }

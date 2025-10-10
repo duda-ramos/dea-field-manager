@@ -13,6 +13,8 @@ import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { ImageEditor } from './ImageEditor';
 import { BulkDownloader } from './BulkDownloader';
 import type { ProjectFile } from '@/types';
+import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
+import { storage } from '@/lib/storage';
 
 interface EnhancedImageUploadProps {
   projectId: string;
@@ -126,6 +128,24 @@ export function EnhancedImageUpload({
       await Storage.upsertFile(imageRecord);
       setUploadProgress(prev => ({ ...prev, [id]: 100 }));
       
+      // Sincronizar foto com álbum do projeto (se for de uma instalação)
+      if (installationId) {
+        try {
+          const installation = await storage.getInstallation(installationId);
+          if (installation) {
+            await syncPhotoToProjectAlbum(
+              projectId,
+              installationId,
+              installation.codigo.toString(),
+              res.storagePath
+            );
+          }
+        } catch (syncError) {
+          // Erro de sync não deve bloquear o upload principal
+          console.error('Erro ao sincronizar foto com álbum:', syncError);
+        }
+      }
+      
       // Remove progress after delay
       setTimeout(() => {
         setUploadProgress(prev => {
@@ -169,7 +189,9 @@ export function EnhancedImageUpload({
       
       toast({
         title: 'Sucesso',
-        description: `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
+        description: installationId 
+          ? `${uploadedImages.length} foto(s) salva(s) no item e sincronizada(s) com a galeria.`
+          : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       });
     } catch (error) {
       toast({
