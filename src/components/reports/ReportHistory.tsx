@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, Table, Download, Trash2, Calendar, User } from 'lucide-react';
+import { FileText, Table, Download, Trash2, Calendar, User, ExternalLink } from 'lucide-react';
 import { storage } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -17,6 +19,7 @@ interface ReportHistoryProps {
 export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -26,8 +29,53 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
   const loadReports = async () => {
     try {
       setLoading(true);
-      const projectReports = await storage.getReports(projectId);
-      setReports(projectReports);
+      
+      // Load from local storage
+      const localReports = await storage.getReports(projectId);
+      
+      // Load from Supabase
+      let supabaseReports: any[] = [];
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('project_report_history')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('generated_at', { ascending: false });
+
+          if (error) {
+            console.error('Error loading reports from Supabase:', error);
+          } else if (data) {
+            // Transform Supabase data to ReportHistoryEntry format
+            supabaseReports = data.map(report => ({
+              id: report.id,
+              projectId: report.project_id,
+              project_id: report.project_id,
+              fileName: report.file_name,
+              format: report.format as 'pdf' | 'xlsx',
+              interlocutor: report.interlocutor as 'cliente' | 'fornecedor',
+              config: report.sections_included || {},
+              generatedAt: report.generated_at,
+              generated_at: report.generated_at,
+              generatedBy: report.generated_by,
+              generated_by: report.generated_by,
+              storagePath: report.file_url,
+              stats: report.stats,
+              source: 'supabase', // Mark as Supabase source
+              userId: report.user_id
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching Supabase reports:', error);
+        }
+      }
+
+      // Merge reports, prioritizing Supabase reports (remove duplicates from local)
+      const supabaseFileNames = new Set(supabaseReports.map(r => r.fileName));
+      const filteredLocalReports = localReports.filter(r => !supabaseFileNames.has(r.fileName));
+      
+      const allReports = [...supabaseReports, ...filteredLocalReports];
+      setReports(allReports);
     } catch (error) {
       console.error('Error loading reports:', error);
       toast({
@@ -71,25 +119,53 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     return undefined;
   };
 
-  const handleDownload = (report: ReportHistoryEntry) => {
+  const handleDownload = async (report: ReportHistoryEntry) => {
     try {
-      const blob = resolveReportBlob(report);
-      if (!blob) {
-        throw new Error('Arquivo do relatório indisponível');
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = report.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // If report is from Supabase, download directly from storage
+      if ((report as any).source === 'supabase' && (report as any).storagePath) {
+        const storagePath = (report as any).storagePath as string;
 
-      toast({
-        title: 'Download realizado',
-        description: 'Relatório baixado com sucesso'
-      });
+        const { data, error } = await supabase.storage
+          .from('reports')
+          .download(storagePath);
+
+        if (error || !data) {
+          throw new Error('Falha ao baixar arquivo do servidor');
+        }
+
+        const url = URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = report.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: 'Download realizado',
+          description: 'Relatório baixado com sucesso'
+        });
+      } else {
+        // Local storage report
+        const blob = resolveReportBlob(report);
+        if (!blob) {
+          throw new Error('Arquivo do relatório indisponível');
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = report.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: 'Download realizado',
+          description: 'Relatório baixado com sucesso'
+        });
+      }
     } catch (error) {
       console.error('Error downloading report:', error);
       toast({
@@ -100,11 +176,69 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
+  const handleOpenInBrowser = async (report: ReportHistoryEntry) => {
+    if (!((report as any).source === 'supabase' && (report as any).storagePath)) {
+      return;
+    }
+
+    try {
+      const storagePath = (report as any).storagePath as string;
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .createSignedUrl(storagePath, 60);
+
+      if (error || !data?.signedUrl) {
+        throw new Error('Não foi possível gerar o link do relatório');
+      }
+
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening report in browser:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível abrir o relatório na nuvem',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleDelete = async (reportId: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
     try {
-      await storage.deleteReport(reportId);
+      const report = reports.find(r => r.id === reportId);
+      
+      // Delete from Supabase if it's a Supabase report
+      if (report && (report as any).source === 'supabase') {
+        // Delete from database
+        const { error: dbError } = await supabase
+          .from('project_report_history')
+          .delete()
+          .eq('id', reportId);
+
+        if (dbError) {
+          console.error('Error deleting from Supabase database:', dbError);
+        }
+
+        // Delete from storage
+        if ((report as any).storagePath && user) {
+          const { error: storageError } = await supabase.storage
+            .from('reports')
+            .remove([(report as any).storagePath]);
+
+          if (storageError) {
+            console.error('Error deleting from Supabase storage:', storageError);
+          }
+        }
+      }
+      
+      // Delete from local storage as well
+      try {
+        await storage.deleteReport(reportId);
+      } catch (error) {
+        console.error('Error deleting from local storage:', error);
+      }
+
       await loadReports();
 
       toast({
@@ -216,6 +350,12 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                           {report.interlocutor || 'N/A'}
                         </Badge>
 
+                        {(report as any).source === 'supabase' && (
+                          <Badge variant="default" className="text-xs">
+                            ☁️ Cloud
+                          </Badge>
+                        )}
+
                         <span className="text-xs">
                           {formatFileSize(report.size ?? report.blob?.size)}
                         </span>
@@ -224,10 +364,22 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                   </div>
 
                   <div className="flex gap-2 shrink-0">
+                    {(report as any).source === 'supabase' && (report as any).storagePath && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenInBrowser(report)}
+                        title="Abrir no navegador"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDownload(report)}
+                      title="Baixar arquivo"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -236,6 +388,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(report.id)}
+                      title="Excluir relatório"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

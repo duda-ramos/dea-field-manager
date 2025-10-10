@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import { Project, ReportHistoryEntry } from '@/types';
 import { storage } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { calculateReportSections } from '@/lib/reports-new';
 import { ReportConfig } from './ReportCustomizationModal';
 
 interface ReportShareModalProps {
@@ -43,6 +46,7 @@ export function ReportShareModal({
   interlocutor,
 }: ReportShareModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSharing, setIsSharing] = useState(false);
   const [shareMethod, setShareMethod] = useState<'download' | 'email' | 'whatsapp' | 'copy'>('download');
   const [emailData, setEmailData] = useState({
@@ -52,14 +56,39 @@ export function ReportShareModal({
   });
 
   const hasSavedRef = useRef(false);
-  const fileName = `Relatorio_${project.name}_${new Date().toISOString().split('T')[0]}_${interlocutor.toUpperCase()}.${format}`;
+  const fileIdentifier = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const randomPart =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().split('-')[0]
+        : Math.random().toString(36).slice(2, 8);
+
+    return `${year}${month}${day}_${hours}${minutes}${seconds}_${randomPart}`;
+  }, [interlocutor, format]);
+  const fileName = `relatorio_${interlocutor}_${fileIdentifier}.${format}`;
 
   const saveReportToHistory = useCallback(async () => {
-    if (!blob || !project) return;
+    if (!blob || !project || !user) {
+      console.log('⚠️ Missing required data for saving report:', { 
+        hasBlob: !!blob, 
+        hasProject: !!project, 
+        hasUser: !!user 
+      });
+      return;
+    }
 
+    const generatedAt = new Date().toISOString();
+    const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const storagePath = `${user.id}/${project.id}/${fileName}`;
+
+    // Save to local storage first (for backward compatibility)
     try {
-      const generatedAt = new Date().toISOString();
-      const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const reportRecord: ReportHistoryEntry = {
         id: reportId,
         projectId: project.id,
@@ -81,14 +110,102 @@ export function ReportShareModal({
         generatedBy: project.owner || 'Sistema',
         generated_by: project.owner || 'Sistema',
         createdAt: Date.now(),
+        storagePath,
+        storage_path: storagePath,
       };
 
       await storage.saveReport(reportRecord);
-      console.log('✅ Report saved to history successfully');
+      console.log('✅ Report saved to local storage successfully');
     } catch (error) {
-      console.error('❌ Error saving report to history:', error);
+      console.error('❌ Error saving report to local storage:', error);
+      // Continue to Supabase upload even if local storage fails
     }
-  }, [blob, project, fileName, format, interlocutor, config]);
+
+    // Upload to Supabase Storage
+    let uploadedFilePath = '';
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('reports')
+        .upload(storagePath, blob, {
+          contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ Error uploading to Supabase Storage:', uploadError);
+        throw uploadError;
+      }
+
+      uploadedFilePath = storagePath;
+      console.log('✅ Report uploaded to Supabase Storage:', uploadedFilePath);
+    } catch (error) {
+      console.error('❌ Error uploading report to Supabase Storage:', error);
+      // Don't block the process if storage upload fails
+    }
+
+    // Calculate statistics for the report
+    let stats = {};
+    try {
+      const installations = await storage.getInstallationsByProject(project.id);
+      const versions = await Promise.all(
+        installations.map(installation => storage.getItemVersions(installation.id))
+      ).then(results => results.flat());
+
+      const reportData = {
+        project,
+        installations,
+        versions,
+        generatedBy: project.owner || 'Sistema',
+        generatedAt,
+        interlocutor,
+      };
+
+      const sections = calculateReportSections(reportData as any);
+      
+      stats = {
+        pendencias: sections.pendencias.length,
+        concluidas: sections.concluidas.length,
+        emRevisao: sections.emRevisao.length,
+        emAndamento: sections.emAndamento.length,
+        total: installations.length,
+      };
+      
+      console.log('✅ Report statistics calculated:', stats);
+    } catch (error) {
+      console.error('❌ Error calculating report statistics:', error);
+      // Continue with empty stats if calculation fails
+    }
+
+    // Save to Supabase database
+    if (uploadedFilePath) {
+      try {
+        const { data, error } = await supabase
+          .from('project_report_history')
+          .insert({
+            project_id: project.id,
+            interlocutor,
+            format,
+            generated_by: user.id,
+            generated_at: generatedAt,
+            file_url: uploadedFilePath,
+            file_name: fileName,
+            sections_included: config.sections || {},
+            stats,
+            user_id: user.id,
+          });
+
+        if (error) {
+          console.error('❌ Error saving report to Supabase database:', error);
+          throw error;
+        }
+
+        console.log('✅ Report saved to Supabase database successfully');
+      } catch (error) {
+        console.error('❌ Error saving report to database:', error);
+        // Don't show error toast as local storage already has the report
+      }
+    }
+  }, [blob, project, user, fileName, format, interlocutor, config]);
 
   useEffect(() => {
     if (isOpen && blob && project && !hasSavedRef.current) {
