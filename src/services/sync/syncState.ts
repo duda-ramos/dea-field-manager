@@ -2,6 +2,14 @@ import { db } from '@/db/indexedDb';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
 
+export interface RealtimeMetrics {
+  eventsReceived: number;
+  eventsApplied: number;
+  eventsIgnored: number;
+  isActive: boolean;
+  lastEventAt?: number;
+}
+
 export interface SyncMetrics {
   lastSyncAt?: number;
   lastSyncDuration?: number;
@@ -15,6 +23,7 @@ export interface SyncMetrics {
     files: number;
   };
   cursor?: number; // lastPulledAt
+  realtimeMetrics?: RealtimeMetrics;
 }
 
 export interface SyncError {
@@ -244,6 +253,19 @@ class SyncStateManager {
       lastSuccessfulSync,
       isHealthy: totalPending === 0 && errorCount === 0 && this.currentState.isOnline
     };
+  }
+
+  public getRealtimeMetrics(): RealtimeMetrics | undefined {
+    return this.currentState.metrics.realtimeMetrics;
+  }
+
+  public updateRealtimeMetrics(metrics: RealtimeMetrics): void {
+    this.updateState({
+      metrics: {
+        ...this.currentState.metrics,
+        realtimeMetrics: metrics
+      }
+    });
   }
 }
 

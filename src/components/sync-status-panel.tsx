@@ -25,15 +25,24 @@ import {
 import { syncStateManager, type SyncState, type SyncLogEntry } from '@/services/sync/syncState';
 import { fullSync, syncPush, syncPull } from '@/services/sync/sync';
 import { useToast } from '@/hooks/use-toast';
+import { getSyncPreferences } from '@/lib/preferences';
+import { realtimeManager } from '@/services/realtime/realtime';
 
 export function SyncStatusPanel() {
   const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState());
   const [isExpanded, setIsExpanded] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = syncStateManager.subscribe(setSyncState);
+    
+    // Check realtime status
+    const prefs = getSyncPreferences();
+    const envEnabled = import.meta.env.VITE_REALTIME_ENABLED === 'true';
+    setRealtimeEnabled(envEnabled && (prefs.realtimeEnabled ?? false));
+    
     return unsubscribe;
   }, []);
 
@@ -137,6 +146,14 @@ export function SyncStatusPanel() {
             {getStatusIcon()}
             Status do Sync
             <Badge variant={getStatusColor()}>{getStatusText()}</Badge>
+            <Badge 
+              variant={realtimeEnabled ? "default" : "outline"} 
+              className={realtimeEnabled ? "bg-green-600 hover:bg-green-700" : ""}
+              title={realtimeEnabled ? "Realtime ativo" : "Realtime desativado - ative em Configurações"}
+            >
+              <Wifi className={`h-3 w-3 mr-1 ${realtimeEnabled ? '' : 'opacity-50'}`} />
+              Realtime: {realtimeEnabled ? 'ON' : 'OFF'}
+            </Badge>
           </div>
           <div className="flex items-center gap-1">
             <Button
