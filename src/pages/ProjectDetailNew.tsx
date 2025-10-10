@@ -25,7 +25,7 @@ import { InstallationDetailModalNew } from "@/components/installation-detail-mod
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { EditProjectModal } from "@/components/edit-project-modal";
 import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
-import { importExcelFile } from "@/lib/excel-import";
+import { importExcelFile, syncImportedPhotosToGallery } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
@@ -199,6 +199,16 @@ export default function ProjectDetailNew() {
       const importResult = { summary: { total: results.length }, data: results };
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
       setInstallations(updatedInstallations);
+      
+      // Sincronizar fotos com galeria (não-bloqueante)
+      try {
+        console.log('🔄 Sincronizando fotos com galeria...');
+        const syncResult = await syncImportedPhotosToGallery(project.id, results);
+        console.log(`✅ Sincronização concluída: ${syncResult.success} sucessos, ${syncResult.errors} erros`);
+      } catch (error) {
+        console.error('⚠️ Erro na sincronização de fotos (não-bloqueante):', error);
+        // Não bloquear a importação se a sincronização falhar
+      }
       
       // Show summary
       const summaryText = Object.entries(importResult.summary)
