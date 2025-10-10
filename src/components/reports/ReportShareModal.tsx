@@ -59,10 +59,12 @@ export function ReportShareModal({
 
     try {
       const generatedAt = new Date().toISOString();
+      const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const reportRecord: ReportHistoryEntry = {
-        id: `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+        id: reportId,
         projectId: project.id,
         project_id: project.id,
+        payloadId: reportId,
         fileName,
         format,
         interlocutor,

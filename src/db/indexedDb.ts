@@ -16,6 +16,7 @@ class DeaFieldManagerDB extends Dexie {
   files!: Table<FileAttachment, string>;
   meta!: Table<{ key: string; value: any }, string>;
   reports!: Table<ReportHistoryEntry, string>;
+  reportPayloads!: Table<{ id: string; projectId?: string; blob?: Blob; mimeType?: string; size?: number; createdAt?: number }, string>;
 
   constructor() {
     super('DeaFieldManagerDB');
@@ -84,6 +85,47 @@ class DeaFieldManagerDB extends Dexie {
         meta: 'key',
         reports: 'id, projectId, project_id, createdAt, generatedAt'
       });
+
+      this.version(7)
+        .stores({
+          projects: 'id, updatedAt, name, _dirty, _deleted',
+          installations: 'id, project_id, updatedAt, status, _dirty, _deleted',
+          contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+          budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+          itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
+          files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+          meta: 'key',
+          reports: 'id, projectId, project_id, createdAt, generatedAt, payloadId',
+          reportPayloads: 'id, projectId'
+        })
+        .upgrade(async (tx) => {
+          const reportsTable = tx.table('reports');
+          const payloadsTable = tx.table('reportPayloads');
+          const reports = await reportsTable.toArray();
+
+          for (const report of reports) {
+            const payloadId = (report as any).payloadId ?? report.id;
+            const blob: Blob | undefined = (report as any).blob instanceof Blob ? (report as any).blob : undefined;
+
+            if (blob) {
+              await payloadsTable.put({
+                id: payloadId,
+                projectId: (report as any).projectId ?? (report as any).project_id,
+                blob,
+                mimeType: (report as any).mimeType,
+                size: (report as any).size ?? blob.size,
+                createdAt: (report as any).createdAt ?? Date.now()
+              });
+              delete (report as any).blob;
+            }
+
+            if (!(report as any).payloadId) {
+              (report as any).payloadId = payloadId;
+            }
+
+            await reportsTable.put(report);
+          }
+        });
   }
 }
 
