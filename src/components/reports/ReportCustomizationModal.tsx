@@ -17,6 +17,7 @@ import { calculateReportSections, calculatePavimentoSummary } from '@/lib/report
 import { StorageBar } from '@/components/storage-bar';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
+import { ReportErrorBoundary } from './report-error-boundary';
 
 interface ReportCustomizationModalProps {
   isOpen: boolean;
@@ -251,12 +252,13 @@ export function ReportCustomizationModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-full h-[95vh] sm:max-w-4xl flex flex-col">
-        <DialogHeader className="flex-shrink-0 pb-4">
-          <DialogTitle className="text-lg sm:text-xl">Personalizar Relatório</DialogTitle>
-          <DialogDescription className="text-sm">
-            Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
-          </DialogDescription>
-        </DialogHeader>
+        <ReportErrorBoundary onClose={onClose}>
+          <DialogHeader className="flex-shrink-0 pb-4">
+            <DialogTitle className="text-lg sm:text-xl">Personalizar Relatório</DialogTitle>
+            <DialogDescription className="text-sm">
+              Configure as informações que devem ser incluídas no seu relatório e veja uma prévia antes de gerar.
+            </DialogDescription>
+          </DialogHeader>
 
         {!hasSelectedSections && (
           <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950 flex-shrink-0">
@@ -597,6 +599,7 @@ export function ReportCustomizationModal({
             </Tooltip>
           </TooltipProvider>
         </DialogFooter>
+        </ReportErrorBoundary>
       </DialogContent>
     </Dialog>
   );
