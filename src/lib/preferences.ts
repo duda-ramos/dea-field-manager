@@ -4,13 +4,15 @@ export interface SyncPreferences {
   autoPushOnExit: boolean;
   periodicPullEnabled: boolean;
   periodicPullInterval: number; // minutes
+  realtimeEnabled?: boolean; // Feature flag for realtime sync (default: false)
 }
 
 const DEFAULT_PREFERENCES: SyncPreferences = {
   autoPullOnStart: true,
   autoPushOnExit: true,
   periodicPullEnabled: false,
-  periodicPullInterval: 5
+  periodicPullInterval: 5,
+  realtimeEnabled: false
 };
 
 const STORAGE_KEY = 'sync_preferences';

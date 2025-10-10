@@ -3,6 +3,9 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Project, Installation, ItemVersion } from '@/types';
 import { storage } from './storage';
+import { supabase } from '@/integrations/supabase/client';
+
+const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 
 export interface ReportData {
   project: Project;
@@ -544,6 +547,19 @@ async function addEnhancedSectionToPDF(
       return codeA - codeB;
     });
 
+    // Pre-load photo URLs for all items to avoid async in didDrawCell
+    const photoUrlsMap = new Map<string, string[]>();
+    if (sectionType === 'pendencias' && projectId) {
+      for (const item of sortedItems) {
+        if (item.photos && item.photos.length > 0) {
+          const urls = await getPhotoPublicUrls(projectId, item.id);
+          if (urls.length > 0) {
+            photoUrlsMap.set(item.id, urls);
+          }
+        }
+      }
+    }
+
     // Prepare table data (full columns including Pavimento and Tipologia)
     const { columns, rows, photosMap } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
@@ -574,6 +590,48 @@ async function addEnhancedSectionToPDF(
       },
       columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
+      didDrawCell: (data) => {
+        // Add clickable photo links in the "Foto" column for pendencias
+        if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === 5) {
+          const item = sortedItems[data.row.index];
+          const photoUrls = photoUrlsMap.get(item.id);
+          
+          if (photoUrls && photoUrls.length > 0) {
+            // Clear the cell text first
+            doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            
+            // Add clickable links for each photo
+            let linkX = data.cell.x + 2;
+            const linkY = data.cell.y + data.cell.height / 2 + 2;
+            
+            photoUrls.forEach((photoUrl, idx) => {
+              const linkText = photoUrls.length > 1 ? `Foto ${idx + 1}` : 'Ver foto';
+              
+              // Set blue color for links
+              doc.setTextColor(0, 0, 255);
+              doc.setFontSize(9);
+              
+              // Add clickable link
+              doc.textWithLink(linkText, linkX, linkY, { url: photoUrl });
+              
+              // Add separator if there are multiple photos
+              if (idx < photoUrls.length - 1) {
+                const linkWidth = doc.getTextWidth(linkText);
+                linkX += linkWidth;
+                doc.setTextColor(100, 100, 100);
+                doc.text(' | ', linkX, linkY);
+                linkX += doc.getTextWidth(' | ');
+              } else {
+                linkX += doc.getTextWidth(linkText);
+              }
+            });
+            
+            // Reset text color
+            doc.setTextColor(0, 0, 0);
+          }
+        }
+      },
       didDrawPage: () => {
         const pageHeight = doc.internal.pageSize.height;
         doc.setFontSize(reportTheme.fonts.footer);
@@ -691,6 +749,37 @@ async function addEnhancedSectionToPDF(
   }
 
   return yPosition;
+}
+
+// Get public URLs for photos from Supabase Storage
+async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
+  try {
+    if (!bucket) return [];
+    
+    // Get files for this installation from the database
+    const files = await storage.getFilesByProject(projectId);
+    const installationFiles = files.filter(f => 
+      f.installationId === installationId && 
+      f.type === 'image' && 
+      f.storagePath
+    );
+    
+    // Get public URLs for each file
+    const urls: string[] = [];
+    for (const file of installationFiles) {
+      if (file.storagePath) {
+        const { data } = supabase.storage.from(bucket).getPublicUrl(file.storagePath);
+        if (data?.publicUrl) {
+          urls.push(data.publicUrl);
+        }
+      }
+    }
+    
+    return urls;
+  } catch (error) {
+    console.error('Error getting photo public URLs:', error);
+    return [];
+  }
 }
 
 // Prepare flat table data for Pendencias and Em Revisao sections (includes Pavimento and Tipologia)

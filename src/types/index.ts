@@ -131,6 +131,25 @@ export interface ProjectReport {
   observacoes?: string;
 }
 
+export interface ReportHistoryEntry {
+  id: string;
+  projectId: string;
+  project_id?: string;
+  fileName: string;
+  format: 'pdf' | 'xlsx';
+  interlocutor: 'cliente' | 'fornecedor';
+  config?: any;
+  size: number;
+  generatedAt: string;
+  generated_at?: string;
+  generatedBy?: string;
+  generated_by?: string;
+  mimeType?: string;
+  blob?: Blob;
+  createdAt?: number;
+  [key: string]: any;
+}
+
 export interface FileAttachment {
   id: string;
   projectId?: string;

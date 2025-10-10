@@ -158,6 +158,43 @@ export function SyncPreferences() {
 
         <Separator />
 
+        {/* Realtime Sync (Beta) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Wifi className="h-4 w-4 text-orange-600" />
+              <div>
+                <Label htmlFor="realtime-sync" className="font-medium flex items-center gap-2">
+                  Realtime Sync
+                  <Badge variant="outline" className="text-xs">Beta</Badge>
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Sincroniza mudanças em tempo real entre dispositivos
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="realtime-sync"
+              checked={preferences.realtimeEnabled ?? false}
+              onCheckedChange={(checked) => updatePreference('realtimeEnabled', checked)}
+            />
+          </div>
+          
+          {(preferences.realtimeEnabled ?? false) && (
+            <div className="ml-7 space-y-2">
+              <Badge variant="secondary" className="text-xs">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Ativo
+              </Badge>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ Experimental. Requer reload da página após ativar/desativar.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
         {/* Info section */}
         <div className="bg-muted/50 rounded-lg p-4 space-y-2">
           <h4 className="text-sm font-medium">ℹ️ Como funciona</h4>
@@ -166,6 +203,7 @@ export function SyncPreferences() {
             <li>• <strong>Salvar ao sair:</strong> Envia suas alterações antes de fechar (não bloqueia)</li>
             <li>• <strong>Sincronização periódica:</strong> Busca atualizações automaticamente em background</li>
             <li>• <strong>Debounce:</strong> Alterações são enviadas automaticamente após 3s de inatividade</li>
+            <li>• <strong>Realtime Sync (Beta):</strong> Recebe atualizações em tempo real de outros dispositivos</li>
           </ul>
         </div>
       </CardContent>

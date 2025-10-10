@@ -1,6 +1,7 @@
 // src/services/sync/autoSync.ts - Versão corrigida sem dependências problemáticas
-import { syncPull, syncPush } from './sync';
+import { syncPull, syncPush, fullSync } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
+import { realtimeManager } from '@/services/realtime/realtime';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -86,10 +87,15 @@ class AutoSyncManager {
     }
   }
 
-  private handleOnlineStatusChange() {
+  private async handleOnlineStatusChange() {
     if (this.isOnline) {
-      // Back online - trigger debounced push if needed
-      this.triggerDebouncedSync();
+      // Back online - run full sync then reconnect realtime
+      try {
+        await fullSync();
+        await realtimeManager.reconnect();
+      } catch (error) {
+        // Reconnection sync failed - logged via logger service
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import './index.css'
 import { migrateLocalToIndexedIfNeeded } from '@/migrations/migrateLocalToIndexed'
 import { db } from '@/db/indexedDb'
 import { autoSyncManager } from '@/services/sync/autoSync'
+import { realtimeManager } from '@/services/realtime/realtime'
 import { logger } from '@/services/logger'
 import { refreshDatabase } from '@/lib/dbRefresh'
 
@@ -32,8 +33,15 @@ async function initializeApp() {
     // Run migration first
     await migrateLocalToIndexedIfNeeded();
     
-    // Render app first, then initialize auto-sync after auth is ready
+    // Render app first, then initialize auto-sync and realtime after auth is ready
     createRoot(document.getElementById("root")!).render(<App />);
+    
+    // Initialize realtime manager if feature flags are enabled
+    try {
+      await realtimeManager.initialize();
+    } catch (error) {
+      logger.error('Failed to initialize realtime manager:', error);
+    }
   } catch (error) {
     // Critical app initialization error - keep console.error
     console.error('Failed to initialize app:', error);

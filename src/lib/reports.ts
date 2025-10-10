@@ -62,16 +62,47 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
     
     autoTable(doc, {
       startY: yPosition,
-      head: [['Código', 'Descrição', 'Pavimento', 'Status', 'Observações']],
-      body: pendencias.map(i => [
-        i.codigo.toString(),
-        i.descricao,
-        i.pavimento,
-        i.installed ? 'Instalado' : 'Pendente',
-        i.observacoes || ''
-      ]),
+      head: [['Código', 'Descrição', 'Pavimento', 'Status', 'Observações', 'Fotos']],
+      body: pendencias.map(i => {
+        const photoLinks = i.photos && i.photos.length > 0
+          ? i.photos.map((photo, idx) => `Foto ${idx + 1}`).join(' | ')
+          : 'Sem foto';
+        
+        return [
+          i.codigo.toString(),
+          i.descricao,
+          i.pavimento,
+          i.installed ? 'Instalado' : 'Pendente',
+          i.observacoes || '',
+          photoLinks
+        ];
+      }),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [220, 53, 69] }, // Red for urgency
+      didDrawCell: (data) => {
+        // Adicionar links clicáveis para fotos
+        if (data.section === 'body' && data.column.index === 5) {
+          const installation = pendencias[data.row.index];
+          if (installation.photos && installation.photos.length > 0) {
+            const cellY = data.cell.y + 2;
+            let linkX = data.cell.x + 2;
+            
+            installation.photos.forEach((photoUrl, idx) => {
+              const linkText = `Foto ${idx + 1}`;
+              const linkWidth = doc.getTextWidth(linkText);
+              
+              // Adicionar link clicável
+              doc.setTextColor(0, 0, 255); // Azul para links
+              doc.textWithLink(linkText, linkX, cellY + 3, {
+                url: photoUrl
+              });
+              
+              linkX += linkWidth + doc.getTextWidth(' | ');
+              doc.setTextColor(0, 0, 0); // Resetar para preto
+            });
+          }
+        }
+      }
     });
     
     yPosition = (doc as any).lastAutoTable.finalY + 20;
