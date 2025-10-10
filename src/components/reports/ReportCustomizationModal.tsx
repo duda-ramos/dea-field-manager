@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Eye, Download, FileText, Table } from 'lucide-react';
 import { Installation, Project } from '@/types';
 import { calculateReportSections, calculatePavimentoSummary } from '@/lib/reports-new';
@@ -19,10 +20,10 @@ interface ReportCustomizationModalProps {
   onShare: (blob: Blob, format: 'pdf' | 'xlsx', config: ReportConfig) => void;
   project: Project;
   installations: Installation[];
-  interlocutor: 'cliente' | 'fornecedor';
 }
 
 export interface ReportConfig {
+  interlocutor: 'cliente' | 'fornecedor';
   sections: {
     pendencias: boolean;
     concluidas: boolean;
@@ -42,6 +43,7 @@ export interface ReportConfig {
 }
 
 const defaultConfig: ReportConfig = {
+  interlocutor: 'cliente',
   sections: {
     pendencias: true,
     concluidas: true,
@@ -67,7 +69,6 @@ export function ReportCustomizationModal({
   onShare,
   project,
   installations,
-  interlocutor,
 }: ReportCustomizationModalProps) {
   const [config, setConfig] = useState<ReportConfig>(defaultConfig);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -78,7 +79,7 @@ export function ReportCustomizationModal({
     if (isOpen && installations.length > 0) {
       updatePreview();
     }
-  }, [isOpen, installations, config, interlocutor]);
+  }, [isOpen, installations, config]);
 
   const updatePreview = () => {
     try {
@@ -89,7 +90,7 @@ export function ReportCustomizationModal({
         versions,
         generatedBy: project.owner || 'Sistema',
         generatedAt: new Date().toISOString(),
-        interlocutor,
+        interlocutor: config.interlocutor,
       };
 
       const sections = calculateReportSections(reportData);
@@ -147,7 +148,7 @@ export function ReportCustomizationModal({
       pendencias: 'Pendências',
       concluidas: 'Concluídas',
       emRevisao: 'Em Revisão',
-      emAndamento: interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento',
+      emAndamento: config.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento',
     };
     return labels[section as keyof typeof labels] || section;
   };
@@ -186,6 +187,35 @@ export function ReportCustomizationModal({
               <ScrollArea className="h-full">
                 <div className="pr-4">
                   <TabsContent value="sections" className="space-y-4 mt-0">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Destinatário do Relatório</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RadioGroup 
+                          value={config.interlocutor} 
+                          onValueChange={(value: 'cliente' | 'fornecedor') => 
+                            setConfig(prev => ({ ...prev, interlocutor: value }))
+                          }
+                          className="space-y-3"
+                        >
+                          <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                            <RadioGroupItem value="cliente" id="cliente" />
+                            <Label htmlFor="cliente" className="cursor-pointer flex-1">
+                              <div className="font-medium">Cliente</div>
+                              <div className="text-xs text-muted-foreground">Relatório para aprovação</div>
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                            <RadioGroupItem value="fornecedor" id="fornecedor" />
+                            <Label htmlFor="fornecedor" className="cursor-pointer flex-1">
+                              <div className="font-medium">Fornecedor</div>
+                              <div className="text-xs text-muted-foreground">Relatório técnico com instruções</div>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </CardContent>
+                    </Card>
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base sm:text-lg">Seções do Relatório</CardTitle>
@@ -323,7 +353,7 @@ export function ReportCustomizationModal({
                                   {config.sections.emAndamento ? previewData.totals.emAndamento : 0}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
+                                  {config.interlocutor === 'fornecedor' ? 'Aguardando' : 'Em Andamento'}
                                 </div>
                               </div>
                             </div>

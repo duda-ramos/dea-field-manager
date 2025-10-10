@@ -56,7 +56,6 @@ export default function ProjectDetailNew() {
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedInterlocutor, setSelectedInterlocutor] = useState<'cliente' | 'fornecedor'>('cliente');
   const [showReportCustomization, setShowReportCustomization] = useState(false);
   const [showReportShare, setShowReportShare] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<{ blob: Blob; format: 'pdf' | 'xlsx'; config: ReportConfig } | null>(null);
@@ -1069,7 +1068,7 @@ export default function ProjectDetailNew() {
                 versions,
                 generatedBy: project.owner || 'Sistema',
                 generatedAt: new Date().toISOString(),
-                interlocutor: selectedInterlocutor,
+                interlocutor: config.interlocutor,
                 customConfig: config
               };
 
@@ -1089,7 +1088,6 @@ export default function ProjectDetailNew() {
           }}
           project={project}
           installations={installations}
-          interlocutor={selectedInterlocutor}
         />
       )}
 
@@ -1104,7 +1102,7 @@ export default function ProjectDetailNew() {
           format={generatedReport.format}
           config={generatedReport.config}
           project={project}
-          interlocutor={selectedInterlocutor}
+          interlocutor={generatedReport.config.interlocutor}
         />
       )}
     </div>

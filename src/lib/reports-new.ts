@@ -592,7 +592,9 @@ async function addEnhancedSectionToPDF(
       theme: 'grid',
       didDrawCell: (data) => {
         // Add clickable photo links in the "Foto" column for pendencias
-        if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === 5) {
+        // Photo column index: 5 for cliente, 6 for fornecedor
+        const photoColumnIndex = interlocutor === 'cliente' ? 5 : 6;
+        if (sectionType === 'pendencias' && data.section === 'body' && data.column.index === photoColumnIndex) {
           const item = sortedItems[data.row.index];
           const photoUrls = photoUrlsMap.get(item.id);
           
@@ -755,22 +757,17 @@ async function prepareFlatTableData(
         (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
       ]);
     } else {
-      // For Fornecedor, combine observações and comentários
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item) => {
-        const observacao = [];
-        if (item.observacoes) observacao.push(`Obs: ${item.observacoes}`);
-        if (item.comentarios_fornecedor) observacao.push(`Coment.: ${item.comentarios_fornecedor}`);
-        
-        return [
-          item.pavimento,
-          item.tipologia,
-          item.codigo.toString(),
-          item.descricao,
-          observacao.join(' | '),
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      // For Fornecedor, include separate Comentários column
+      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
+      rows = items.map((item) => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
@@ -814,14 +811,26 @@ function getFlatColumnStyles(
   interlocutor: 'cliente' | 'fornecedor'
 ): any {
   if (sectionType === 'pendencias') {
-    return {
-      0: { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
-      1: { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
-      2: { halign: 'right', cellWidth: 14 },  // Código - 8%
-      3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
-      4: { halign: 'left', cellWidth: 35 },   // Observação - 21%
-      5: { halign: 'center', cellWidth: 14 }  // Foto - 8%
-    };
+    if (interlocutor === 'cliente') {
+      return {
+        0: { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
+        1: { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
+        2: { halign: 'right', cellWidth: 14 },  // Código - 8%
+        3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
+        4: { halign: 'left', cellWidth: 35 },   // Observação - 21%
+        5: { halign: 'center', cellWidth: 14 }  // Foto - 8%
+      };
+    } else {
+      return {
+        0: { halign: 'left', cellWidth: 18 },   // Pavimento - 11%
+        1: { halign: 'left', cellWidth: 28 },   // Tipologia - 17%
+        2: { halign: 'right', cellWidth: 12 },  // Código - 7%
+        3: { halign: 'left', cellWidth: 42 },   // Descrição - 25%
+        4: { halign: 'left', cellWidth: 28 },   // Observação - 17%
+        5: { halign: 'left', cellWidth: 28 },   // Comentários - 17%
+        6: { halign: 'center', cellWidth: 12 }  // Foto - 7%
+      };
+    }
   } else if (sectionType === 'revisao') {
     return {
       0: { halign: 'left', cellWidth: 22 },   // Pavimento - 13%
@@ -1386,7 +1395,17 @@ async function addFlatSectionToXLSX(
   // Prepare flat table data (includes Pavimento and Tipologia)
   const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
-  const wsData = [columns, ...rows];
+  // For XLSX, if fornecedor and pendencias, replace photo text with 'Arquivo de foto disponível'
+  const xlsxRows = sectionType === 'pendencias' ? rows.map(row => {
+    const newRow = [...row];
+    const photoIdx = columns.indexOf('Foto');
+    if (photoIdx !== -1 && newRow[photoIdx] === 'Ver foto') {
+      newRow[photoIdx] = 'Arquivo de foto disponível';
+    }
+    return newRow;
+  }) : rows;
+
+  const wsData = [columns, ...xlsxRows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
   
   // Freeze top row (header)
