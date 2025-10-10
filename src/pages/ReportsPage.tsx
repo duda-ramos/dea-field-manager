@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +7,8 @@ import { BarChart3, Download, Filter, TrendingUp, Calendar, FileText } from "luc
 import { Project, Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { LoadingState } from "@/components/ui/loading-spinner";
+import { errorMonitoring } from "@/services/errorMonitoring";
 
 interface ReportData {
   totalProjects: number;
@@ -22,38 +24,43 @@ export default function ReportsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("all");
-  const [reportData, setReportData] = useState<ReportData>({
-    totalProjects: 0,
-    totalInstallations: 0,
-    completedInstallations: 0,
-    pendingInstallations: 0,
-    projectsInProgress: 0,
-    completedProjects: 0,
-    averageCompletion: 0
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    calculateReportData();
-  }, [projects, installations, selectedProject]);
-
   const loadData = async () => {
-    const projectsData = await storage.getProjects();
-    setProjects(projectsData);
+    try {
+      setIsLoading(true);
+      const projectsData = await storage.getProjects();
+      setProjects(projectsData);
 
-    const allInstallations = [];
-    for (const project of projectsData) {
-      const projectInstallations = await storage.getInstallationsByProject(project.id);
-      allInstallations.push(...projectInstallations);
+      const allInstallations = [];
+      for (const project of projectsData) {
+        const projectInstallations = await storage.getInstallationsByProject(project.id);
+        allInstallations.push(...projectInstallations);
+      }
+      setInstallations(allInstallations);
+    } catch (error) {
+      errorMonitoring.captureError(
+        error instanceof Error ? error : new Error(String(error)),
+        { component: 'ReportsPage', action: 'loadData' },
+        'high'
+      );
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os dados dos relatórios. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setInstallations(allInstallations);
   };
 
-  const calculateReportData = () => {
+  const reportData = useMemo<ReportData>(() => {
     let filteredProjects = projects;
     let filteredInstallations = installations;
 
@@ -69,7 +76,7 @@ export default function ReportsPage() {
     const projectsInProgress = filteredProjects.filter(p => p.status === 'in-progress').length;
     const averageCompletion = totalInstallations > 0 ? (completedInstallations / totalInstallations) * 100 : 0;
 
-    setReportData({
+    return {
       totalProjects: filteredProjects.length,
       totalInstallations,
       completedInstallations,
@@ -77,64 +84,90 @@ export default function ReportsPage() {
       projectsInProgress,
       completedProjects,
       averageCompletion
-    });
-  };
+    };
+  }, [projects, installations, selectedProject]);
 
-  const generateCSVReport = () => {
-    let dataToExport = installations;
-    
-    if (selectedProject !== "all") {
-      dataToExport = installations.filter(i => i.project_id === selectedProject);
+  const generateCSVReport = useCallback(() => {
+    try {
+      setIsExporting(true);
+      
+      toast({
+        title: "Gerando relatório...",
+        description: "Por favor, aguarde enquanto preparamos o arquivo CSV."
+      });
+
+      let dataToExport = installations;
+      
+      if (selectedProject !== "all") {
+        dataToExport = installations.filter(i => i.project_id === selectedProject);
+      }
+
+      const csvContent = [
+        ['Projeto', 'Código', 'Descrição', 'Tipologia', 'Pavimento', 'Quantidade', 'Status', 'Data Instalação'].join(','),
+        ...dataToExport.map(installation => {
+          const project = projects.find(p => p.id === installation.project_id);
+          return [
+            project?.name || 'N/A',
+            installation.codigo,
+            installation.descricao,
+            installation.tipologia,
+            installation.pavimento,
+            installation.quantidade,
+            installation.installed ? 'Instalado' : 'Pendente',
+            installation.installed_at || 'N/A'
+          ].join(',');
+        })
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `relatorio_${selectedProject}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Relatório exportado",
+        description: "O relatório foi baixado com sucesso em formato CSV."
+      });
+    } catch (error) {
+      errorMonitoring.captureError(
+        error instanceof Error ? error : new Error(String(error)),
+        { component: 'ReportsPage', action: 'generateCSVReport' },
+        'medium'
+      );
+      toast({
+        title: "Erro ao exportar relatório",
+        description: "Não foi possível gerar o arquivo CSV. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
     }
+  }, [installations, projects, selectedProject, toast]);
 
-    const csvContent = [
-      ['Projeto', 'Código', 'Descrição', 'Tipologia', 'Pavimento', 'Quantidade', 'Status', 'Data Instalação'].join(','),
-      ...dataToExport.map(installation => {
-        const project = projects.find(p => p.id === installation.project_id);
-        return [
-          project?.name || 'N/A',
-          installation.codigo,
-          installation.descricao,
-          installation.tipologia,
-          installation.pavimento,
-          installation.quantidade,
-          installation.installed ? 'Instalado' : 'Pendente',
-          installation.installed_at || 'N/A'
-        ].join(',');
-      })
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `relatorio_${selectedProject}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "Relatório exportado",
-      description: "O relatório foi baixado com sucesso em formato CSV."
-    });
-  };
-
-  const getProjectsByStatus = () => {
+  const statusCounts = useMemo(() => {
     let filteredProjects = projects;
     if (selectedProject !== "all") {
       filteredProjects = projects.filter(p => p.id === selectedProject);
     }
 
-    const statusCounts = filteredProjects.reduce((acc, project) => {
+    return filteredProjects.reduce((acc, project) => {
       acc[project.status] = (acc[project.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+  }, [projects, selectedProject]);
 
-    return statusCounts;
-  };
-
-  const statusCounts = getProjectsByStatus();
+  if (isLoading) {
+    return (
+      <div className="container-modern py-8">
+        <LoadingState message="Carregando relatórios..." size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="container-modern py-8 space-y-8">
@@ -144,7 +177,7 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground">Visualize dados e estatísticas dos seus projetos</p>
         </div>
-        <Button onClick={generateCSVReport} className="gap-2">
+        <Button onClick={generateCSVReport} className="gap-2" disabled={isExporting}>
           <Download className="h-4 w-4" />
           Exportar CSV
         </Button>
