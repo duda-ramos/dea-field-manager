@@ -561,7 +561,7 @@ async function addEnhancedSectionToPDF(
     }
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows, photosMap } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
     // Generate single flat table
     autoTable(doc, {
@@ -739,38 +739,28 @@ async function prepareFlatTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
   projectId?: string
-): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
-  const photosMap = new Map<number, string[]>(); // Map row index to photos array
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item, index) => {
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
-        return [
-          item.pavimento,
-          item.tipologia,
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      rows = items.map((item) => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     } else {
       // For Fornecedor, combine observações and comentários
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item, index) => {
+      rows = items.map((item) => {
         const observacao = [];
         if (item.observacoes) observacao.push(`Obs: ${item.observacoes}`);
         if (item.comentarios_fornecedor) observacao.push(`Coment.: ${item.comentarios_fornecedor}`);
-        
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
         
         return [
           item.pavimento,
@@ -800,7 +790,7 @@ async function prepareFlatTableData(
     }));
   }
 
-  return { columns, rows, photosMap };
+  return { columns, rows };
 }
 
 // Aggregate items by Pavimento and Tipologia for summary sections
@@ -861,43 +851,32 @@ async function prepareTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
-): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
-  const photosMap = new Map<number, string[]>();
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item, index) => {
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
-        return [
-          item.pavimento,
-          item.tipologia,
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      rows = items.map((item) => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     } else {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map((item, index) => {
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
-        return [
-          item.pavimento,
-          item.tipologia,
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          item.comentarios_fornecedor || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      rows = items.map((item) => [
+        item.pavimento,
+        item.tipologia,
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     }
   } else if (sectionType === 'revisao') {
     columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
@@ -925,7 +904,7 @@ async function prepareTableData(
     ]);
   }
 
-  return { columns, rows, photosMap };
+  return { columns, rows };
 }
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
@@ -934,39 +913,28 @@ async function prepareCompactTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
-): Promise<{ columns: string[], rows: any[][], photosMap: Map<number, string[]> }> {
+): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
-  const photosMap = new Map<number, string[]>();
 
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map((item, index) => {
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
-        return [
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      rows = items.map((item) => [
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     } else {
       columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map((item, index) => {
-        if (item.photos && item.photos.length > 0) {
-          photosMap.set(index, item.photos);
-        }
-        return [
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          item.comentarios_fornecedor || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        ];
-      });
+      rows = items.map((item) => [
+        item.codigo.toString(),
+        item.descricao,
+        item.observacoes || '',
+        item.comentarios_fornecedor || '',
+        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
+      ]);
     }
   } else if (sectionType === 'revisao') {
     columns = ['Código', 'Descrição', 'Versão', 'Motivo'];
@@ -990,7 +958,7 @@ async function prepareCompactTableData(
     ]);
   }
 
-  return { columns, rows, photosMap };
+  return { columns, rows };
 }
 
 // Get column styles based on section type
