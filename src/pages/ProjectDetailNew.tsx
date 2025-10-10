@@ -37,7 +37,9 @@ import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
 import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
 import { ReportShareModal } from "@/components/reports/ReportShareModal";
-import { ReportHistory } from "@/components/reports/ReportHistory";
+import { ReportHistoryPanel } from "@/components/reports/ReportHistoryPanel";
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -64,9 +66,11 @@ export default function ProjectDetailNew() {
   const [reportPavimentoFilter, setReportPavimentoFilter] = useState<string>('all');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
+  const [lastReportDate, setLastReportDate] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjectData();
+    loadLastReportDate();
   }, [id, navigate]);
 
   useEffect(() => {
@@ -96,6 +100,24 @@ export default function ProjectDetailNew() {
     setProject(projectData);
     const projectInstallations = await storage.getInstallationsByProject(id);
     setInstallations(projectInstallations);
+  };
+
+  const loadLastReportDate = async () => {
+    if (!id) return;
+    
+    try {
+      const reports = await storage.getReports(id);
+      if (reports.length > 0) {
+        // Reports are already sorted by date (most recent first)
+        const lastReport = reports[0];
+        const dateValue = lastReport.generatedAt || lastReport.generated_at;
+        if (dateValue) {
+          setLastReportDate(dateValue);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading last report date:', error);
+    }
   };
 
   const handleProjectUpdated = (updatedProject: Project) => {
@@ -431,13 +453,50 @@ export default function ProjectDetailNew() {
 
   // Reports Section
   const renderRelatoriosSection = () => {
+    const getLastReportText = () => {
+      if (!lastReportDate) {
+        return 'Nenhum relatório gerado';
+      }
+      try {
+        return formatDistanceToNow(new Date(lastReportDate), {
+          addSuffix: true,
+          locale: ptBR
+        });
+      } catch (error) {
+        return 'Data desconhecida';
+      }
+    };
+
+    const getLastReportFullDate = () => {
+      if (!lastReportDate) return '';
+      try {
+        return new Date(lastReportDate).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return '';
+      }
+    };
+
     return (
       <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle>Relatórios do Projeto</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Relatórios do Projeto
+                  {lastReportDate && (
+                    <span className="text-xs font-normal text-muted-foreground flex items-center gap-1" title={getLastReportFullDate()}>
+                      <Clock className="h-3 w-3" />
+                      Último: {getLastReportText()}
+                    </span>
+                  )}
+                </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Gere e personalize relatórios detalhados
                 </p>
@@ -462,7 +521,7 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
-        <ReportHistory projectId={project.id} />
+        <ReportHistoryPanel projectId={project.id} />
       </div>
     );
   };
@@ -1107,6 +1166,8 @@ export default function ProjectDetailNew() {
           onClose={() => {
             setShowReportShare(false);
             setGeneratedReport(null);
+            // Reload last report date after saving
+            loadLastReportDate();
           }}
           blob={generatedReport.blob}
           format={generatedReport.format}
