@@ -746,7 +746,7 @@ async function prepareFlatTableData(
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
+      rows = items.map((item) => [
         item.pavimento,
         item.tipologia,
         item.codigo.toString(),
@@ -757,7 +757,7 @@ async function prepareFlatTableData(
     } else {
       // For Fornecedor, combine observações and comentários
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => {
+      rows = items.map((item) => {
         const observacao = [];
         if (item.observacoes) observacao.push(`Obs: ${item.observacoes}`);
         if (item.comentarios_fornecedor) observacao.push(`Coment.: ${item.comentarios_fornecedor}`);
@@ -849,7 +849,8 @@ function getAggregatedColumnStyles(): any {
 async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -857,7 +858,7 @@ async function prepareTableData(
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
+      rows = items.map((item) => [
         item.pavimento,
         item.tipologia,
         item.codigo.toString(),
@@ -867,7 +868,7 @@ async function prepareTableData(
       ]);
     } else {
       columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map(item => [
+      rows = items.map((item) => [
         item.pavimento,
         item.tipologia,
         item.codigo.toString(),
@@ -910,7 +911,8 @@ async function prepareTableData(
 async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -918,7 +920,7 @@ async function prepareCompactTableData(
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       columns = ['Código', 'Descrição', 'Observação', 'Foto'];
-      rows = items.map(item => [
+      rows = items.map((item) => [
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
@@ -926,7 +928,7 @@ async function prepareCompactTableData(
       ]);
     } else {
       columns = ['Código', 'Descrição', 'Observação', 'Comentários', 'Foto'];
-      rows = items.map(item => [
+      rows = items.map((item) => [
         item.codigo.toString(),
         item.descricao,
         item.observacoes || '',
@@ -1181,7 +1183,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
 
   // Add sections only if they have items with flat formatting
   if (sections.pendencias.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias');
+    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias', data.project.id);
   }
 
   if (sections.concluidas.length > 0) {
@@ -1189,7 +1191,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   }
 
   if (sections.emRevisao.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao');
+    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao', data.project.id);
   }
 
   if (sections.emAndamento.length > 0) {
@@ -1278,10 +1280,11 @@ async function addEnhancedSectionToXLSX(
   sheetName: string,
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+  projectId?: string
 ) {
   // Use compact columns (without Pavimento and Tipologia)
-  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType);
+  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, projectId);
   const allData: any[][] = [compactColumns]; // Headers
 
   // Group by pavimento
@@ -1344,7 +1347,7 @@ async function addEnhancedSectionToXLSX(
       });
 
       // Add items data (compact format)
-      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType);
+      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, projectId);
       allData.push(...rows);
     }
 
@@ -1368,7 +1371,8 @@ async function addFlatSectionToXLSX(
   sheetName: string,
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'revisao'
+  sectionType: 'pendencias' | 'revisao',
+  projectId?: string
 ) {
   // Sort items by Pavimento, Tipologia, Código
   const sortedItems = [...items].sort((a, b) => {
@@ -1380,7 +1384,7 @@ async function addFlatSectionToXLSX(
   });
 
   // Prepare flat table data (includes Pavimento and Tipologia)
-  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType);
+  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
   const wsData = [columns, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
