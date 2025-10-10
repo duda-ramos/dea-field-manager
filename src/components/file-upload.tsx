@@ -79,6 +79,7 @@ export function FileUpload({
       storagePath = res.storagePath;
       uploadedAtISO = res.uploadedAtISO;
     } catch (err) {
+      console.error('File upload to storage failed:', err);
       needsUpload = 1;
     }
 
@@ -93,11 +94,11 @@ export function FileUpload({
       uploadedAt: uploadedAtISO,
       updatedAt: Date.now(),
       needsUpload
-    } as any);
+    } as ProjectFile);
 
     setUploadProgress(prev => ({ ...prev, [id]: 100 }));
     setUploadProgress(prev => {
-      const { [id]: _, ...rest } = prev;
+      const { [id]: removed, ...rest } = prev;
       return rest;
     });
 
@@ -142,7 +143,8 @@ export function FileUpload({
             ? `${file.name} será enviado quando online.`
             : `${file.name} foi enviado com sucesso.`
         });
-      } catch {
+      } catch (error) {
+        console.error('File upload failed:', error, { fileName: file.name });
         toast({
           title: 'Erro no upload',
           description: `Falha ao enviar ${file.name}`,
@@ -197,6 +199,7 @@ export function FileUpload({
           : 'Arquivo marcado para remoção. Será removido quando online.'
       });
     } catch (error) {
+      console.error('File removal failed:', error, { fileId: file.id });
       toast({
         title: 'Erro ao remover arquivo',
         description: 'Houve um problema ao remover o arquivo. Tente novamente.',
@@ -224,14 +227,14 @@ export function FileUpload({
       try {
         const { storagePath, uploadedAtISO } = await uploadToStorage(fileObj, { projectId, installationId, id: file.id });
 
-        await Storage.upsertFile({
-          ...file,
-          storagePath,
-          uploadedAt: uploadedAtISO,
-          updatedAt: Date.now(),
-          needsUpload: 0,
-          url: undefined
-        } as any);
+          await Storage.upsertFile({
+            ...file,
+            storagePath,
+            uploadedAt: uploadedAtISO,
+            updatedAt: Date.now(),
+            needsUpload: 0,
+            url: undefined
+          } as ProjectFile);
 
         setFiles(prev =>
           prev.map(f =>
@@ -249,14 +252,15 @@ export function FileUpload({
           title: 'Arquivo migrado',
           description: `${file.name} enviado para a nuvem.`
         });
-      } catch (err: any) {
-        if (err.code === 'OFFLINE') {
+      } catch (err) {
+        const errorCode = (err as { code?: string }).code;
+        if (errorCode === 'OFFLINE') {
           await Storage.upsertFile({
             ...file,
             uploadedAt: file.uploadedAt instanceof Date ? file.uploadedAt.toISOString() : file.uploadedAt,
             updatedAt: Date.now(),
             needsUpload: 1
-          } as any);
+          } as ProjectFile);
           setFiles(prev =>
             prev.map(f =>
               f.id === file.id ? { ...f, needsUpload: 1 } : f
@@ -271,6 +275,7 @@ export function FileUpload({
         }
       }
     } catch (error) {
+      console.error('File migration failed:', error, { fileId: file.id });
       toast({
         title: 'Falha na migração',
         description: 'Não foi possível migrar o arquivo. Reenvie manualmente.',
@@ -296,6 +301,7 @@ export function FileUpload({
       a.click();
       document.body.removeChild(a);
     } catch (error) {
+      console.error('File download failed:', error, { fileId: file.id });
       toast({
         title: 'Erro no download',
         description: 'Não foi possível baixar o arquivo. Verifique sua conexão.',
@@ -319,6 +325,7 @@ export function FileUpload({
         throw new Error('Arquivo não disponível');
       }
     } catch (error) {
+      console.error('File preview failed:', error, { fileId: file.id });
       toast({
         title: 'Erro na prévia',
         description: 'Não foi possível carregar a prévia. Verifique sua conexão.',
