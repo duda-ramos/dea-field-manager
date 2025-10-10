@@ -135,6 +135,7 @@ export interface ReportHistoryEntry {
   id: string;
   projectId: string;
   project_id?: string;
+  payloadId?: string;
   fileName: string;
   format: 'pdf' | 'xlsx';
   interlocutor: 'cliente' | 'fornecedor';
