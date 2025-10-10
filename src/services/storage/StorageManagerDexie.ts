@@ -155,7 +155,7 @@ export async function processSyncQueue() {
   }
 }
 
-export const StorageManagerDexie = {
+export const StorageManagerDexie: any = {
   // -------- PROJECTS ----------
   async getProjects() {
     const projects = await db.projects.where('_deleted').notEqual(1).toArray();
