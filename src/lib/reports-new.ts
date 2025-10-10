@@ -127,22 +127,36 @@ export function calculatePavimentoSummary(data: ReportSections): PavimentoSummar
   );
 }
 
-// Generate iPhone-style storage bar (100% stacked)
-// PERFORMANCE: Added canvas cleanup to prevent memory leaks
+/**
+ * Generate iPhone-style storage bar chart (100% stacked)
+ * 
+ * @param data - Report sections with installation counts
+ * @returns Promise<string> - Data URL of chart image, or empty string if generation fails
+ * 
+ * Error Handling:
+ * - Returns empty string if canvas context fails
+ * - Handles empty data gracefully
+ * - Cleans up canvas to prevent memory leaks
+ * - Never throws - allows report to continue without chart
+ * 
+ * PERFORMANCE: Added canvas cleanup to prevent memory leaks
+ */
 export async function generateStorageBarImage(data: ReportSections): Promise<string> {
   return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    // Higher resolution for crisp PDF export
-    const scale = 2;
-    canvas.width = 800 * scale;
-    canvas.height = 120 * scale;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) {
-      canvas.remove(); // Cleanup
-      resolve('');
-      return;
-    }
+    try {
+      const canvas = document.createElement('canvas');
+      // Higher resolution for crisp PDF export
+      const scale = 2;
+      canvas.width = 800 * scale;
+      canvas.height = 120 * scale;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        console.error('[generateStorageBarImage] Failed to get canvas context');
+        canvas.remove(); // Cleanup
+        resolve('');
+        return;
+      }
 
     // Scale context for high DPI
     ctx.scale(scale, scale);
@@ -217,28 +231,48 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     const dataUrl = canvas.toDataURL('image/png', 1.0);
     canvas.remove(); // Cleanup to prevent memory leak
     resolve(dataUrl);
+    } catch (error) {
+      console.error('[generateStorageBarImage] Error generating storage bar:', error);
+      resolve(''); // Return empty string to continue without chart
+    }
   });
 }
 
-// Generate mini storage bar for pavimento summary
-// PERFORMANCE: Added canvas cleanup to prevent memory leaks
+/**
+ * Generate mini storage bar for pavimento summary
+ * 
+ * @param pendentes - Count of pending items
+ * @param emAndamento - Count of in-progress items
+ * @param instalados - Count of installed items
+ * @returns Promise<string> - Data URL of mini chart, or empty string if generation fails
+ * 
+ * Error Handling:
+ * - Returns empty string if canvas context fails
+ * - Handles zero totals gracefully
+ * - Cleans up canvas to prevent memory leaks
+ * - Never throws - allows report to continue without mini chart
+ * 
+ * PERFORMANCE: Added canvas cleanup to prevent memory leaks
+ */
 export async function generateMiniStorageBar(
   pendentes: number, 
   emAndamento: number, 
   instalados: number
 ): Promise<string> {
   return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const scale = 2;
-    canvas.width = 200 * scale;
-    canvas.height = 20 * scale;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) {
-      canvas.remove(); // Cleanup
-      resolve('');
-      return;
-    }
+    try {
+      const canvas = document.createElement('canvas');
+      const scale = 2;
+      canvas.width = 200 * scale;
+      canvas.height = 20 * scale;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        console.error('[generateMiniStorageBar] Failed to get canvas context');
+        canvas.remove(); // Cleanup
+        resolve('');
+        return;
+      }
 
     ctx.scale(scale, scale);
     
@@ -264,6 +298,10 @@ export async function generateMiniStorageBar(
     const dataUrl = canvas.toDataURL('image/png', 1.0);
     canvas.remove(); // Cleanup to prevent memory leak
     resolve(dataUrl);
+    } catch (error) {
+      console.error('[generateMiniStorageBar] Error generating mini storage bar:', error);
+      resolve(''); // Return empty string to continue without mini chart
+    }
   });
 }
 
@@ -327,11 +365,50 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
   return `Relatorio_Instalacoes_${project.name}_${date}_${interlocutorUpper}.${extension}`;
 }
 
-// Generate PDF Report
+/**
+ * Generate PDF Report with comprehensive error handling
+ * 
+ * @param data - Report data including project, installations, versions
+ * @returns Promise<Blob> - PDF file blob, or empty blob if critical failure occurs
+ * 
+ * @throws Never throws - all errors are caught and logged, returning empty blob on critical failure
+ * 
+ * Error Handling:
+ * - Validates input data (project, installations array)
+ * - Continues without logo if logo fails to load
+ * - Continues without chart if storage bar generation fails
+ * - Continues without photo links if photo upload fails
+ * - Returns empty blob only on critical PDF generation failure
+ */
 export async function generatePDFReport(data: ReportData): Promise<Blob> {
-  const sections = calculateReportSections(data);
-  const pavimentoSummary = calculatePavimentoSummary(sections);
-  const storageBarImage = await generateStorageBarImage(sections);
+  try {
+    // Input validation
+    if (!data) {
+      console.error('[generatePDFReport] Error: data is null or undefined');
+      return new Blob([], { type: 'application/pdf' });
+    }
+
+    if (!data.project) {
+      console.error('[generatePDFReport] Error: data.project is missing');
+      return new Blob([], { type: 'application/pdf' });
+    }
+
+    if (!Array.isArray(data.installations)) {
+      console.error('[generatePDFReport] Error: data.installations is not an array');
+      return new Blob([], { type: 'application/pdf' });
+    }
+
+    const sections = calculateReportSections(data);
+    const pavimentoSummary = calculatePavimentoSummary(sections);
+    
+    // Try to generate storage bar, but continue without it if it fails
+    let storageBarImage = '';
+    try {
+      storageBarImage = await generateStorageBarImage(sections);
+    } catch (error) {
+      console.error('[generatePDFReport] Error generating storage bar, continuing without chart:', error);
+      storageBarImage = '';
+    }
   
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -350,7 +427,7 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   let yPosition = reportTheme.spacing.margin;
 
-  // Add company logo
+  // Add company logo - graceful fallback if fails
   try {
     const logoImg = new Image();
     logoImg.src = '/logo-dea.png';
@@ -366,7 +443,8 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
     
     doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
   } catch (error) {
-    console.error('Erro ao carregar logo:', error);
+    console.error('[generatePDFReport] Error loading logo, continuing without logo:', error);
+    // Continue without logo - not critical for report
   }
 
   // Enhanced Header
@@ -413,22 +491,38 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
     yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
   }
 
-  // Add sections only if they have items
+  // Add sections only if they have items - each section wrapped in try/catch
   if (sections.pendencias.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name, data.project.id);
+    try {
+      yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name, data.project.id);
+    } catch (error) {
+      console.error('[generatePDFReport] Error adding Pendências section, skipping:', error);
+    }
   }
 
   if (sections.concluidas.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name, data.project.id);
+    try {
+      yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name, data.project.id);
+    } catch (error) {
+      console.error('[generatePDFReport] Error adding Concluídas section, skipping:', error);
+    }
   }
 
   if (sections.emRevisao.length > 0) {
-    yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name, data.project.id);
+    try {
+      yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name, data.project.id);
+    } catch (error) {
+      console.error('[generatePDFReport] Error adding Em Revisão section, skipping:', error);
+    }
   }
 
   if (sections.emAndamento.length > 0) {
-    const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name, data.project.id);
+    try {
+      const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
+      yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name, data.project.id);
+    } catch (error) {
+      console.error('[generatePDFReport] Error adding Em Andamento section, skipping:', error);
+    }
   }
 
   // Add footer to all pages
@@ -439,6 +533,17 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
   }
 
   return new Blob([doc.output('blob')], { type: 'application/pdf' });
+  } catch (error) {
+    // Critical error - log detailed context and return empty blob
+    console.error('[generatePDFReport] Critical error generating PDF report:', {
+      error,
+      projectId: data?.project?.id,
+      projectName: data?.project?.name,
+      installationsCount: data?.installations?.length,
+      interlocutor: data?.interlocutor
+    });
+    return new Blob([], { type: 'application/pdf' });
+  }
 }
 
 // Add pavimento summary with mini storage bars to PDF
@@ -711,7 +816,22 @@ async function addEnhancedSectionToPDF(
   return yPosition;
 }
 
-// PERFORMANCE: Helper function to upload a single photo with retry logic
+/**
+ * Upload a single photo with retry logic
+ * 
+ * @param photo - Photo data URL or blob URL
+ * @param itemId - Installation item ID
+ * @param index - Photo index
+ * @param timestamp - Timestamp for unique filename
+ * @param maxRetries - Maximum retry attempts (default: 3)
+ * @returns Promise<string | null> - Public URL of uploaded photo, or null if all attempts fail
+ * 
+ * Error Handling:
+ * - Retries up to maxRetries times with exponential backoff
+ * - Cleans up object URLs to prevent memory leaks
+ * - Logs detailed error on final failure
+ * - Returns null instead of throwing (allows other photos to continue)
+ */
 async function uploadSinglePhotoWithRetry(
   photo: string,
   itemId: string,
@@ -723,6 +843,12 @@ async function uploadSinglePhotoWithRetry(
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      // Validate bucket is configured
+      if (!bucket) {
+        console.error('[uploadSinglePhotoWithRetry] Error: Supabase bucket not configured');
+        return null;
+      }
+
       // Convert data URL to blob
       const response = await fetch(photo);
       const blob = await response.blob();
@@ -759,7 +885,12 @@ async function uploadSinglePhotoWithRetry(
     } catch (error) {
       lastError = error;
       if (attempt === maxRetries - 1) {
-        console.error(`Failed to upload photo after ${maxRetries} attempts:`, error);
+        console.error('[uploadSinglePhotoWithRetry] Failed to upload photo after attempts:', {
+          error,
+          itemId,
+          photoIndex: index,
+          attempts: maxRetries
+        });
         return null;
       }
     }
@@ -787,11 +918,34 @@ async function uploadPhotosInChunks<T>(
   return results;
 }
 
-// Upload photos to Supabase Storage and create HTML gallery
-// PERFORMANCE: Optimized with batch processing (5 concurrent uploads) and retry logic (3 attempts)
+/**
+ * Upload photos to Supabase Storage and create HTML gallery
+ * 
+ * @param photos - Array of photo data URLs
+ * @param itemId - Installation item ID
+ * @returns Promise<string> - Public URL of HTML gallery, or empty string if all uploads fail
+ * 
+ * Error Handling:
+ * - Validates bucket configuration before processing
+ * - Validates photos array is not empty
+ * - Continues with successful photos if some uploads fail
+ * - Returns empty string if no photos succeed (doesn't break report)
+ * - Logs detailed context on errors
+ * 
+ * PERFORMANCE: Optimized with batch processing (5 concurrent uploads) and retry logic (3 attempts)
+ */
 async function uploadPhotosForReport(photos: string[], itemId: string): Promise<string> {
   try {
-    if (!bucket || !photos || photos.length === 0) return '';
+    // Input validation
+    if (!bucket) {
+      console.error('[uploadPhotosForReport] Error: Supabase bucket not configured');
+      return '';
+    }
+
+    if (!photos || photos.length === 0) {
+      console.warn('[uploadPhotosForReport] No photos provided for item:', itemId);
+      return '';
+    }
     
     const timestamp = Date.now();
     
@@ -807,7 +961,23 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     // Filter out failed uploads
     const successfulUrls = uploadedPhotoUrls.filter(url => url !== null) as string[];
     
-    if (successfulUrls.length === 0) return '';
+    if (successfulUrls.length === 0) {
+      console.error('[uploadPhotosForReport] All photo uploads failed for item:', {
+        itemId,
+        totalPhotos: photos.length
+      });
+      return '';
+    }
+
+    // Log if some photos failed
+    if (successfulUrls.length < photos.length) {
+      console.warn('[uploadPhotosForReport] Some photo uploads failed:', {
+        itemId,
+        successful: successfulUrls.length,
+        total: photos.length,
+        failed: photos.length - successfulUrls.length
+      });
+    }
     
     // Create HTML gallery page
     const htmlContent = `
@@ -950,7 +1120,11 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
       });
     
     if (htmlUploadError) {
-      console.error('Error uploading HTML gallery:', htmlUploadError);
+      console.error('[uploadPhotosForReport] Error uploading HTML gallery:', {
+        error: htmlUploadError,
+        itemId,
+        photoCount: successfulUrls.length
+      });
       return '';
     }
     
@@ -959,15 +1133,45 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     return htmlUrlData?.publicUrl || '';
     
   } catch (error) {
-    console.error('Error in uploadPhotosForReport:', error);
+    console.error('[uploadPhotosForReport] Critical error in photo upload process:', {
+      error,
+      itemId,
+      photoCount: photos?.length || 0
+    });
     return '';
   }
 }
 
-// Get public URLs for photos from Supabase Storage
+/**
+ * Get public URLs for photos from Supabase Storage
+ * 
+ * @param projectId - Project ID
+ * @param installationId - Installation ID
+ * @returns Promise<string[]> - Array of public URLs, or empty array if errors occur
+ * 
+ * Error Handling:
+ * - Validates bucket configuration
+ * - Continues processing remaining files if some fail
+ * - Returns empty array on critical errors (doesn't break report)
+ * - Logs detailed context for debugging
+ */
 async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
   try {
-    if (!bucket) return [];
+    // Input validation
+    if (!bucket) {
+      console.error('[getPhotoPublicUrls] Error: Supabase bucket not configured');
+      return [];
+    }
+
+    if (!projectId) {
+      console.error('[getPhotoPublicUrls] Error: projectId is missing');
+      return [];
+    }
+
+    if (!installationId) {
+      console.error('[getPhotoPublicUrls] Error: installationId is missing');
+      return [];
+    }
     
     // Get files for this installation from the database
     const files = await storage.getFilesByProject(projectId);
@@ -980,17 +1184,30 @@ async function getPhotoPublicUrls(projectId: string, installationId: string): Pr
     // Get public URLs for each file
     const urls: string[] = [];
     for (const file of installationFiles) {
-      if (file.storagePath) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(file.storagePath);
-        if (data?.publicUrl) {
-          urls.push(data.publicUrl);
+      try {
+        if (file.storagePath) {
+          const { data } = supabase.storage.from(bucket).getPublicUrl(file.storagePath);
+          if (data?.publicUrl) {
+            urls.push(data.publicUrl);
+          }
         }
+      } catch (fileError) {
+        // Log error but continue with other files
+        console.error('[getPhotoPublicUrls] Error getting URL for file, continuing:', {
+          error: fileError,
+          fileId: file.id,
+          storagePath: file.storagePath
+        });
       }
     }
     
     return urls;
   } catch (error) {
-    console.error('Error getting photo public URLs:', error);
+    console.error('[getPhotoPublicUrls] Critical error getting photo URLs:', {
+      error,
+      projectId,
+      installationId
+    });
     return [];
   }
 }
@@ -1418,11 +1635,41 @@ function getMotivoPtBr(motivo: string): string {
   return motivosMap[motivo] || motivo;
 }
 
-// Generate XLSX Report
+/**
+ * Generate XLSX Report with comprehensive error handling
+ * 
+ * @param data - Report data including project, installations, versions
+ * @returns Promise<Blob> - Excel file blob, or empty blob if critical failure occurs
+ * 
+ * @throws Never throws - all errors are caught and logged, returning empty blob on critical failure
+ * 
+ * Error Handling:
+ * - Validates input data (project, installations array)
+ * - Continues without failed sections (adds available sections only)
+ * - Logs detailed error context for debugging
+ * - Returns empty blob only on critical Excel generation failure
+ */
 export async function generateXLSXReport(data: ReportData): Promise<Blob> {
-  const sections = calculateReportSections(data);
-  const pavimentoSummary = calculatePavimentoSummary(sections);
-  const workbook = XLSX.utils.book_new();
+  try {
+    // Input validation
+    if (!data) {
+      console.error('[generateXLSXReport] Error: data is null or undefined');
+      return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+
+    if (!data.project) {
+      console.error('[generateXLSXReport] Error: data.project is missing');
+      return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+
+    if (!Array.isArray(data.installations)) {
+      console.error('[generateXLSXReport] Error: data.installations is not an array');
+      return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+
+    const sections = calculateReportSections(data);
+    const pavimentoSummary = calculatePavimentoSummary(sections);
+    const workbook = XLSX.utils.book_new();
 
   // Add enhanced summary sheet
   const summaryData = [
@@ -1477,26 +1724,53 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
     XLSX.utils.book_append_sheet(workbook, pavimentoSheet, 'Resumo_Pavimento');
   }
 
-  // Add sections only if they have items with flat formatting
+  // Add sections only if they have items - each section wrapped in try/catch
   if (sections.pendencias.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias', data.project.id);
+    try {
+      await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias', data.project.id);
+    } catch (error) {
+      console.error('[generateXLSXReport] Error adding Pendências section, skipping:', error);
+    }
   }
 
   if (sections.concluidas.length > 0) {
-    addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
+    try {
+      addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
+    } catch (error) {
+      console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
+    }
   }
 
   if (sections.emRevisao.length > 0) {
-    await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao', data.project.id);
+    try {
+      await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao', data.project.id);
+    } catch (error) {
+      console.error('[generateXLSXReport] Error adding Em Revisão section, skipping:', error);
+    }
   }
 
   if (sections.emAndamento.length > 0) {
-    const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-    addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
+    try {
+      const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
+      addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
+    } catch (error) {
+      console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
+    }
   }
 
   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  } catch (error) {
+    // Critical error - log detailed context and return empty blob
+    console.error('[generateXLSXReport] Critical error generating XLSX report:', {
+      error,
+      projectId: data?.project?.id,
+      projectName: data?.project?.name,
+      installationsCount: data?.installations?.length,
+      interlocutor: data?.interlocutor
+    });
+    return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
 }
 
 async function addSectionToXLSX(
