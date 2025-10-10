@@ -64,7 +64,10 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB
+        // Allow caching of slightly larger application bundles that exceed the
+        // default 2MB Workbox threshold. The main bundle is ~3.2MB, so we lift
+        // the limit to 5MB to ensure it is precached during the PWA build.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB
       }
     })
   ].filter(Boolean),
