@@ -34,9 +34,12 @@ export async function syncImportedPhotosToGallery(
       const projectFiles = await storage.getFilesByProject(projectId);
       
       // Filtrar por installationId e tipo imagem
-      const installationPhotos = projectFiles.filter(
-        f => f.installationId === installation.id && f.type === 'image'
-      );
+      const installationPhotos = projectFiles.filter(f => {
+        if (f.installationId !== installation.id) return false;
+
+        const type = typeof f.type === 'string' ? f.type.toLowerCase() : '';
+        return type === 'image' || type.startsWith('image/');
+      });
       
       // Se não tem fotos, pular
       if (installationPhotos.length === 0) {
