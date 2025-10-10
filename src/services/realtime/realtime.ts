@@ -16,6 +16,7 @@ class RealtimeManager {
     isActive: false
   };
   private recentLocalOps: Array<{ table: string; timestamp: number }> = [];
+  private signedUrlCache: Map<string, { url: string; expiresAt: number }> = new Map();
 
   constructor() {
     this.clientId = this.getOrCreateClientId();
@@ -60,6 +61,10 @@ class RealtimeManager {
 
     this.metrics.isActive = true;
     logger.info(`Realtime initialized: ${this.clientId}`);
+    this.updateMetricsInSyncState();
+    
+    // Subscribe to all tables
+    await this.subscribeTables();
   }
 
   public async subscribeTables(): Promise<void> {
@@ -94,6 +99,137 @@ class RealtimeManager {
           });
         } else if (status === 'CHANNEL_ERROR') {
           logger.error('Realtime: Failed to subscribe to projects');
+          this.disableRealtimeOnError('projects');
+        }
+      });
+
+    // Subscribe to installations table (RLS handles security)
+    const installationsChannel = supabase
+      .channel('db-installations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'installations'
+        },
+        (payload) => this.handleEvent('installations', payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Realtime: Subscribed to installations');
+          this.channels.set('installations', {
+            name: 'db-installations',
+            subscription: installationsChannel,
+            isSubscribed: true
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Realtime: Failed to subscribe to installations');
+          this.disableRealtimeOnError('installations');
+        }
+      });
+
+    // Subscribe to contacts table (RLS handles security)
+    const contactsChannel = supabase
+      .channel('db-contacts')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contacts'
+        },
+        (payload) => this.handleEvent('contacts', payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Realtime: Subscribed to contacts');
+          this.channels.set('contacts', {
+            name: 'db-contacts',
+            subscription: contactsChannel,
+            isSubscribed: true
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Realtime: Failed to subscribe to contacts');
+          this.disableRealtimeOnError('contacts');
+        }
+      });
+
+    // Subscribe to budgets (supplier_proposals) table (RLS handles security)
+    const budgetsChannel = supabase
+      .channel('db-budgets')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'supplier_proposals'
+        },
+        (payload) => this.handleEvent('budgets', payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Realtime: Subscribed to budgets (supplier_proposals)');
+          this.channels.set('budgets', {
+            name: 'db-budgets',
+            subscription: budgetsChannel,
+            isSubscribed: true
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Realtime: Failed to subscribe to budgets');
+          this.disableRealtimeOnError('budgets');
+        }
+      });
+
+    // Subscribe to item_versions table (RLS handles security)
+    const itemVersionsChannel = supabase
+      .channel('db-item-versions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'item_versions'
+        },
+        (payload) => this.handleEvent('item_versions', payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Realtime: Subscribed to item_versions');
+          this.channels.set('item_versions', {
+            name: 'db-item-versions',
+            subscription: itemVersionsChannel,
+            isSubscribed: true
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Realtime: Failed to subscribe to item_versions');
+          this.disableRealtimeOnError('item_versions');
+        }
+      });
+
+    // Subscribe to files table (metadata only, RLS handles security)
+    const filesChannel = supabase
+      .channel('db-files')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'files'
+        },
+        (payload) => this.handleEvent('files', payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Realtime: Subscribed to files');
+          this.channels.set('files', {
+            name: 'db-files',
+            subscription: filesChannel,
+            isSubscribed: true
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Realtime: Failed to subscribe to files');
+          this.disableRealtimeOnError('files');
         }
       });
   }
@@ -101,6 +237,7 @@ class RealtimeManager {
   public async handleEvent(table: string, payload: any): Promise<void> {
     this.metrics.eventsReceived++;
     this.metrics.lastEventAt = Date.now();
+    this.updateMetricsInSyncState();
 
     // Deduplication: Check if this event is from a recent local operation
     const recentOp = this.recentLocalOps.find(
@@ -116,6 +253,7 @@ class RealtimeManager {
       if (Math.abs(eventTimestamp - recentOp.timestamp) < 2000) {
         logger.debug(`Realtime: Ignoring own event for ${table}`);
         this.metrics.eventsIgnored++;
+        this.updateMetricsInSyncState();
         return;
       }
     }
@@ -176,14 +314,44 @@ class RealtimeManager {
 
     logger.debug(`Realtime: Applying ${latestEvents.size} events for ${table}`);
 
-    // Apply each event
-    for (const event of latestEvents.values()) {
-      try {
-        await this.applyEvent(event);
-        this.metrics.eventsApplied++;
-      } catch (error) {
-        logger.error(`Realtime: Failed to apply event for ${table}`, error);
-        this.metrics.eventsIgnored++;
+    // Batch optimization: If >100 events, process in chunks to avoid blocking UI
+    const eventArray = Array.from(latestEvents.values());
+    if (eventArray.length > 100) {
+      logger.info(`Realtime: Processing ${eventArray.length} events in chunks for ${table}`);
+      const chunkSize = 50;
+      for (let i = 0; i < eventArray.length; i += chunkSize) {
+        const chunk = eventArray.slice(i, i + chunkSize);
+        
+        // Process chunk
+        for (const event of chunk) {
+          try {
+            await this.applyEvent(event);
+            this.metrics.eventsApplied++;
+            this.updateMetricsInSyncState();
+          } catch (error) {
+            logger.error(`Realtime: Failed to apply event for ${table}`, error);
+            this.metrics.eventsIgnored++;
+            this.updateMetricsInSyncState();
+          }
+        }
+        
+        // Add delay between chunks to keep UI responsive (100ms)
+        if (i + chunkSize < eventArray.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    } else {
+      // Apply each event normally
+      for (const event of latestEvents.values()) {
+        try {
+          await this.applyEvent(event);
+          this.metrics.eventsApplied++;
+          this.updateMetricsInSyncState();
+        } catch (error) {
+          logger.error(`Realtime: Failed to apply event for ${table}`, error);
+          this.metrics.eventsIgnored++;
+          this.updateMetricsInSyncState();
+        }
       }
     }
 
@@ -240,6 +408,7 @@ class RealtimeManager {
       case 'budgets':
         return db.budgets;
       case 'item_versions':
+      case 'itemVersions':
         return db.itemVersions;
       case 'files':
         return db.files;
@@ -344,6 +513,7 @@ class RealtimeManager {
     this.channels.clear();
     this.eventQueue.clear();
     this.metrics.isActive = false;
+    this.updateMetricsInSyncState();
     logger.info('Realtime destroyed');
   }
 
@@ -360,6 +530,72 @@ class RealtimeManager {
     this.recentLocalOps = this.recentLocalOps.filter(
       op => timestamp - op.timestamp < 5000
     );
+  }
+
+  /**
+   * Generate and cache signed URL for file preview/download
+   * Cache expires after 1 hour or when file metadata changes
+   */
+  public async getSignedUrl(filePath: string, updatedAt: number): Promise<string> {
+    const cacheKey = `${filePath}-${updatedAt}`;
+    const cached = this.signedUrlCache.get(cacheKey);
+    
+    // Return cached URL if still valid (expires in 1 hour)
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+    
+    // Generate new signed URL
+    const { data, error } = await supabase.storage
+      .from('attachments')
+      .createSignedUrl(filePath, 3600); // 1 hour
+    
+    if (error) {
+      logger.error('Realtime: Failed to generate signed URL', error);
+      throw error;
+    }
+    
+    // Cache the URL
+    this.signedUrlCache.set(cacheKey, {
+      url: data.signedUrl,
+      expiresAt: Date.now() + 3600 * 1000 // 1 hour
+    });
+    
+    // Clean up expired cache entries
+    this.cleanupSignedUrlCache();
+    
+    return data.signedUrl;
+  }
+
+  private cleanupSignedUrlCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.signedUrlCache.entries()) {
+      if (value.expiresAt <= now) {
+        this.signedUrlCache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Invalidate signed URL cache when file metadata changes
+   */
+  public invalidateSignedUrlCache(filePath: string): void {
+    for (const key of this.signedUrlCache.keys()) {
+      if (key.startsWith(filePath)) {
+        this.signedUrlCache.delete(key);
+      }
+    }
+  }
+
+  private disableRealtimeOnError(table: string): void {
+    logger.error(`Subscription error for ${table} - disabling realtime automatically`);
+    this.metrics.isActive = false;
+    this.updateMetricsInSyncState();
+    this.destroy();
+  }
+
+  private updateMetricsInSyncState(): void {
+    syncStateManager.updateRealtimeMetrics(this.metrics);
   }
 }
 
