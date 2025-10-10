@@ -838,7 +838,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     <h1>Galeria de Fotos (${uploadedPhotoUrls.length})</h1>
     <div class="gallery">
       ${uploadedPhotoUrls.map((url, idx) => `
-        <div class="photo-card" onclick="openLightbox('${url}')">
+        <div class="photo-card" onclick="openLightbox(event, '${url}')">
           <img src="${url}" alt="Foto ${idx + 1}" loading="lazy">
           <div class="caption">Foto ${idx + 1}</div>
         </div>
@@ -852,8 +852,8 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
   </div>
   
   <script>
-    function openLightbox(url) {
-      event.stopPropagation();
+    function openLightbox(e, url) {
+      e.stopPropagation();
       document.getElementById('lightbox').classList.add('active');
       document.getElementById('lightbox-img').src = url;
     }
