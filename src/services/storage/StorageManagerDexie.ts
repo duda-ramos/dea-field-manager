@@ -11,6 +11,7 @@ import type {
 import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
+import { realtimeManager } from '@/services/realtime/realtime';
 
 const now = () => Date.now();
 
@@ -203,12 +204,14 @@ export const StorageManagerDexie: any = {
         if (error) throw error;
 
         await db.projects.put(withDates);
+        realtimeManager.trackLocalOperation('projects');
         syncStateManager.updateState({ lastSyncAt: Date.now() });
         return withDates;
       } catch (error) {
         console.error('Erro ao salvar online, salvando offline:', error);
         withDates._dirty = 1;
         await db.projects.put(withDates);
+        realtimeManager.trackLocalOperation('projects');
         syncQueue.push({ type: 'project', data: withDates });
         syncStateManager.updateState({ pendingPush: syncQueue.length });
         return withDates;
@@ -218,6 +221,7 @@ export const StorageManagerDexie: any = {
     // OFFLINE: Salvar localmente e marcar para sincronizar
     withDates._dirty = 1;
     await db.projects.put(withDates);
+    realtimeManager.trackLocalOperation('projects');
     syncQueue.push({ type: 'project', data: withDates });
     syncStateManager.updateState({ pendingPush: syncQueue.length });
     return withDates;
@@ -227,6 +231,7 @@ export const StorageManagerDexie: any = {
     const existing = await db.projects.get(id);
     if (existing) {
       await db.projects.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
+      realtimeManager.trackLocalOperation('projects');
     }
     
     // Also mark related records as deleted
@@ -262,6 +267,7 @@ export const StorageManagerDexie: any = {
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('installation', withDates);
     await db.installations.put(withDates);
+    realtimeManager.trackLocalOperation('installations');
     
     return withDates;
   },
@@ -270,6 +276,7 @@ export const StorageManagerDexie: any = {
     const existing = await db.installations.get(id);
     if (existing) {
       await db.installations.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
+      realtimeManager.trackLocalOperation('installations');
     }
     
     // Also mark related records as deleted
@@ -313,6 +320,7 @@ export const StorageManagerDexie: any = {
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('contact', withFlags);
     await db.contacts.put(withFlags);
+    realtimeManager.trackLocalOperation('contacts');
     
     return withFlags;
   },
@@ -320,6 +328,7 @@ export const StorageManagerDexie: any = {
     const existing = await db.contacts.get(id);
     if (existing) {
       await db.contacts.put({ ...existing, _deleted: 1, _dirty: 1 });
+      realtimeManager.trackLocalOperation('contacts');
     }
   },
 
@@ -339,6 +348,7 @@ export const StorageManagerDexie: any = {
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('budget', withDates);
     await db.budgets.put(withDates);
+    realtimeManager.trackLocalOperation('budgets');
     
     return withDates;
   },
