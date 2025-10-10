@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { uploadToStorage } from '@/services/storage/filesStorage';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { ImageEditor } from './ImageEditor';
@@ -224,6 +225,14 @@ export function EnhancedImageUpload({
     }
   };
 
+  // Calculate statistics with useMemo for performance
+  const statistics = useMemo(() => {
+    const total = images.length;
+    const withInstallation = images.filter(img => img.installationId).length;
+    const general = images.filter(img => !img.installationId).length;
+    return { total, withInstallation, general };
+  }, [images]);
+
   // Filter and sort images
   const filteredAndSortedImages = images
     .filter(img => {
@@ -245,10 +254,6 @@ export function EnhancedImageUpload({
       }
       return a.name.localeCompare(b.name);
     });
-
-  // Count images by type
-  const generalCount = images.filter(img => !img.installationId).length;
-  const installationCount = images.filter(img => img.installationId).length;
 
   // Edit image
   const editImage = (image: ProjectFile) => {
@@ -354,24 +359,50 @@ export function EnhancedImageUpload({
         </Card>
       )}
 
-      {/* Image Counter */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  Total: {images.length} {images.length === 1 ? 'imagem' : 'imagens'}
-                </span>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <ImageIcon className="h-5 w-5 text-primary" />
               </div>
-              <div className="text-sm text-muted-foreground">
-                ({generalCount} {generalCount === 1 ? 'geral' : 'gerais'} + {installationCount} de peças)
+              <div>
+                <p className="text-2xl font-bold">{statistics.total}</p>
+                <p className="text-xs text-muted-foreground">Total de Imagens</p>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Tag className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{statistics.withInstallation}</p>
+                <p className="text-xs text-muted-foreground">De Instalações</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-500/10 rounded-lg">
+                <Filter className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{statistics.general}</p>
+                <p className="text-xs text-muted-foreground">Gerais</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Search and Filter Controls */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -423,60 +454,92 @@ export function EnhancedImageUpload({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {filteredAndSortedImages.map((image) => {
-            const installation = image.installationId ? installations.get(image.installationId) : null;
-            
-            return (
-              <Card key={image.id} className="group overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="aspect-square relative">
-                    <img
-                      src={image.url || ''}
-                      alt={image.name}
-                      className="w-full h-full object-cover transition-transform hover:scale-105"
-                    />
-                    {installation && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          Peça {installation.codigo}
-                        </Badge>
-                      </div>
-                    )}
-                    {!image.installationId && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <Badge variant="outline" className="text-xs bg-background/80">
-                          Geral
-                        </Badge>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => editImage(image)}
-                      >
-                        Editar
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="p-2">
-                    <p className="text-xs font-medium truncate">{image.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {image.uploadedAt ? new Date(image.uploadedAt).toLocaleDateString('pt-BR') : 'Data indisponível'}
-                    </p>
-                    {installation && (
-                      <p className="text-xs text-muted-foreground truncate mt-1">
-                        {installation.descricao}
+        <TooltipProvider>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {filteredAndSortedImages.map((image) => {
+              const installation = image.installationId ? installations.get(image.installationId) : null;
+              
+              return (
+                <Tooltip key={image.id}>
+                  <TooltipTrigger asChild>
+                    <Card className="group overflow-hidden cursor-pointer">
+                      <CardContent className="p-0">
+                        <div className="aspect-square relative">
+                          <img
+                            src={image.url || ''}
+                            alt={image.name}
+                            className="w-full h-full object-cover transition-transform hover:scale-105"
+                          />
+                          {installation && (
+                            <div className="absolute top-2 left-2 z-10">
+                              <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                Peça {installation.codigo}
+                              </Badge>
+                            </div>
+                          )}
+                          {!image.installationId && (
+                            <div className="absolute top-2 left-2 z-10">
+                              <Badge variant="outline" className="text-xs bg-background/80">
+                                Geral
+                              </Badge>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => editImage(image)}
+                            >
+                              Editar
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="p-2">
+                          <p className="text-xs font-medium truncate">{image.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {image.uploadedAt ? new Date(image.uploadedAt).toLocaleDateString('pt-BR') : 'Data indisponível'}
+                          </p>
+                          {installation && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">
+                              {installation.descricao}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sm">{image.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        📅 Upload: {image.uploadedAt ? new Date(image.uploadedAt).toLocaleDateString('pt-BR', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : 'Data indisponível'}
                       </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      {installation ? (
+                        <p className="text-xs text-muted-foreground">
+                          🏷️ Peça {installation.codigo}: {installation.descricao}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          📁 Foto Geral
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        💾 {(image.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </TooltipProvider>
       )}
 
       {/* Image Editor Modal */}
