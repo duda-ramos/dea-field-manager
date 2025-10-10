@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, X, Plus, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncPhotoToProjectAlbum } from "@/utils/photoSync";
+import { uploadToStorage } from "@/services/storage/filesStorage";
 import { useToast } from "@/hooks/use-toast";
 
 interface PhotoGalleryProps {
@@ -30,49 +31,92 @@ export function PhotoGallery({
   // Ensure photos is always an array
   const safePhotos = photos || [];
 
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const buildStorageFileName = (file: File, code: string) => {
+    const extension = file.name.split(".").pop() || "jpg";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const suffix = crypto.randomUUID();
+    return `peca_${code}_${timestamp}_${suffix}.${extension}`;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
+    const fileArray = Array.from(files);
     const newPhotos: string[] = [];
+    let syncedCount = 0;
+    let syncFailed = false;
 
-    for (const file of Array.from(files)) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const photoUrl = e.target?.result as string;
+    for (const file of fileArray) {
+      try {
+        const photoUrl = await readFileAsDataUrl(file);
         newPhotos.push(photoUrl);
-        
-        // Sincronizar com o álbum de mídias se tiver os dados necessários
+
         if (projectId && installationId && installationCode) {
           try {
+            const renamedFile = new File(
+              [file],
+              buildStorageFileName(file, installationCode),
+              { type: file.type }
+            );
+
+            const { storagePath } = await uploadToStorage(renamedFile, {
+              projectId,
+              installationId,
+              id: crypto.randomUUID()
+            });
+
             await syncPhotoToProjectAlbum(
               projectId,
               installationId,
               installationCode,
-              photoUrl
+              storagePath
             );
-            
-            toast({
-              title: "Foto sincronizada",
-              description: `Foto da peça ${installationCode} adicionada ao álbum de mídias do projeto.`,
-            });
+
+            syncedCount += 1;
           } catch (error) {
-            console.warn('Erro ao sincronizar foto com álbum:', error);
-            toast({
-              title: "Aviso",
-              description: "Foto adicionada à peça, mas não foi possível sincronizar com o álbum.",
-              variant: "destructive",
-            });
+            console.warn("Erro ao sincronizar foto com álbum:", error);
+            syncFailed = true;
           }
         }
-
-        // Atualizar as fotos da instalação
-        if (newPhotos.length === Array.from(files).length) {
-          onPhotosChange([...safePhotos, ...newPhotos]);
-        }
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("Erro ao processar arquivo de foto:", error);
+        toast({
+          title: "Erro ao carregar foto",
+          description: "Não foi possível processar uma das fotos selecionadas.",
+          variant: "destructive"
+        });
+      }
     }
+
+    if (newPhotos.length > 0) {
+      onPhotosChange([...safePhotos, ...newPhotos]);
+    }
+
+    if (syncedCount > 0) {
+      toast({
+        title: "Foto sincronizada",
+        description: `Foto da peça ${installationCode} adicionada ao álbum de mídias do projeto.`
+      });
+    }
+
+    if (syncFailed) {
+      toast({
+        title: "Aviso",
+        description: "Foto adicionada à peça, mas não foi possível sincronizar com o álbum.",
+        variant: "destructive"
+      });
+    }
+
+    event.target.value = "";
   };
 
   const removePhoto = (index: number) => {
