@@ -75,7 +75,10 @@ export default function Dashboard() {
       const allProjects = await storage.getProjects();
       setProjects(allProjects);
     } catch (error) {
-      // Error loading projects - logged via logger service
+      console.error('Failed to load projects:', error, {
+        context: 'Dashboard.loadProjects',
+        operation: 'load projects list'
+      });
       
       toast({
         title: "Erro ao carregar projetos",
@@ -177,7 +180,13 @@ export default function Dashboard() {
       });
 
     } catch (error) {
-      // Error creating project - logged via logger service
+      console.error('Failed to create project:', error, {
+        context: 'Dashboard.handleCreateProject',
+        projectName: newProject.name,
+        client: newProject.client,
+        hasTemplate: !!selectedTemplate,
+        operation: 'create new project'
+      });
       
       toast({
         title: "Erro ao criar projeto",

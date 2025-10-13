@@ -253,7 +253,14 @@ export function BulkOperationPanel({
 
       setSelectedItems([]);
     } catch (error) {
-      // Error logged via logger service
+      console.error('Bulk operation failed:', error, {
+        context: 'BulkOperationPanel.executeOperation',
+        operationId: operation.id,
+        operationLabel: operation.label,
+        itemType,
+        itemCount: selectedItemsData.length,
+        operation: `bulk ${operation.id}`
+      });
       toast({
         title: 'Erro na operação',
         description: `Falha ao executar ${operation.label.toLowerCase()}.`,

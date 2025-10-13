@@ -87,6 +87,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         setProposals(proposalsData as SupplierProposal[]);
       }
     } catch (error) {
+      console.error('Failed to load proposals:', error, {
+        context: 'BudgetTab.loadProposals',
+        projectId,
+        userId: user?.id,
+        operation: 'load supplier proposals'
+      });
       toast({
         title: "Erro",
         description: "Erro inesperado ao carregar propostas",
@@ -223,6 +229,14 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         });
       }
     } catch (error: any) {
+      console.error('Failed to create proposal:', error, {
+        context: 'BudgetTab.handleCreateProposal',
+        projectId,
+        supplier: newProposal.supplier,
+        fileName: newProposal.file?.name,
+        fileSize: newProposal.file?.size,
+        operation: 'create supplier proposal with file upload'
+      });
       toast({
         title: "Erro",
         description: error.message || "Erro no upload do arquivo",
@@ -297,6 +311,13 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         description: "Proposta foi excluída com sucesso"
       });
     } catch (error) {
+      console.error('Failed to delete proposal:', error, {
+        context: 'BudgetTab.handleDeleteProposal',
+        projectId,
+        proposalId,
+        filePath,
+        operation: 'delete supplier proposal and file'
+      });
       toast({
         title: "Erro",
         description: "Erro ao excluir arquivo",
@@ -351,6 +372,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
+      console.error('Failed to download proposal file:', error, {
+        context: 'BudgetTab.downloadFile',
+        filePath,
+        fileName,
+        operation: 'download supplier proposal file'
+      });
       toast({
         title: "Erro",
         description: "Erro ao processar download",

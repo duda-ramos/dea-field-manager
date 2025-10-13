@@ -137,7 +137,11 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (error) throw error;
       setCollaborators(data || []);
     } catch (error) {
-      // Error logged via logger service
+      console.error('Failed to load collaborators:', error, {
+        context: 'CollaborationPanel.loadCollaborators',
+        projectId,
+        operation: 'load project collaborators'
+      });
     } finally {
       setLoading(false);
     }
@@ -300,7 +304,12 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
 
       loadCollaborators();
     } catch (error) {
-      // Error logged via logger service
+      console.error('Failed to remove collaborator:', error, {
+        context: 'CollaborationPanel.handleRemoveCollaborator',
+        projectId,
+        collaboratorId,
+        operation: 'remove collaborator'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao remover colaborador',

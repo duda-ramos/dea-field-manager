@@ -328,6 +328,13 @@ export function EnhancedImageUpload({
           : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       );
     } catch (error) {
+      console.error('Image upload failed:', error, {
+        context: 'EnhancedImageUpload.confirmUpload',
+        projectId,
+        installationId,
+        fileCount: filePreviews.length,
+        operation: 'batch image upload'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao enviar imagens. Tente novamente.',
@@ -439,6 +446,14 @@ export function EnhancedImageUpload({
       });
       showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
+      console.error('Edited image save failed:', error, {
+        context: 'EnhancedImageUpload.handleImageEdited',
+        projectId,
+        installationId,
+        originalImageId: originalImage.id,
+        originalImageName: originalImage.name,
+        operation: 'save edited image'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao salvar imagem editada.',

@@ -105,7 +105,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               autoSyncManager.initialize().then(() => {
                 autoSyncManager.initializeWithAuth();
               }).catch(error => {
-                // Auto-sync initialization failed - logged via logger service
+                console.error('Auto-sync initialization failed on auth state change:', error, {
+                  context: 'useAuth.onAuthStateChange',
+                  userId: session?.user?.id,
+                  operation: 'initialize auto-sync after login'
+                });
               });
             }, 100);
           }
@@ -134,7 +138,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             autoSyncManager.initialize().then(() => {
               autoSyncManager.initializeWithAuth();
             }).catch(error => {
-              // Auto-sync initialization failed - logged via logger service
+              console.error('Auto-sync initialization failed on session check:', error, {
+                context: 'useAuth.getSession',
+                userId: session?.user?.id,
+                operation: 'initialize auto-sync for existing session'
+              });
             });
           }, 100);
         }

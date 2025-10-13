@@ -70,7 +70,10 @@ class AutoSyncManager {
         // Non-blocking background sync
         void syncPush();
       } catch (error) {
-        // Background sync failure logged via logger service
+        console.error('Background sync failed:', error, {
+          context: 'AutoSyncManager.handleBackgroundSync',
+          operation: 'auto push on background'
+        });
       }
     }
   }
@@ -82,7 +85,10 @@ class AutoSyncManager {
         // Simple push without blocking
         void syncPush();
       } catch (error) {
-        // Page unload sync failure (expected behavior)
+        console.error('Page unload sync failed:', error, {
+          context: 'AutoSyncManager.handlePageUnload',
+          operation: 'auto push on page unload'
+        });
       }
     }
   }
@@ -94,7 +100,10 @@ class AutoSyncManager {
         await fullSync();
         await realtimeManager.reconnect();
       } catch (error) {
-        // Reconnection sync failed - logged via logger service
+        console.error('Reconnection sync failed:', error, {
+          context: 'AutoSyncManager.handleOnlineStatusChange',
+          operation: 'full sync and realtime reconnect on online'
+        });
       }
     }
   }
@@ -112,7 +121,10 @@ class AutoSyncManager {
           await syncPush();
           // Debounced auto-push completed
         } catch (error) {
-          // Debounced push failed - logged via logger service
+          console.error('Debounced push failed:', error, {
+            context: 'AutoSyncManager.triggerDebouncedSync',
+            operation: 'debounced auto push'
+          });
         }
       }
     }, 3000);
@@ -124,7 +136,10 @@ class AutoSyncManager {
       await syncPull();
       // Auto-pull completed
     } catch (error) {
-      // Auto-pull failed - logged via logger service
+      console.error('Auto-pull on boot failed:', error, {
+        context: 'AutoSyncManager.handleBootPull',
+        operation: 'auto pull on application start'
+      });
     }
   }
 
@@ -150,7 +165,11 @@ class AutoSyncManager {
           await syncPull();
           // Periodic auto-pull completed
         } catch (error) {
-          // Periodic pull failed - logged via logger service
+          console.error('Periodic pull failed:', error, {
+            context: 'AutoSyncManager.setupPeriodicSync',
+            operation: 'periodic auto pull',
+            intervalMs
+          });
         }
       }
     }, intervalMs);
