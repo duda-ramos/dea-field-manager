@@ -57,8 +57,15 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
       description: `Deletou projeto "${projectCopy.name}"`,
       data: { deletedProject: projectCopy },
       undo: async () => {
-        // Restaurar projeto no storage
-        await storage.upsertProject(projectCopy);
+        // Restaurar estado remoto antes de atualizar storage local
+        await restoreProject(projectCopy.id);
+
+        // Garantir que os campos de deleção sejam limpos localmente
+        await storage.upsertProject({
+          ...projectCopy,
+          deleted_at: null,
+          permanent_deletion_at: null,
+        });
         // Atualizar UI
         onUpdate();
       }
