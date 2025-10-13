@@ -42,6 +42,8 @@ import { ReportShareModal } from "@/components/reports/ReportShareModal";
 import { ReportHistoryPanel } from "@/components/reports/ReportHistoryPanel";
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { ProjectErrorFallback, UploadErrorFallback, ReportErrorFallback } from '@/components/error-fallbacks';
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -576,7 +578,12 @@ export default function ProjectDetailNew() {
 
   // Budget Section
   const renderOrcamentosSection = () => {
-    return (
+  return (
+    <LoadingBoundary
+      isLoading={isLoadingData}
+      loadingMessage="Carregando informações do projeto..."
+      fallback={ProjectErrorFallback}
+    >
       <div className="space-y-6 max-w-full overflow-x-hidden">
         <Card className="w-full">
           <CardHeader>
@@ -1263,5 +1270,6 @@ export default function ProjectDetailNew() {
         />
       )}
     </div>
+    </LoadingBoundary>
   );
 }

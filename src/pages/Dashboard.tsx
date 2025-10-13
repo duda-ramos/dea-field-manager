@@ -13,6 +13,7 @@ import { storage } from "@/lib/storage";
 import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
+import { DashboardErrorFallback } from "@/components/error-fallbacks";
 
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
@@ -271,7 +272,11 @@ export default function Dashboard() {
   const stats = getProjectStats();
 
   return (
-    <LoadingBoundary>
+    <LoadingBoundary
+      isLoading={loading}
+      loadingMessage="Carregando seus projetos..."
+      fallback={DashboardErrorFallback}
+    >
       <div className="space-y-responsive">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

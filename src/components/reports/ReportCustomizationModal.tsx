@@ -19,6 +19,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
 import { ReportErrorBoundary } from './report-error-boundary';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { ReportErrorFallback } from '@/components/error-fallbacks';
 
 interface ReportCustomizationModalProps {
   isOpen: boolean;
@@ -263,7 +265,12 @@ export function ReportCustomizationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] sm:max-w-4xl flex flex-col">
+      <LoadingBoundary
+        isLoading={isGenerating}
+        loadingMessage="Gerando relatório..."
+        fallback={ReportErrorFallback}
+      >
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] sm:max-w-4xl flex flex-col">
         <ReportErrorBoundary onClose={onClose}>
           <DialogHeader className="flex-shrink-0 pb-4">
             <DialogTitle className="text-lg sm:text-xl">Personalizar Relatório</DialogTitle>
@@ -613,6 +620,7 @@ export function ReportCustomizationModal({
         </DialogFooter>
         </ReportErrorBoundary>
       </DialogContent>
+      </LoadingBoundary>
     </Dialog>
   );
 }

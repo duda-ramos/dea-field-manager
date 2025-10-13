@@ -19,6 +19,8 @@ import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { withRetry } from '@/services/sync/utils';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { UploadErrorFallback } from '@/components/error-fallbacks';
 
 // Validation constants
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -478,7 +480,8 @@ export function EnhancedImageUpload({
   };
 
   return (
-    <div className={cn('space-y-6 max-w-full overflow-x-hidden relative', className)}>
+    <LoadingBoundary fallback={UploadErrorFallback}>
+      <div className={cn('space-y-6 max-w-full overflow-x-hidden relative', className)}>
       {/* Upload Overlay */}
       {isUploading && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
@@ -853,5 +856,6 @@ export function EnhancedImageUpload({
         />
       )}
     </div>
+    </LoadingBoundary>
   );
 }

@@ -29,6 +29,8 @@ import { storage } from '@/lib/storage';
 import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { SectionErrorFallback } from '@/components/error-fallbacks';
 
 export interface BulkOperation {
   id: string;
@@ -293,8 +295,9 @@ export function BulkOperationPanel({
   }
 
   return (
-    <>
-      <Card className={cn("", className)}>
+    <LoadingBoundary fallback={SectionErrorFallback}>
+      <>
+        <Card className={cn("", className)}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
@@ -521,5 +524,6 @@ export function BulkOperationPanel({
         ))}
       </div>
     </>
+    </LoadingBoundary>
   );
 }

@@ -12,6 +12,8 @@ import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import { withRetry } from '@/services/sync/utils';
 import type { ProjectFile } from '@/types';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { UploadErrorFallback } from '@/components/error-fallbacks';
 
 interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
   uploadedAt: Date;
@@ -172,10 +174,10 @@ export function FileUpload({
         console.error('File upload failed:', error, { fileName: file.name });
         toast({
           title: 'Erro no upload',
-          description: `Falha ao enviar ${file.name}`,
+          description: `Não foi possível enviar ${file.name} após várias tentativas. Verifique sua conexão e tente novamente.`,
           variant: 'destructive'
         });
-        showToast.error('Erro no upload', `Falha ao enviar ${file.name}`);
+        showToast.error('Erro no upload', `Não foi possível enviar ${file.name} após várias tentativas.`);
       }
     }
   };
@@ -487,7 +489,8 @@ export function FileUpload({
   }, [projectId, installationId, onFilesChange]);
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <LoadingBoundary fallback={UploadErrorFallback}>
+      <div className={cn("space-y-4", className)}>
       {/* Network Status */}
       <div className="flex items-center justify-between mb-4 p-2 rounded-lg bg-muted/30">
         <div className="flex items-center gap-2">
@@ -690,5 +693,6 @@ export function FileUpload({
         </DialogContent>
       </Dialog>
     </div>
+    </LoadingBoundary>
   );
 }
