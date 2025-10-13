@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
-import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,7 @@ export function EnhancedImageUpload({
   const [editingImage, setEditingImage] = useState<ProjectFile | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [installations, setInstallations] = useState<Map<string, { codigo: number; descricao: string }>>(new Map());
+  const [isUploading, setIsUploading] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +183,7 @@ export function EnhancedImageUpload({
       return;
     }
 
+    setIsUploading(true);
     try {
       const uploadPromises = imageFiles.map(uploadImage);
       const uploadedImages = await Promise.all(uploadPromises);
@@ -209,6 +211,8 @@ export function EnhancedImageUpload({
         variant: 'destructive'
       });
       showToast.error('Erro ao enviar imagens', 'Tente novamente.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -301,7 +305,19 @@ export function EnhancedImageUpload({
   };
 
   return (
-    <div className={cn('space-y-6 max-w-full overflow-x-hidden', className)}>
+    <div className={cn('space-y-6 max-w-full overflow-x-hidden relative', className)}>
+      {/* Upload Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-background p-6 rounded-lg shadow-lg flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-medium text-lg">Enviando imagens...</p>
+              <p className="text-sm text-muted-foreground">Por favor, aguarde</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Upload Controls */}
       <Card>
         <CardContent className="p-6">
@@ -310,6 +326,7 @@ export function EnhancedImageUpload({
               onClick={handleCameraCapture}
               className="flex-1 h-12"
               variant="default"
+              disabled={isUploading}
             >
               <Camera className="h-5 w-5 mr-2" />
               Capturar Foto
@@ -318,6 +335,7 @@ export function EnhancedImageUpload({
               onClick={handleGalleryUpload}
               variant="outline"
               className="flex-1 h-12"
+              disabled={isUploading}
             >
               <Upload className="h-5 w-5 mr-2" />
               Galeria/Arquivo
