@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+*.config.ts
+*.config.js
+.vscode/
+.idea/
+public/background.js
+public/content.js
+supabase/functions/
+e2e/

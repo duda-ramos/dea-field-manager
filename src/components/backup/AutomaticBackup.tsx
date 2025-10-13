@@ -24,7 +24,7 @@ import { ptBR } from 'date-fns/locale';
 interface ProjectBackup {
   id: string;
   backup_type: string;
-  backup_data: any;
+  backup_data: Record<string, unknown>;
   file_count: number;
   total_size: number;
   created_at: string;
@@ -64,6 +64,11 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
       setBackups(data || []);
     } catch (error) {
       console.error('Erro ao carregar backups:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar lista de backups',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
@@ -87,7 +92,7 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
         .insert({
           project_id: project.id,
           backup_type: 'manual',
-          backup_data: backupData as any,
+          backup_data: backupData as Record<string, unknown>,
           file_count: 0,
           total_size: JSON.stringify(backupData).length,
           restore_point: true
@@ -102,6 +107,7 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
 
       loadBackups();
     } catch (error) {
+      console.error('Erro ao criar backup:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao criar backup manual',
@@ -138,7 +144,6 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
 
   const totalBackupSize = backups.reduce((sum, backup) => sum + (backup.total_size || 0), 0);
   const automaticBackups = backups.filter(b => b.backup_type === 'automatic').length;
-  const manualBackups = backups.filter(b => b.backup_type === 'manual').length;
 
   return (
     <div className="space-y-6">
