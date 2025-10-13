@@ -188,37 +188,38 @@ export default function ProjectDetailNew() {
     setIsImporting(true);
     
     try {
-      const result = await importExcelFile(file);
+      const result = await importExcelFile(file, project.id);
       
       if (!result.success) {
+        const errorMessage = result.errors?.join('\n') || 'Erro desconhecido';
         toast({
           title: "Erro na importação",
-          description: result.error,
+          description: errorMessage,
           variant: "destructive"
         });
         return;
       }
 
-      // Import installations - handle the data structure properly
+      // Import installations - data is now a direct array of Installation objects
       const results = [];
-      for (const importData of result.data) {
-        // importData should have structure like { pavimento: string, items: Installation[] }
-        if (importData.items && Array.isArray(importData.items)) {
-          for (const installation of importData.items) {
-            const installationData = {
-              ...installation,
-              id: installation.id || `install_${Date.now()}_${Math.random()}`,
-              project_id: project.id,
-              pavimento: importData.pavimento, // IMPORTANTE: Atribuir o pavimento do nome da aba
-              updated_at: new Date().toISOString(),
-              revisado: false
-            };
-            const installResult = await storage.upsertInstallation(installationData);
-            results.push(installResult);
-          }
+      if (result.data && Array.isArray(result.data)) {
+        for (const installation of result.data) {
+          const installationData = {
+            ...installation,
+            project_id: project.id,
+            updated_at: new Date().toISOString()
+          };
+          const installResult = await storage.upsertInstallation(installationData);
+          results.push(installResult);
         }
       }
-      const importResult = { summary: { total: results.length }, data: results };
+      
+      // Group by pavimento for summary
+      const pavimentoCounts = results.reduce((acc, inst) => {
+        acc[inst.pavimento] = (acc[inst.pavimento] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const importResult = { summary: pavimentoCounts, data: results };
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
       setInstallations(updatedInstallations);
       
@@ -239,7 +240,7 @@ export default function ProjectDetailNew() {
       
       toast({
         title: "Planilha importada com sucesso!",
-        description: `Importados: ${summaryText}`,
+        description: summaryText || `Importados ${results.length} itens`,
       });
     } catch (error) {
       toast({

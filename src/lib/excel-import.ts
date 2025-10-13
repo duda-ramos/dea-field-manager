@@ -5,8 +5,8 @@ import type { Installation } from '@/types';
 
 export interface ExcelImportResult {
   success: boolean;
-  data: { pavimento: string; items: any[] }[];
-  error?: string;
+  data?: Installation[];
+  errors?: string[];
 }
 
 export interface PhotoSyncResult {
@@ -82,8 +82,19 @@ export async function syncImportedPhotosToGallery(
   };
 }
 
-export function importExcelFile(file: File): Promise<ExcelImportResult> {
+export function importExcelFile(file: File, projectId?: string): Promise<ExcelImportResult> {
   return new Promise((resolve) => {
+    const errors: string[] = [];
+    
+    // 1. Validate file type (.xlsx)
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      resolve({
+        success: false,
+        errors: ['Arquivo inválido. Por favor, selecione um arquivo Excel (.xlsx)']
+      });
+      return;
+    }
+    
     const reader = new FileReader();
     
     reader.onload = (e) => {
@@ -97,13 +108,14 @@ export function importExcelFile(file: File): Promise<ExcelImportResult> {
         if (sheetNames.length === 0) {
           resolve({
             success: false,
-            data: [],
-            error: 'Nenhuma aba válida encontrada (todas as abas exceto "TODOS" são processadas)'
+            errors: ['Nenhuma aba válida encontrada (todas as abas exceto "TODOS" são processadas)']
           });
           return;
         }
 
-        const result: { pavimento: string; items: any[] }[] = [];
+        const allInstallations: Installation[] = [];
+        const requiredColumns = ['Tipologia', 'Código', 'Descrição', 'Quantidade'];
+        const seenCodes = new Map<number, { pavimento: string; linha: number }>();
 
         for (const sheetName of sheetNames) {
           const worksheet = workbook.Sheets[sheetName];
@@ -115,7 +127,7 @@ export function importExcelFile(file: File): Promise<ExcelImportResult> {
           const headers = jsonData[0] as string[];
           const rows = jsonData.slice(1) as any[][];
           
-          // Map headers to our expected field names
+          // 2. Validate required columns
           const headerMap: Record<string, string> = {};
           headers.forEach((header, index) => {
             const normalizedHeader = header?.toString().toLowerCase().trim();
@@ -141,51 +153,135 @@ export function importExcelFile(file: File): Promise<ExcelImportResult> {
               headerMap['observacoes'] = index.toString();
             }
           });
-
-          // Convert rows to objects
-          const items = rows
-            .filter(row => row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && cell !== ''))
-            .map(row => {
-              const item: any = {};
-              
-              // Map required fields
-              item.tipologia = headerMap['tipologia'] ? (row[parseInt(headerMap['tipologia'])] || '').toString() : '';
-              item.codigo = headerMap['codigo'] ? Number(row[parseInt(headerMap['codigo'])]) || 0 : 0;
-              item.descricao = headerMap['descricao'] ? (row[parseInt(headerMap['descricao'])] || '').toString() : '';
-              item.quantidade = headerMap['quantidade'] ? Number(row[parseInt(headerMap['quantidade'])]) || 0 : 0;
-              
-              // Map optional fields
-              if (headerMap['diretriz_altura_cm'] && row[parseInt(headerMap['diretriz_altura_cm'])]) {
-                item.diretriz_altura_cm = Number(row[parseInt(headerMap['diretriz_altura_cm'])]);
-              }
-              if (headerMap['diretriz_dist_batente_cm'] && row[parseInt(headerMap['diretriz_dist_batente_cm'])]) {
-                item.diretriz_dist_batente_cm = Number(row[parseInt(headerMap['diretriz_dist_batente_cm'])]);
-              }
-              if (headerMap['observacoes'] && row[parseInt(headerMap['observacoes'])]) {
-                item.observacoes = row[parseInt(headerMap['observacoes'])].toString();
-              }
-              
-              return item;
-            })
-            .filter(item => item.tipologia || item.descricao); // Filter out completely empty rows
-
-          if (items.length > 0) {
-            result.push({
-              pavimento: sheetName,
-              items
-            });
+          
+          // Check for missing required columns
+          const missingColumns: string[] = [];
+          if (!headerMap['tipologia']) missingColumns.push('Tipologia');
+          if (!headerMap['codigo']) missingColumns.push('Código');
+          if (!headerMap['descricao']) missingColumns.push('Descrição');
+          if (!headerMap['quantidade']) missingColumns.push('Quantidade');
+          
+          if (missingColumns.length > 0) {
+            errors.push(`Colunas obrigatórias não encontradas: ${missingColumns.join(', ')}`);
+            continue;
           }
+
+          // Convert rows to objects with validation
+          const validRows = rows.filter(row => 
+            row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && cell !== '')
+          );
+          
+          // 3. Check if there's at least 1 data row
+          if (validRows.length === 0) {
+            errors.push(`Aba "${sheetName}": Planilha vazia. Adicione pelo menos uma linha de dados`);
+            continue;
+          }
+          
+          validRows.forEach((row, rowIndex) => {
+            const lineNumber = rowIndex + 2; // +2 because: +1 for 0-index, +1 for header row
+            
+            // Skip completely empty rows
+            const tipologia = headerMap['tipologia'] ? (row[parseInt(headerMap['tipologia'])] || '').toString() : '';
+            const descricao = headerMap['descricao'] ? (row[parseInt(headerMap['descricao'])] || '').toString() : '';
+            
+            if (!tipologia && !descricao) return; // Skip empty rows
+            
+            // Parse codigo
+            const codigoValue = headerMap['codigo'] ? row[parseInt(headerMap['codigo'])] : null;
+            const codigo = codigoValue !== null && codigoValue !== undefined && codigoValue !== '' 
+              ? Number(codigoValue) 
+              : 0;
+            
+            // 4. Validate quantidade is a number
+            const quantidadeValue = headerMap['quantidade'] ? row[parseInt(headerMap['quantidade'])] : null;
+            let quantidade = 0;
+            
+            if (quantidadeValue === null || quantidadeValue === undefined || quantidadeValue === '') {
+              errors.push(`Aba "${sheetName}" - Linha ${lineNumber}: Quantidade inválida`);
+            } else {
+              const parsedQtd = Number(quantidadeValue);
+              if (isNaN(parsedQtd)) {
+                errors.push(`Aba "${sheetName}" - Linha ${lineNumber}: Quantidade inválida`);
+              } else {
+                quantidade = parsedQtd;
+              }
+            }
+            
+            // 5. Detect duplicate codes
+            if (codigo > 0) {
+              const existing = seenCodes.get(codigo);
+              if (existing) {
+                // Only add error once per duplicate code
+                if (!errors.find(e => e.includes(`Código duplicado: ${codigo}`))) {
+                  errors.push(`Códigos duplicados encontrados: ${codigo}`);
+                }
+              } else {
+                seenCodes.set(codigo, { pavimento: sheetName, linha: lineNumber });
+              }
+            }
+            
+            // Create installation object
+            const installation: Installation = {
+              id: crypto.randomUUID(),
+              project_id: projectId || '',
+              tipologia,
+              codigo,
+              descricao,
+              quantidade,
+              pavimento: sheetName,
+              installed: false,
+              revisado: false,
+              revisao: 0,
+              updated_at: new Date().toISOString(),
+              photos: []
+            };
+            
+            // Add optional fields
+            if (headerMap['diretriz_altura_cm'] && row[parseInt(headerMap['diretriz_altura_cm'])]) {
+              const altura = Number(row[parseInt(headerMap['diretriz_altura_cm'])]);
+              if (!isNaN(altura)) {
+                installation.diretriz_altura_cm = altura;
+              }
+            }
+            if (headerMap['diretriz_dist_batente_cm'] && row[parseInt(headerMap['diretriz_dist_batente_cm'])]) {
+              const dist = Number(row[parseInt(headerMap['diretriz_dist_batente_cm'])]);
+              if (!isNaN(dist)) {
+                installation.diretriz_dist_batente_cm = dist;
+              }
+            }
+            if (headerMap['observacoes'] && row[parseInt(headerMap['observacoes'])]) {
+              installation.observacoes = row[parseInt(headerMap['observacoes'])].toString();
+            }
+            
+            allInstallations.push(installation);
+          });
         }
 
-        resolve({
-          success: true,
-          data: result
-        });
+        // Final validation: check if we have any data
+        if (allInstallations.length === 0 && errors.length === 0) {
+          resolve({
+            success: false,
+            errors: ['Planilha vazia. Adicione pelo menos uma linha de dados']
+          });
+          return;
+        }
+        
+        // Return result
+        if (errors.length > 0) {
+          resolve({
+            success: false,
+            errors
+          });
+        } else {
+          resolve({
+            success: true,
+            data: allInstallations
+          });
+        }
       } catch (error) {
         resolve({
           success: false,
-          data: [],
-          error: `Erro ao processar arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+          errors: [`Erro ao processar arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`]
         });
       }
     };
