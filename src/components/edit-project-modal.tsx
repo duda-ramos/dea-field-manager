@@ -9,6 +9,7 @@ import { showToast } from "@/lib/toast";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Plus, Trash2, Loader2 } from "lucide-react";
+import { useUndo } from "@/hooks/useUndo";
 
 interface EditProjectModalProps {
   project: Project;
@@ -19,6 +20,7 @@ interface EditProjectModalProps {
 
 export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }: EditProjectModalProps) {
   const { toast } = useToast();
+  const { addAction } = useUndo();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -78,6 +80,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
 
     setIsSaving(true);
     try {
+      // Save previous state before updating
+      const previousState = { ...project };
+      
       const updatedProject = await storage.upsertProject({
         ...project,
         ...formData,
@@ -87,6 +92,22 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
       });
 
       if (updatedProject) {
+        // Add undo action for project update
+        addAction({
+          type: 'UPDATE_PROJECT',
+          description: `Editou projeto "${updatedProject.name}"`,
+          data: { 
+            projectId: updatedProject.id,
+            previousState: previousState 
+          },
+          undo: async () => {
+            // Restaurar estado anterior no storage
+            await storage.upsertProject(previousState);
+            // Atualizar UI
+            onProjectUpdated(previousState);
+          }
+        });
+        
         onProjectUpdated(updatedProject);
         onClose();
         toast({

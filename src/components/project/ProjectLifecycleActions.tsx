@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Archive, Download, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUndo } from "@/hooks/useUndo";
+import { storage } from "@/lib/storage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,13 +39,38 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showPermanentDeleteDialog, setShowPermanentDeleteDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const { addAction } = useUndo();
 
   const isDeleted = !!project.deleted_at;
   const isArchived = !!project.archived_at && !project.deleted_at;
   const isActive = !project.deleted_at && !project.archived_at;
 
   const handleSoftDelete = async () => {
+    // Save complete project state before deletion
+    const projectCopy = { ...project };
+    
     await softDeleteProject(project.id);
+    
+    // Add undo action
+    addAction({
+      type: 'DELETE_PROJECT',
+      description: `Deletou projeto "${projectCopy.name}"`,
+      data: { deletedProject: projectCopy },
+      undo: async () => {
+        // Restaurar estado remoto antes de atualizar storage local
+        await restoreProject(projectCopy.id);
+
+        // Garantir que os campos de deleção sejam limpos localmente
+        await storage.upsertProject({
+          ...projectCopy,
+          deleted_at: null,
+          permanent_deletion_at: null,
+        });
+        // Atualizar UI
+        onUpdate();
+      }
+    });
+    
     setShowDeleteDialog(false);
     onUpdate();
   };
