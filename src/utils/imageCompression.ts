@@ -12,6 +12,21 @@ export interface CompressionOptions {
   useWebWorker?: boolean;
 }
 
+export interface CompressionMetrics {
+  originalSizeMB: number;
+  compressedSizeMB: number;
+  reductionPercent: number;
+  fileName: string;
+  wasCompressed: boolean;
+  originalDimensions?: { width: number; height: number };
+  compressedDimensions?: { width: number; height: number };
+}
+
+export interface CompressionResult {
+  file: File;
+  metrics: CompressionMetrics;
+}
+
 interface ImageDimensions {
   width: number;
   height: number;
@@ -255,6 +270,8 @@ export async function compressImage(
       ...options
     };
 
+    const originalSizeMB = file.size / (1024 * 1024);
+
     // Check if compression is needed
     const needsCompression = shouldCompress(file);
     const needsDimensionCheck = await shouldCompressByDimensions(
@@ -263,31 +280,124 @@ export async function compressImage(
     );
 
     if (!needsCompression && !needsDimensionCheck) {
-      console.log('Imagem não precisa de compressão');
+      console.log('ℹ️ Imagem não precisa de compressão:', file.name);
       return file;
     }
 
-    console.log('Comprimindo imagem...', {
-      original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
-      name: file.name
-    });
+    console.group('🖼️ Compressão de Imagem');
+    console.log('📁 Arquivo:', file.name);
+    console.log('📊 Tamanho original:', `${originalSizeMB.toFixed(2)}MB`);
 
     // Compress the image
     const compressedFile = await compressImageWithCanvas(file, mergedOptions);
+    const compressedSizeMB = compressedFile.size / (1024 * 1024);
+    const reductionPercent = ((file.size - compressedFile.size) / file.size) * 100;
 
-    console.log('Imagem comprimida com sucesso', {
-      original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
-      compressed: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
-      reduction: `${(((file.size - compressedFile.size) / file.size) * 100).toFixed(1)}%`
-    });
+    console.log('✅ Compressão concluída!');
+    console.log('📊 Tamanho final:', `${compressedSizeMB.toFixed(2)}MB`);
+    console.log('💾 Economia:', `${reductionPercent.toFixed(1)}%`);
+    console.log(`🎯 ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${reductionPercent.toFixed(1)}% de redução)`);
+    console.groupEnd();
 
     return compressedFile;
   } catch (error) {
-    console.error('Erro ao comprimir imagem:', error);
+    console.error('❌ Erro ao comprimir imagem:', error);
     
     // Return original file if compression fails
-    console.warn('Retornando arquivo original devido a erro na compressão');
+    console.warn('⚠️ Retornando arquivo original devido a erro na compressão');
     return file;
+  }
+}
+
+/**
+ * Main compression function with detailed metrics
+ * @param file - Original image file
+ * @param options - Optional compression settings
+ * @returns Promise<CompressionResult> - Compressed file with metrics
+ */
+export async function compressImageWithMetrics(
+  file: File,
+  options?: CompressionOptions
+): Promise<CompressionResult> {
+  const startTime = performance.now();
+  const originalSizeMB = file.size / (1024 * 1024);
+  
+  try {
+    validateImageType(file);
+
+    const mergedOptions: Required<CompressionOptions> = {
+      ...DEFAULT_OPTIONS,
+      ...options
+    };
+
+    const originalDimensions = await getImageDimensions(file);
+    const needsCompression = shouldCompress(file);
+    const needsDimensionCheck = await shouldCompressByDimensions(
+      file,
+      mergedOptions.maxWidthOrHeight
+    );
+
+    if (!needsCompression && !needsDimensionCheck) {
+      const metrics: CompressionMetrics = {
+        originalSizeMB,
+        compressedSizeMB: originalSizeMB,
+        reductionPercent: 0,
+        fileName: file.name,
+        wasCompressed: false,
+        originalDimensions,
+        compressedDimensions: originalDimensions
+      };
+      
+      console.log('ℹ️ Imagem não precisa de compressão:', file.name);
+      return { file, metrics };
+    }
+
+    console.group('🖼️ Compressão de Imagem');
+    console.log('📁 Arquivo:', file.name);
+    console.log('📊 Tamanho original:', `${originalSizeMB.toFixed(2)}MB`);
+    console.log('📐 Dimensões originais:', `${originalDimensions.width}x${originalDimensions.height}px`);
+
+    const compressedFile = await compressImageWithCanvas(file, mergedOptions);
+    const compressedSizeMB = compressedFile.size / (1024 * 1024);
+    const reductionPercent = ((file.size - compressedFile.size) / file.size) * 100;
+    const compressedDimensions = await getImageDimensions(compressedFile);
+    const processingTime = performance.now() - startTime;
+
+    const metrics: CompressionMetrics = {
+      originalSizeMB,
+      compressedSizeMB,
+      reductionPercent,
+      fileName: file.name,
+      wasCompressed: true,
+      originalDimensions,
+      compressedDimensions
+    };
+
+    console.log('✅ Compressão concluída!');
+    console.log('📊 Tamanho final:', `${compressedSizeMB.toFixed(2)}MB`);
+    console.log('📐 Dimensões finais:', `${compressedDimensions.width}x${compressedDimensions.height}px`);
+    console.log('💾 Economia:', `${reductionPercent.toFixed(1)}%`);
+    console.log('⏱️ Tempo de processamento:', `${processingTime.toFixed(0)}ms`);
+    console.log(`🎯 ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${reductionPercent.toFixed(1)}% de redução)`);
+    console.groupEnd();
+
+    // Update global statistics
+    updateCompressionStats(metrics);
+
+    return { file: compressedFile, metrics };
+  } catch (error) {
+    console.error('❌ Erro ao comprimir imagem:', error);
+    
+    const metrics: CompressionMetrics = {
+      originalSizeMB,
+      compressedSizeMB: originalSizeMB,
+      reductionPercent: 0,
+      fileName: file.name,
+      wasCompressed: false
+    };
+    
+    console.warn('⚠️ Retornando arquivo original devido a erro na compressão');
+    return { file, metrics };
   }
 }
 
@@ -301,11 +411,135 @@ export async function compressImages(
   files: File[],
   options?: CompressionOptions
 ): Promise<File[]> {
+  console.group(`🗂️ Compressão em Lote (${files.length} arquivo${files.length > 1 ? 's' : ''})`);
+  
   try {
     const compressionPromises = files.map(file => compressImage(file, options));
-    return await Promise.all(compressionPromises);
+    const results = await Promise.all(compressionPromises);
+    
+    console.log(`✅ Processamento concluído: ${files.length} arquivo${files.length > 1 ? 's' : ''}`);
+    console.groupEnd();
+    
+    return results;
   } catch (error) {
-    console.error('Erro ao comprimir múltiplas imagens:', error);
+    console.error('❌ Erro ao comprimir múltiplas imagens:', error);
+    console.groupEnd();
     throw error;
   }
+}
+
+/**
+ * Get file size in a human-readable format
+ * @param bytes - File size in bytes
+ * @returns Formatted file size string
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Check if file is large (>5MB)
+ * @param file - File to check
+ * @returns true if file is larger than 5MB
+ */
+export function isLargeFile(file: File | number): boolean {
+  const bytes = typeof file === 'number' ? file : file.size;
+  const sizeMB = bytes / (1024 * 1024);
+  return sizeMB > 5;
+}
+
+// Global compression statistics storage
+const STATS_STORAGE_KEY = 'image_compression_stats';
+
+export interface CompressionStats {
+  totalImages: number;
+  totalCompressed: number;
+  totalOriginalSizeMB: number;
+  totalCompressedSizeMB: number;
+  totalSavingsMB: number;
+  compressionHistory: Array<{
+    timestamp: string;
+    fileName: string;
+    originalSizeMB: number;
+    compressedSizeMB: number;
+    reductionPercent: number;
+  }>;
+}
+
+/**
+ * Get compression statistics from localStorage
+ */
+export function getCompressionStats(): CompressionStats {
+  try {
+    const stored = localStorage.getItem(STATS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error reading compression stats:', error);
+  }
+  
+  return {
+    totalImages: 0,
+    totalCompressed: 0,
+    totalOriginalSizeMB: 0,
+    totalCompressedSizeMB: 0,
+    totalSavingsMB: 0,
+    compressionHistory: []
+  };
+}
+
+/**
+ * Save compression statistics to localStorage
+ */
+function saveCompressionStats(stats: CompressionStats): void {
+  try {
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
+  } catch (error) {
+    console.error('Error saving compression stats:', error);
+  }
+}
+
+/**
+ * Update global compression statistics
+ */
+export function updateCompressionStats(metrics: CompressionMetrics): void {
+  const stats = getCompressionStats();
+  
+  stats.totalImages += 1;
+  stats.totalOriginalSizeMB += metrics.originalSizeMB;
+  stats.totalCompressedSizeMB += metrics.compressedSizeMB;
+  
+  if (metrics.wasCompressed) {
+    stats.totalCompressed += 1;
+    stats.totalSavingsMB = stats.totalOriginalSizeMB - stats.totalCompressedSizeMB;
+    
+    // Add to history (keep last 50 compressions)
+    stats.compressionHistory.unshift({
+      timestamp: new Date().toISOString(),
+      fileName: metrics.fileName,
+      originalSizeMB: metrics.originalSizeMB,
+      compressedSizeMB: metrics.compressedSizeMB,
+      reductionPercent: metrics.reductionPercent
+    });
+    
+    if (stats.compressionHistory.length > 50) {
+      stats.compressionHistory = stats.compressionHistory.slice(0, 50);
+    }
+  }
+  
+  saveCompressionStats(stats);
+}
+
+/**
+ * Clear compression statistics
+ */
+export function clearCompressionStats(): void {
+  localStorage.removeItem(STATS_STORAGE_KEY);
 }

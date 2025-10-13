@@ -12,7 +12,11 @@ import {
   History,
   PlayCircle,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Image as ImageIcon,
+  Zap,
+  HardDrive,
+  Percent
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +41,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showUndoToast } from "@/lib/toast";
 import type { Project, Installation } from "@/types";
+import { 
+  getCompressionStats, 
+  clearCompressionStats,
+  type CompressionStats 
+} from "@/utils/imageCompression";
 
 export default function Debug() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
@@ -47,17 +56,29 @@ export default function Debug() {
   const { addAction, undo, canUndo, clearHistory, history } = useUndo();
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>({});
 
+  // Image compression stats
+  const [compressionStats, setCompressionStats] = useState<CompressionStats | null>(null);
+
   // Verificar se estamos em desenvolvimento
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   const loadLogs = () => {
     setLogs(getErrorLogs());
     setStats(getErrorStats());
+    setCompressionStats(getCompressionStats());
   };
 
   useEffect(() => {
     loadLogs();
   }, []);
+
+  const handleClearCompressionStats = () => {
+    if (window.confirm('Tem certeza que deseja limpar todas as estatísticas de compressão?')) {
+      clearCompressionStats();
+      setCompressionStats(getCompressionStats());
+      toast.success('Estatísticas de compressão limpas');
+    }
+  };
 
   const handleClearLogs = () => {
     if (window.confirm('Tem certeza que deseja limpar todos os logs de erro?')) {
@@ -476,6 +497,149 @@ export default function Debug() {
           </Button>
         </div>
       </div>
+
+      {/* Image Optimization Stats */}
+      {compressionStats && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Otimização de Imagens
+                </CardTitle>
+                <CardDescription>
+                  Estatísticas de compressão e otimização de imagens
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleClearCompressionStats}
+                variant="outline"
+                size="sm"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpar Estatísticas
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <ImageIcon className="h-4 w-4" />
+                  <span className="text-sm">Total de Imagens</span>
+                </div>
+                <p className="text-2xl font-bold">{compressionStats.totalImages}</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Zap className="h-4 w-4" />
+                  <span className="text-sm">Imagens Comprimidas</span>
+                </div>
+                <p className="text-2xl font-bold text-green-600">
+                  {compressionStats.totalCompressed}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {compressionStats.totalImages > 0 
+                    ? `${((compressionStats.totalCompressed / compressionStats.totalImages) * 100).toFixed(1)}% do total`
+                    : 'Nenhuma imagem processada'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <HardDrive className="h-4 w-4" />
+                  <span className="text-sm">Economia de Espaço</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-600">
+                  {compressionStats.totalSavingsMB.toFixed(2)} MB
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {compressionStats.totalOriginalSizeMB > 0 
+                    ? `${((compressionStats.totalSavingsMB / compressionStats.totalOriginalSizeMB) * 100).toFixed(1)}% de redução`
+                    : 'Sem economia ainda'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Percent className="h-4 w-4" />
+                  <span className="text-sm">Tamanho Total</span>
+                </div>
+                <p className="text-sm font-semibold">
+                  <span className="text-muted-foreground">Original:</span> {compressionStats.totalOriginalSizeMB.toFixed(2)} MB
+                </p>
+                <p className="text-sm font-semibold">
+                  <span className="text-muted-foreground">Final:</span> {compressionStats.totalCompressedSizeMB.toFixed(2)} MB
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Compression History */}
+            {compressionStats.compressionHistory.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  Histórico de Compressões (Últimas {Math.min(10, compressionStats.compressionHistory.length)})
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {compressionStats.compressionHistory.slice(0, 10).map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-xs truncate">{item.fileName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(item.timestamp).toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 ml-4">
+                        <div className="text-right">
+                          <p className="text-xs font-semibold">
+                            {item.originalSizeMB.toFixed(2)} MB → {item.compressedSizeMB.toFixed(2)} MB
+                          </p>
+                          <Badge variant="success" className="text-[10px]">
+                            {item.reductionPercent.toFixed(1)}% de redução
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {compressionStats.totalImages === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma imagem processada ainda</p>
+                <p className="text-sm mt-2">
+                  As estatísticas de compressão aparecerão aqui quando você adicionar imagens
+                </p>
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Sobre as Estatísticas
+              </h3>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• 📊 Estatísticas são persistidas em LocalStorage</li>
+                <li>• 🖼️ Imagens >1MB ou com dimensões >1920px são comprimidas automaticamente</li>
+                <li>• 💾 Economia de espaço é calculada em relação ao tamanho original</li>
+                <li>• 📜 Histórico mantém as últimas 50 compressões</li>
+                <li>• ⚡ Lazy loading é aplicado automaticamente em todas as imagens</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       {stats && (
