@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
-import { showToast } from "@/lib/toast";
+import { showToast, showUndoToast } from "@/lib/toast";
 import { Plus, Edit3, Loader2 } from "lucide-react";
 import { useUndo } from "@/hooks/useUndo";
 
@@ -28,7 +28,7 @@ export function AddInstallationModal({
   editingInstallation
 }: AddInstallationModalProps) {
   const { toast } = useToast();
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
   const [formData, setFormData] = useState({
     tipologia: "",
     codigo: "",
@@ -242,6 +242,14 @@ export function AddInstallationModal({
           }
         });
         
+        // Show undo toast
+        showUndoToast(
+          `Editou instalação "${formData.descricao}"`,
+          async () => {
+            await undo();
+          }
+        );
+        
         toast({
           title: "Peça atualizada",
           description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
@@ -295,6 +303,14 @@ export function AddInstallationModal({
             onUpdate();
           }
         });
+        
+        // Show undo toast
+        showUndoToast(
+          `Criou instalação "${formData.descricao}"`,
+          async () => {
+            await undo();
+          }
+        );
 
         toast({
           title: "Peça criada",

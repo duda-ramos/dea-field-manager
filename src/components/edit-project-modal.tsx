@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { showToast } from "@/lib/toast";
+import { showToast, showUndoToast } from "@/lib/toast";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -20,7 +20,7 @@ interface EditProjectModalProps {
 
 export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }: EditProjectModalProps) {
   const { toast } = useToast();
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -107,6 +107,14 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
             onProjectUpdated(previousState);
           }
         });
+        
+        // Show undo toast
+        showUndoToast(
+          `Editou projeto "${updatedProject.name}"`,
+          async () => {
+            await undo();
+          }
+        );
         
         onProjectUpdated(updatedProject);
         onClose();
