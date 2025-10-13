@@ -21,6 +21,8 @@ interface SupplierProposal {
   file_path?: string;
   file_size?: number;
   uploaded_at?: string;
+  value?: number;
+  proposal_date?: string;
 }
 
 interface BudgetTabProps {
@@ -37,10 +39,13 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const [editingProposal, setEditingProposal] = useState<SupplierProposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [newProposal, setNewProposal] = useState({
     supplier: "",
     status: "pending" as const,
-    file: null as File | null
+    file: null as File | null,
+    value: "",
+    proposal_date: ""
   });
 
   useEffect(() => {
@@ -110,8 +115,47 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
     return { filePath, fileName: file.name };
   };
 
+  const validateProposal = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Fornecedor: obrigatório
+    if (!newProposal.supplier.trim()) {
+      newErrors.supplier = 'Fornecedor é obrigatório';
+    }
+
+    // Valor: número positivo
+    if (newProposal.value) {
+      const valueNum = parseFloat(newProposal.value);
+      if (isNaN(valueNum) || valueNum <= 0) {
+        newErrors.value = 'Valor deve ser um número positivo';
+      }
+    }
+
+    // Data: não pode ser futura
+    if (newProposal.proposal_date) {
+      const proposalDate = new Date(newProposal.proposal_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (proposalDate > today) {
+        newErrors.proposal_date = 'Data não pode ser futura';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleCreateProposal = async () => {
-    if (!newProposal.supplier || !newProposal.file || !projectId || !user) {
+    if (!validateProposal()) {
+      toast({
+        title: "Erro de validação",
+        description: "Corrija os erros no formulário antes de continuar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!newProposal.file || !projectId || !user) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios e selecione um arquivo",
@@ -152,7 +196,9 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
           user_id: user.id,
           file_name: uploadResult.fileName,
           file_path: uploadResult.filePath,
-          file_size: newProposal.file.size
+          file_size: newProposal.file.size,
+          value: newProposal.value ? parseFloat(newProposal.value) : null,
+          proposal_date: newProposal.proposal_date || null
         }])
         .select()
         .single();
@@ -168,7 +214,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
 
       if (data) {
         setProposals([data as SupplierProposal, ...proposals]);
-        setNewProposal({ supplier: '', status: 'pending', file: null });
+        setNewProposal({ supplier: '', status: 'pending', file: null, value: '', proposal_date: '' });
+        setErrors({});
         setIsCreateModalOpen(false);
         toast({
           title: "Proposta criada",
@@ -350,9 +397,51 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
                 <Input 
                   id="supplier" 
                   value={newProposal.supplier} 
-                  onChange={e => setNewProposal(prev => ({ ...prev, supplier: e.target.value }))} 
+                  onChange={e => {
+                    setNewProposal(prev => ({ ...prev, supplier: e.target.value }));
+                    if (errors.supplier) setErrors(prev => ({ ...prev, supplier: '' }));
+                  }} 
                   placeholder="Nome do fornecedor" 
+                  className={errors.supplier ? 'border-destructive' : ''}
                 />
+                {errors.supplier && (
+                  <p className="text-sm text-destructive mt-1">{errors.supplier}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="value">Valor (R$)</Label>
+                <Input 
+                  id="value" 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newProposal.value} 
+                  onChange={e => {
+                    setNewProposal(prev => ({ ...prev, value: e.target.value }));
+                    if (errors.value) setErrors(prev => ({ ...prev, value: '' }));
+                  }} 
+                  placeholder="0.00" 
+                  className={errors.value ? 'border-destructive' : ''}
+                />
+                {errors.value && (
+                  <p className="text-sm text-destructive mt-1">{errors.value}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="proposal_date">Data da Proposta</Label>
+                <Input 
+                  id="proposal_date" 
+                  type="date"
+                  value={newProposal.proposal_date} 
+                  onChange={e => {
+                    setNewProposal(prev => ({ ...prev, proposal_date: e.target.value }));
+                    if (errors.proposal_date) setErrors(prev => ({ ...prev, proposal_date: '' }));
+                  }} 
+                  className={errors.proposal_date ? 'border-destructive' : ''}
+                />
+                {errors.proposal_date && (
+                  <p className="text-sm text-destructive mt-1">{errors.proposal_date}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="file">Arquivo da Proposta *</Label>
@@ -382,7 +471,11 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleCreateProposal} disabled={uploading} className="w-full">
+              <Button 
+                onClick={handleCreateProposal} 
+                disabled={uploading || Object.keys(errors).some(key => errors[key] !== '')} 
+                className="w-full"
+              >
                 {uploading ? (
                   <>
                     <Upload className="h-4 w-4 mr-2 animate-spin" />
@@ -508,6 +601,20 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
+                  {proposal.value && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span className="shrink-0">Valor:</span>
+                      <span className="font-semibold text-foreground">
+                        R$ {proposal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {proposal.proposal_date && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span className="shrink-0">Data da Proposta:</span>
+                      <span>{new Date(proposal.proposal_date).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  )}
                   {proposal.file_name && (
                     <div className="flex items-center gap-2 break-all">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />

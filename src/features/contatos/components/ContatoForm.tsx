@@ -63,16 +63,30 @@ export function ContatoForm({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    // Nome: obrigatório
     if (!nome.trim()) {
       newErrors.nome = 'Nome é obrigatório';
     }
 
-    if (!telefone.trim() && !email.trim()) {
-      newErrors.contato = 'Pelo menos telefone ou email deve ser preenchido';
-    }
-
+    // Email: formato válido (regex)
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Formato de email inválido';
+    }
+
+    // Telefone: formato válido (regex brasileiro)
+    if (telefone.trim()) {
+      // Remove formatação para validar apenas os dígitos
+      const digitsOnly = telefone.replace(/\D/g, '');
+      // Formato brasileiro: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+      // 11 dígitos (com 9) ou 10 dígitos (sem 9)
+      if (digitsOnly.length !== 10 && digitsOnly.length !== 11) {
+        newErrors.telefone = 'Telefone deve ter 10 ou 11 dígitos';
+      }
+    }
+
+    // Pelo menos telefone ou email deve ser preenchido
+    if (!telefone.trim() && !email.trim()) {
+      newErrors.contato = 'Pelo menos telefone ou email deve ser preenchido';
     }
 
     setErrors(newErrors);
@@ -153,8 +167,11 @@ export function ContatoForm({
               value={telefone}
               onChange={(e) => handleTelefoneChange(e.target.value)}
               placeholder="(11) 99999-9999"
-              className={errors.contato ? 'border-destructive' : ''}
+              className={errors.contato || errors.telefone ? 'border-destructive' : ''}
             />
+            {errors.telefone && (
+              <p className="text-sm text-destructive">{errors.telefone}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -180,7 +197,11 @@ export function ContatoForm({
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
+            <Button 
+              type="submit" 
+              className="flex-1"
+              disabled={Object.keys(errors).some(key => errors[key] !== '')}
+            >
               {contato ? 'Atualizar' : 'Salvar'}
             </Button>
           </div>
