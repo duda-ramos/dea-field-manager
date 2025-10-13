@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useUndo } from '@/hooks/useUndo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,7 @@ export function BulkOperationPanel({
   const [pendingOperation, setPendingOperation] = useState<BulkOperation | null>(null);
   const [progress, setProgress] = useState<BulkProgress | null>(null);
   const { toast } = useToast();
+  const { addAction } = useUndo();
 
   // Define operations based on item type
   const getOperations = (): BulkOperation[] => {
@@ -179,12 +181,49 @@ export function BulkOperationPanel({
       destructive: true,
       requiresConfirmation: true,
       action: async (items) => {
+        // Save copies of items before deletion for undo
+        const deletedItems = [...items];
+        
         for (const item of items) {
           if (itemType === 'projects') {
             await storage.deleteProject(item.id);
+          } else if (itemType === 'installations') {
+            await storage.deleteInstallation(item.id);
           }
         }
-        onItemsChange?.(await storage.getProjects());
+        
+        // Add undo action for bulk deletion
+        if (itemType === 'installations') {
+          addAction({
+            type: 'BULK_DELETE',
+            description: `Deletou ${items.length} instalação(ões)`,
+            data: { 
+              itemType: 'installations',
+              deletedItems: deletedItems 
+            },
+            undo: async () => {
+              // Restore all deleted installations
+              for (const item of deletedItems) {
+                await storage.upsertInstallation(item);
+              }
+              // Refresh the list
+              if (onItemsChange) {
+                const projectId = deletedItems[0]?.project_id;
+                if (projectId) {
+                  const updatedInstallations = await storage.getInstallationsByProject(projectId);
+                  onItemsChange(updatedInstallations);
+                }
+              }
+            }
+          });
+        }
+        
+        if (itemType === 'projects') {
+          onItemsChange?.(await storage.getProjects());
+        } else if (itemType === 'installations') {
+          // Refresh will be handled by parent component
+          onItemsChange?.(items.filter(i => !selectedItems.includes(i.id)));
+        }
         setSelectedItems([]);
       }
     });
