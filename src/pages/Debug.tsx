@@ -25,6 +25,8 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { ErrorBoundaryTest } from "@/components/ErrorBoundaryTest";
+import { LoadingBoundary } from "@/components/loading-boundary";
 
 export default function Debug() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
@@ -306,6 +308,15 @@ export default function Debug() {
           )}
         </CardContent>
       </Card>
+
+      {/* Error Boundary Test Section */}
+      {isDevelopment && (
+        <div className="mt-8">
+          <LoadingBoundary>
+            <ErrorBoundaryTest />
+          </LoadingBoundary>
+        </div>
+      )}
     </div>
   );
 }

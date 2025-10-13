@@ -37,6 +37,13 @@ import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingBoundary } from '@/components/loading-boundary';
+import { 
+  ProjectErrorFallback, 
+  UploadErrorFallback, 
+  ReportErrorFallback,
+  GalleryErrorFallback 
+} from '@/components/error-fallbacks';
 import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
 import { ReportShareModal } from "@/components/reports/ReportShareModal";
 import { ReportHistoryPanel } from "@/components/reports/ReportHistoryPanel";
@@ -263,7 +270,7 @@ export default function ProjectDetailNew() {
     }
   };
 
-  // Info Section
+  // Info Section (wrapped with LoadingBoundary)
   const renderInfoSection = () => {
     if (isLoadingData) {
       return (
@@ -301,6 +308,11 @@ export default function ProjectDetailNew() {
     }
 
     return (
+      <LoadingBoundary
+        isLoading={isLoadingData}
+        loadingMessage="Carregando projeto..."
+        fallback={ProjectErrorFallback}
+      >
       <div className="space-y-6">
         {/* Project Overview Card */}
         <Card>
@@ -492,10 +504,11 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
       </div>
+      </LoadingBoundary>
     );
   };
 
-  // Reports Section
+  // Reports Section (wrapped with LoadingBoundary)
   const renderRelatoriosSection = () => {
     const getLastReportText = () => {
       if (!lastReportDate) {
@@ -527,13 +540,18 @@ export default function ProjectDetailNew() {
     };
 
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  Relatórios do Projeto
+      <LoadingBoundary
+        isLoading={isGenerating}
+        loadingMessage="Gerando relatório..."
+        fallback={ReportErrorFallback}
+      >
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Relatórios do Projeto
                   {lastReportDate && (
                     <span className="text-xs font-normal text-muted-foreground flex items-center gap-1" title={getLastReportFullDate()}>
                       <Clock className="h-3 w-3" />
@@ -569,8 +587,9 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
-        <ReportHistoryPanel projectId={project.id} />
-      </div>
+          <ReportHistoryPanel projectId={project.id} />
+        </div>
+      </LoadingBoundary>
     );
   };
 
@@ -603,7 +622,7 @@ export default function ProjectDetailNew() {
     );
   };
 
-  // Files Section  
+  // Files Section (wrapped with LoadingBoundary)
   const renderArquivosSection = () => {
     return (
       <div className="space-y-6">
@@ -615,13 +634,18 @@ export default function ProjectDetailNew() {
             </p>
           </CardHeader>
           <CardContent>
-            <EnhancedImageUpload 
+            <LoadingBoundary
+              fallback={UploadErrorFallback}
+              loadingMessage="Carregando galeria..."
+            >
+              <EnhancedImageUpload 
               projectId={project.id}
               context="projeto"
               onImagesChange={(images) => {
                 console.log('Images updated:', images);
               }}
             />
+            </LoadingBoundary>
           </CardContent>
         </Card>
         
@@ -633,11 +657,16 @@ export default function ProjectDetailNew() {
             </p>
           </CardHeader>
           <CardContent>
-            <FileUpload 
+            <LoadingBoundary
+              fallback={UploadErrorFallback}
+              loadingMessage="Carregando arquivos..."
+            >
+              <FileUpload 
               projectId={project.id}
               acceptedTypes={['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.txt']}
               onFilesChange={() => loadProjectData()}
             />
+            </LoadingBoundary>
           </CardContent>
         </Card>
         
@@ -718,6 +747,7 @@ export default function ProjectDetailNew() {
     );
   };
 
+  // Peças Section (wrapped with LoadingBoundary for data loading)
   const renderPecasSection = () => {
     const groupedInstallations = filteredInstallations.reduce((groups, installation) => {
       const tipologia = installation.tipologia;
@@ -737,6 +767,11 @@ export default function ProjectDetailNew() {
     });
 
     return (
+      <LoadingBoundary
+        isLoading={isImporting}
+        loadingMessage="Importando planilha Excel..."
+        fallback={UploadErrorFallback}
+      >
       <div className="space-y-4">
         {/* Compact Summary Cards - Mobile Optimized */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -996,6 +1031,7 @@ export default function ProjectDetailNew() {
           )}
         </div>
       </div>
+      </LoadingBoundary>
     );
   };
 
