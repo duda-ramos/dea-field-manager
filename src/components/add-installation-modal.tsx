@@ -9,7 +9,7 @@ import { Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
-import { Plus, Edit3 } from "lucide-react";
+import { Plus, Edit3, Loader2 } from "lucide-react";
 
 interface AddInstallationModalProps {
   projectId: string;
@@ -45,6 +45,7 @@ export function AddInstallationModal({
   const [overwriteMotivo, setOverwriteMotivo] = useState<string>("");
   const [overwriteDescricao, setOverwriteDescricao] = useState("");
   const [existingInstallation, setExistingInstallation] = useState<Installation | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (editingInstallation) {
@@ -189,6 +190,7 @@ export function AddInstallationModal({
       })
     };
 
+    setIsSaving(true);
     let savedInstallation: Installation;
 
     if (editingInstallation) {
@@ -264,6 +266,7 @@ export function AddInstallationModal({
 
     handleClose();
     onUpdate();
+    setIsSaving(false);
   };
 
   const motivosOptions = [
@@ -316,11 +319,15 @@ export function AddInstallationModal({
             )}
 
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowOverwriteConfirm(false)}>
+              <Button variant="outline" onClick={() => setShowOverwriteConfirm(false)} disabled={isSaving}>
                 Cancelar
               </Button>
-              <Button onClick={saveInstallation}>
-                Confirmar Revisão
+              <Button onClick={saveInstallation} disabled={isSaving}>
+                {isSaving ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>
+                ) : (
+                  'Confirmar Revisão'
+                )}
               </Button>
             </div>
           </div>
@@ -475,11 +482,15 @@ export function AddInstallationModal({
           )}
 
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} disabled={isSaving}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit}>
-              {editingInstallation ? "Atualizar Peça" : "Salvar Peça"}
+            <Button onClick={handleSubmit} disabled={isSaving}>
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>
+              ) : (
+                editingInstallation ? "Atualizar Peça" : "Salvar Peça"
+              )}
             </Button>
           </div>
         </div>

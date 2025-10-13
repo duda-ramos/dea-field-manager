@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface GlobalContact {
   id: string;
@@ -30,6 +31,7 @@ export default function GlobalContactsPage() {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [activeTab, setActiveTab] = useState<'all' | 'cliente' | 'obra' | 'fornecedor'>('all');
   const { user } = useAuth();
   const { toast } = useToast();
@@ -120,9 +122,9 @@ export default function GlobalContactsPage() {
 
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = 
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.project_name.toLowerCase().includes(searchTerm.toLowerCase());
+      contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      contact.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      contact.project_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     
     const matchesTab = activeTab === 'all' || contact.role === activeTab;
     
@@ -273,7 +275,7 @@ export default function GlobalContactsPage() {
                   <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold mb-2">Nenhum contato encontrado</h3>
                   <p className="text-sm sm:text-base text-muted-foreground text-center">
-                    {searchTerm 
+                    {debouncedSearchTerm 
                       ? 'Tente ajustar os filtros ou termos de busca.'
                       : 'Comece criando contatos em seus projetos.'
                     }
