@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { useEffect } from "react";
 import { onlineMonitor } from "@/services/sync/onlineMonitor";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -56,132 +57,152 @@ const App = () => {
   }, []);
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="dea-theme">
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/auth/login" element={
-                <PublicRoute>
-                  <LoginPage />
-                </PublicRoute>
-              } />
-              <Route path="/auth/register" element={
-                <PublicRoute>
-                  <RegisterPage />
-                </PublicRoute>
-              } />
-              <Route path="/auth/forgot-password" element={
-                <PublicRoute>
-                  <ForgotPasswordPage />
-                </PublicRoute>
-              } />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Dashboard />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/pecas" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/relatorios" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/contatos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ContatosPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/orcamentos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/arquivos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projeto/:id/colaboracao" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectDetailNew />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/projetos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ProjectsPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/relatorios" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ReportsPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/agenda" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <CalendarPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/contatos" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <GlobalContactsPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/configuracoes" element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <ConfiguracoesPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              } />
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="system" storageKey="dea-theme">
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <ErrorBoundary>
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/auth/login" element={
+                      <PublicRoute>
+                        <LoginPage />
+                      </PublicRoute>
+                    } />
+                    <Route path="/auth/register" element={
+                      <PublicRoute>
+                        <RegisterPage />
+                      </PublicRoute>
+                    } />
+                    <Route path="/auth/forgot-password" element={
+                      <PublicRoute>
+                        <ForgotPasswordPage />
+                      </PublicRoute>
+                    } />
+                    
+                    {/* Protected routes */}
+                    <Route path="/" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Dashboard />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/pecas" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/relatorios" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/contatos" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ContatosPage />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/orcamentos" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/arquivos" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projeto/:id/colaboracao" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/projetos" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ProjectsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/relatorios" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <ReportsPage />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/agenda" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <CalendarPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/contatos" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <GlobalContactsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/configuracoes" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <ConfiguracoesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 
