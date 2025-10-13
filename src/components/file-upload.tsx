@@ -11,6 +11,7 @@ import { showToast } from '@/lib/toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
+import { logger } from '@/services/logger';
 
 interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
   uploadedAt: Date;
@@ -80,7 +81,13 @@ export function FileUpload({
       storagePath = res.storagePath;
       uploadedAtISO = res.uploadedAtISO;
     } catch (err) {
-      console.error('File upload to storage failed:', err);
+      logger.error('File upload to storage failed', {
+        error: err,
+        fileName: file.name,
+        fileSize: file.size,
+        projectId,
+        installationId
+      });
       needsUpload = 1;
     }
 
@@ -150,7 +157,12 @@ export function FileUpload({
           uploadedFile.needsUpload ? `${file.name} será enviado quando online.` : file.name
         );
       } catch (error) {
-        console.error('File upload failed:', error, { fileName: file.name });
+        logger.error('File upload failed', {
+          error,
+          fileName: file.name,
+          fileSize: file.size,
+          operacao: 'handleFiles'
+        });
         toast({
           title: 'Erro no upload',
           description: `Falha ao enviar ${file.name}`,
@@ -212,7 +224,13 @@ export function FileUpload({
           : 'Será removido quando online.'
       );
     } catch (error) {
-      console.error('File removal failed:', error, { fileId: file.id });
+      logger.error('File removal failed', {
+        error,
+        fileId: file.id,
+        fileName: file.name,
+        storagePath: file.storagePath,
+        operacao: 'removeFile'
+      });
       toast({
         title: 'Erro ao remover arquivo',
         description: 'Houve um problema ao remover o arquivo. Tente novamente.',
@@ -289,7 +307,13 @@ export function FileUpload({
         }
       }
     } catch (error) {
-      console.error('File migration failed:', error, { fileId: file.id });
+      logger.error('File migration failed', {
+        error,
+        fileId: file.id,
+        fileName: file.name,
+        fileUrl: file.url,
+        operacao: 'migrateFile'
+      });
       toast({
         title: 'Falha na migração',
         description: 'Não foi possível migrar o arquivo. Reenvie manualmente.',
@@ -315,7 +339,13 @@ export function FileUpload({
       a.click();
       document.body.removeChild(a);
     } catch (error) {
-      console.error('File download failed:', error, { fileId: file.id });
+      logger.error('File download failed', {
+        error,
+        fileId: file.id,
+        fileName: file.name,
+        storagePath: file.storagePath,
+        operacao: 'downloadFile'
+      });
       toast({
         title: 'Erro no download',
         description: 'Não foi possível baixar o arquivo. Verifique sua conexão.',
@@ -339,7 +369,13 @@ export function FileUpload({
         throw new Error('Arquivo não disponível');
       }
     } catch (error) {
-      console.error('File preview failed:', error, { fileId: file.id });
+      logger.error('File preview failed', {
+        error,
+        fileId: file.id,
+        fileName: file.name,
+        storagePath: file.storagePath,
+        operacao: 'openPreview'
+      });
       toast({
         title: 'Erro na prévia',
         description: 'Não foi possível carregar a prévia. Verifique sua conexão.',

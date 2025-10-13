@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getSignedUrl } from '@/services/storage/filesStorage';
 import JSZip from 'jszip';
 import type { ProjectFile } from '@/types';
+import { logger } from '@/services/logger';
 
 interface BulkDownloaderProps {
   images: ProjectFile[];
@@ -81,7 +82,13 @@ export function BulkDownloader({ images, projectName, className }: BulkDownloade
             processedCount++;
             setDownloadProgress((processedCount / totalImages) * 100);
           } catch (error) {
-            console.error(`Error downloading ${image.name}:`, error);
+            logger.error('Error downloading individual image for ZIP', {
+              error,
+              imageName: image.name,
+              imageId: image.id,
+              storagePath: image.storagePath,
+              operacao: 'handleBulkDownload_individual'
+            });
             // Continue with other images even if one fails
           }
         }
@@ -111,7 +118,12 @@ export function BulkDownloader({ images, projectName, className }: BulkDownloade
 
       setIsDialogOpen(false);
     } catch (error) {
-      console.error('Error creating ZIP:', error);
+      logger.error('Error creating ZIP file for bulk download', {
+        error,
+        imageCount: images.length,
+        projectName,
+        operacao: 'handleBulkDownload'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao criar arquivo ZIP. Tente novamente.',

@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logger } from '@/services/logger';
 
 interface ProjectFile {
   id: string;
@@ -63,7 +64,12 @@ export function FileManager({ projectId }: FileManagerProps) {
       if (error) throw error;
       setFiles(data || []);
     } catch (error) {
-      console.error('Error loading files:', error);
+      logger.error('Error loading files', {
+        error,
+        projectId,
+        userId: user?.id,
+        operacao: 'loadFiles'
+      });
       toast({
         title: "Erro",
         description: "Erro ao carregar arquivos",
@@ -116,7 +122,14 @@ export function FileManager({ projectId }: FileManagerProps) {
       setUploadCategory("general");
       loadFiles();
     } catch (error) {
-      console.error('Error uploading file:', error);
+      logger.error('Error uploading file', {
+        error,
+        projectId,
+        fileName: file?.name,
+        fileSize: file?.size,
+        category: uploadCategory,
+        operacao: 'handleFileUpload'
+      });
       toast({
         title: "Erro no upload",
         description: "Erro ao enviar arquivo",
@@ -150,7 +163,13 @@ export function FileManager({ projectId }: FileManagerProps) {
         description: `Download de ${file.file_name} iniciado`
       });
     } catch (error) {
-      console.error('Error downloading file:', error);
+      logger.error('Error downloading file', {
+        error,
+        fileId: file.id,
+        fileName: file.file_name,
+        filePath: file.file_path,
+        operacao: 'handleDownload'
+      });
       toast({
         title: "Erro no download",
         description: "Erro ao baixar arquivo",
@@ -185,7 +204,13 @@ export function FileManager({ projectId }: FileManagerProps) {
 
       loadFiles();
     } catch (error) {
-      console.error('Error deleting file:', error);
+      logger.error('Error deleting file', {
+        error,
+        fileId: file.id,
+        fileName: file.file_name,
+        filePath: file.file_path,
+        operacao: 'handleDelete'
+      });
       toast({
         title: "Erro ao excluir",
         description: "Erro ao excluir arquivo",

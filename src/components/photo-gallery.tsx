@@ -7,6 +7,7 @@ import { syncPhotoToProjectAlbum } from "@/utils/photoSync";
 import { uploadToStorage } from "@/services/storage/filesStorage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
+import { logger } from '@/services/logger';
 
 interface PhotoGalleryProps {
   photos?: string[]; // Made optional to handle undefined
@@ -84,12 +85,25 @@ export function PhotoGallery({
 
             syncedCount += 1;
           } catch (error) {
-            console.warn("Erro ao sincronizar foto com álbum:", error);
+            logger.error("Erro ao sincronizar foto com álbum do projeto", {
+              error,
+              projectId,
+              installationId,
+              installationCode,
+              fileName: file.name,
+              operacao: 'syncPhotoToProjectAlbum'
+            });
             syncFailed = true;
           }
         }
       } catch (error) {
-        console.error("Erro ao processar arquivo de foto:", error);
+        logger.error("Erro ao processar arquivo de foto", {
+          error,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          operacao: 'handleFileUpload'
+        });
         toast({
           title: "Erro ao carregar foto",
           description: "Não foi possível processar uma das fotos selecionadas.",
