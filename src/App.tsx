@@ -14,6 +14,7 @@ import { AppHeader } from "@/components/app-header";
 import { useEffect } from "react";
 import { onlineMonitor } from "@/services/sync/onlineMonitor";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useUndoShortcut } from "@/hooks/useUndoShortcut";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -49,6 +50,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => {
+  // Hook para atalho Ctrl+Z
+  useUndoShortcut();
+
   useEffect(() => {
     // Inicializar monitor de conexão
     onlineMonitor.initialize();

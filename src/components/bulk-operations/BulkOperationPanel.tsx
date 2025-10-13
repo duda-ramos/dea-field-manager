@@ -25,7 +25,7 @@ import {
   Tag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { showToast } from '@/lib/toast';
+import { showToast, showUndoToast } from '@/lib/toast';
 import { storage } from '@/lib/storage';
 import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
@@ -69,7 +69,7 @@ export function BulkOperationPanel({
   const [pendingOperation, setPendingOperation] = useState<BulkOperation | null>(null);
   const [progress, setProgress] = useState<BulkProgress | null>(null);
   const { toast } = useToast();
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
 
   // Define operations based on item type
   const getOperations = (): BulkOperation[] => {
@@ -151,6 +151,14 @@ export function BulkOperationPanel({
             }
           });
           
+          // Show undo toast
+          showUndoToast(
+            `Duplicou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+            async () => {
+              await undo();
+            }
+          );
+          
           if (itemType === 'projects') {
             onItemsChange?.(await storage.getProjects());
           } else if (itemType === 'installations') {
@@ -222,6 +230,14 @@ export function BulkOperationPanel({
                 }
               }
             });
+            
+            // Show undo toast
+            showUndoToast(
+              `Marcou ${items.length} instalação(ões) como instaladas`,
+              async () => {
+                await undo();
+              }
+            );
             
             // Refresh the list
             const projectId = items[0]?.project_id;
@@ -302,6 +318,14 @@ export function BulkOperationPanel({
               }
             });
             
+            // Show undo toast
+            showUndoToast(
+              `Arquivou ${items.length} projeto(s)`,
+              async () => {
+                await undo();
+              }
+            );
+            
             onItemsChange?.(await storage.getProjects());
           }
         },
@@ -373,6 +397,14 @@ export function BulkOperationPanel({
             }
           }
         });
+        
+        // Show undo toast
+        showUndoToast(
+          `Deletou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+          async () => {
+            await undo();
+          }
+        );
         
         if (itemType === 'projects') {
           onItemsChange?.(await storage.getProjects());

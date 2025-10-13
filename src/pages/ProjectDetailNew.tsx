@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
+import { showUndoToast } from "@/lib/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -57,7 +58,7 @@ export default function ProjectDetailNew() {
   const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
   
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
@@ -216,6 +217,16 @@ export default function ProjectDetailNew() {
           setInstallations(refreshedInstallations);
         }
       });
+      
+      // Show undo toast
+      showUndoToast(
+        updated.installed 
+          ? `Marcou "${installation.descricao}" como instalado`
+          : `Marcou "${installation.descricao}" como pendente`,
+        async () => {
+          await undo();
+        }
+      );
       
       toast({
         title: updated.installed ? "Item instalado" : "Item desmarcado",

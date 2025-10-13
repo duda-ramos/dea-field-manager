@@ -15,6 +15,7 @@ import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
 import { DashboardErrorFallback } from "@/components/error-fallbacks";
 import { useUndo } from "@/hooks/useUndo";
+import { showUndoToast } from "@/lib/toast";
 
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,7 +46,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { showOnboarding, closeOnboarding, markOnboardingComplete } = useOnboarding();
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
 
   useEffect(() => {
     loadProjects();
@@ -169,6 +170,14 @@ export default function Dashboard() {
           setProjects(prev => prev.filter(p => p.id !== createdProject.id));
         }
       });
+
+      // Show undo toast
+      showUndoToast(
+        `Criou projeto "${createdProject.name}"`,
+        async () => {
+          await undo();
+        }
+      );
 
       await loadProjects();
       setIsCreateModalOpen(false);

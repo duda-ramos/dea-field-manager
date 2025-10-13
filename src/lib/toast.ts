@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { toast as sonnerToast, ExternalToast } from 'sonner';
 
 /**
  * Toast notification utilities using react-hot-toast
@@ -50,4 +51,33 @@ export const showToast = {
   dismissAll: () => {
     toast.dismiss();
   },
+};
+
+/**
+ * Mostra um toast com botão "Desfazer" usando Sonner
+ * @param message - Mensagem a ser exibida no toast
+ * @param onUndo - Função async a ser executada ao clicar em "Desfazer"
+ * @param options - Opções adicionais do toast (Sonner)
+ */
+export const showUndoToast = (
+  message: string,
+  onUndo: () => Promise<void>,
+  options?: ExternalToast
+) => {
+  sonnerToast(message, {
+    ...options,
+    action: {
+      label: 'Desfazer',
+      onClick: async () => {
+        try {
+          await onUndo();
+          sonnerToast.success('Ação desfeita');
+        } catch (error) {
+          console.error('Erro ao desfazer:', error);
+          sonnerToast.error('Não foi possível desfazer');
+        }
+      }
+    },
+    duration: 10000 // 10 segundos
+  });
 };

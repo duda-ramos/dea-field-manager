@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Archive, Download, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
+import { showUndoToast } from "@/lib/toast";
 import { storage } from "@/lib/storage";
 import {
   AlertDialog,
@@ -39,7 +40,7 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showPermanentDeleteDialog, setShowPermanentDeleteDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const { addAction } = useUndo();
+  const { addAction, undo } = useUndo();
 
   const isDeleted = !!project.deleted_at;
   const isArchived = !!project.archived_at && !project.deleted_at;
@@ -70,6 +71,14 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
         onUpdate();
       }
     });
+    
+    // Show undo toast
+    showUndoToast(
+      `Deletou projeto "${projectCopy.name}"`,
+      async () => {
+        await undo();
+      }
+    );
     
     setShowDeleteDialog(false);
     onUpdate();
