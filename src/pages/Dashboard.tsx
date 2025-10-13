@@ -14,6 +14,7 @@ import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner"
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
 import { DashboardErrorFallback } from "@/components/error-fallbacks";
+import { useUndo } from "@/hooks/useUndo";
 
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { showOnboarding, closeOnboarding, markOnboardingComplete } = useOnboarding();
+  const { addAction } = useUndo();
 
   useEffect(() => {
     loadProjects();
@@ -154,6 +156,19 @@ export default function Dashboard() {
       }
 
       const createdProject = await storage.upsertProject(projectData);
+
+      // Add undo action for project creation
+      addAction({
+        type: 'CREATE_PROJECT',
+        description: `Criou projeto "${createdProject.name}"`,
+        data: { project: createdProject },
+        undo: async () => {
+          // Deletar projeto do storage
+          await storage.deleteProject(createdProject.id);
+          // Atualizar UI removendo da lista
+          setProjects(prev => prev.filter(p => p.id !== createdProject.id));
+        }
+      });
 
       await loadProjects();
       setIsCreateModalOpen(false);
