@@ -17,6 +17,7 @@ import { calculateReportSections, calculatePavimentoSummary } from '@/lib/report
 import { StorageBar } from '@/components/storage-bar';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
+import { showToast } from '@/lib/toast';
 import { ReportErrorBoundary } from './report-error-boundary';
 
 interface ReportCustomizationModalProps {
@@ -137,11 +138,12 @@ export function ReportCustomizationModal({
       });
     } catch (error) {
       console.error('Error updating preview:', error);
-      toast({
-        title: 'Erro ao atualizar prévia',
-        description: 'Não foi possível calcular a prévia do relatório.',
-        variant: 'destructive',
-      });
+        toast({
+          title: 'Erro ao atualizar prévia',
+          description: 'Não foi possível calcular a prévia do relatório.',
+          variant: 'destructive',
+        });
+        showToast.error('Erro ao atualizar prévia', 'Não foi possível calcular a prévia do relatório.');
     } finally {
       setIsLoadingPreview(false);
     }
@@ -189,6 +191,7 @@ export function ReportCustomizationModal({
       title: 'Preferências restauradas',
       description: 'As configurações padrão foram restauradas.',
     });
+    showToast.success('Preferências restauradas', 'As configurações padrão foram restauradas.');
   }, [toast]);
 
   const handleGenerate = useCallback(async (format: 'pdf' | 'xlsx') => {
@@ -198,6 +201,7 @@ export function ReportCustomizationModal({
         description: 'Selecione pelo menos uma seção para gerar o relatório.',
         variant: 'destructive',
       });
+      showToast.error('Seleção necessária', 'Selecione pelo menos uma seção para gerar o relatório.');
       return;
     }
 
@@ -210,6 +214,10 @@ export function ReportCustomizationModal({
         title: 'Relatório gerado com sucesso',
         description: `O relatório ${format.toUpperCase()} foi gerado.`,
       });
+      showToast.success(
+        'Relatório gerado com sucesso',
+        `O relatório ${format.toUpperCase()} foi gerado.`
+      );
       onClose();
     } catch (error) {
       console.error('Error generating report:', error);
@@ -218,6 +226,10 @@ export function ReportCustomizationModal({
         description: error instanceof Error ? error.message : 'Não foi possível gerar o relatório. Tente novamente.',
         variant: 'destructive',
       });
+      showToast.error(
+        'Erro ao gerar relatório',
+        error instanceof Error ? error.message : 'Não foi possível gerar o relatório. Tente novamente.'
+      );
     } finally {
       setIsGenerating(false);
       setGeneratingFormat(null);

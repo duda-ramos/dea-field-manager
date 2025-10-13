@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { showToast } from '@/lib/toast';
 import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -177,6 +178,7 @@ export function EnhancedImageUpload({
         description: 'Por favor, selecione apenas arquivos de imagem.',
         variant: 'destructive'
       });
+      showToast.error('Erro', 'Por favor, selecione apenas arquivos de imagem.');
       return;
     }
 
@@ -194,12 +196,19 @@ export function EnhancedImageUpload({
           ? `${uploadedImages.length} foto(s) salva(s) no item e sincronizada(s) com a galeria.`
           : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       });
+      showToast.success(
+        'Imagens enviadas com sucesso',
+        installationId 
+          ? `${uploadedImages.length} foto(s) salva(s) no item e sincronizada(s) com a galeria.`
+          : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
+      );
     } catch (error) {
       toast({
         title: 'Erro',
         description: 'Erro ao enviar imagens. Tente novamente.',
         variant: 'destructive'
       });
+      showToast.error('Erro ao enviar imagens', 'Tente novamente.');
     }
   };
 
@@ -280,12 +289,14 @@ export function EnhancedImageUpload({
         title: 'Sucesso',
         description: 'Imagem editada salva com sucesso.'
       });
+      showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
       toast({
         title: 'Erro',
         description: 'Erro ao salvar imagem editada.',
         variant: 'destructive'
       });
+      showToast.error('Erro ao salvar imagem editada');
     }
   };
 

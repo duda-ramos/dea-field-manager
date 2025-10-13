@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as HotToaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -64,6 +65,29 @@ const App = () => {
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <HotToaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 3000,
+                  style: {
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
+                    border: '1px solid hsl(var(--border))',
+                  },
+                  success: {
+                    iconTheme: {
+                      primary: 'hsl(var(--primary))',
+                      secondary: 'hsl(var(--primary-foreground))',
+                    },
+                  },
+                  error: {
+                    iconTheme: {
+                      primary: 'hsl(var(--destructive))',
+                      secondary: 'hsl(var(--destructive-foreground))',
+                    },
+                  },
+                }}
+              />
               <BrowserRouter>
                 <ErrorBoundary>
                   <Routes>

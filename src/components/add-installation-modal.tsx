@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { showToast } from "@/lib/toast";
 import { Plus, Edit3 } from "lucide-react";
 
 interface AddInstallationModalProps {
@@ -124,6 +125,7 @@ export function AddInstallationModal({
         description: "Preencha todos os campos obrigatórios",
         variant: "destructive"
       });
+      showToast.error("Erro de validação", "Preencha todos os campos obrigatórios");
       return;
     }
 
@@ -134,6 +136,7 @@ export function AddInstallationModal({
         description: "Se há uma pendência, descreva-a no campo de descrição",
         variant: "destructive"
       });
+      showToast.error("Erro de validação", "Se há uma pendência, descreva-a no campo de descrição");
       return;
     }
 
@@ -146,6 +149,7 @@ export function AddInstallationModal({
         description: "Código e quantidade devem ser números válidos",
         variant: "destructive"
       });
+      showToast.error("Erro de validação", "Código e quantidade devem ser números válidos");
       return;
     }
 
@@ -194,6 +198,10 @@ export function AddInstallationModal({
         title: "Peça atualizada",
         description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
       });
+      showToast.success(
+        "Peça atualizada",
+        `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
+      );
     } else if (existingInstallation && showOverwriteConfirm) {
       // Overwrite existing installation
       if (!overwriteMotivo) {
@@ -202,6 +210,7 @@ export function AddInstallationModal({
           description: "Selecione um motivo para a revisão",
           variant: "destructive"
         });
+        showToast.error("Erro", "Selecione um motivo para a revisão");
         return;
       }
 
@@ -211,6 +220,7 @@ export function AddInstallationModal({
           description: "Descreva o motivo da revisão",
           variant: "destructive"
         });
+        showToast.error("Erro", "Descreva o motivo da revisão");
         return;
       }
 
@@ -225,6 +235,10 @@ export function AddInstallationModal({
         title: "Peça atualizada",
         description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
       });
+      showToast.success(
+        "Peça atualizada",
+        `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`
+      );
     } else {
       // Create new installation
       savedInstallation = await storage.upsertInstallation({
@@ -242,6 +256,10 @@ export function AddInstallationModal({
         title: "Peça criada",
         description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`,
       });
+      showToast.success(
+        "Peça criada",
+        `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`
+      );
     }
 
     handleClose();
