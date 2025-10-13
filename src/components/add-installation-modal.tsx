@@ -190,22 +190,7 @@ export function AddInstallationModal({
       })
     };
 
-    setIsSaving(true);
-    let savedInstallation: Installation;
-
-    if (editingInstallation) {
-      // Update existing installation
-      savedInstallation = await storage.upsertInstallation({ ...editingInstallation, ...installationData });
-      toast({
-        title: "Peça atualizada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
-      });
-      showToast.success(
-        "Peça atualizada",
-        `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
-      );
-    } else if (existingInstallation && showOverwriteConfirm) {
-      // Overwrite existing installation
+    if (existingInstallation && showOverwriteConfirm && !editingInstallation) {
       if (!overwriteMotivo) {
         toast({
           title: "Erro",
@@ -225,48 +210,80 @@ export function AddInstallationModal({
         showToast.error("Erro", "Descreva o motivo da revisão");
         return;
       }
-
-      savedInstallation = await storage.upsertInstallation({
-        ...existingInstallation,
-        ...installationData,
-        revisado: true,
-        revisao: (existingInstallation.revisao || 1) + 1
-      });
-
-      toast({
-        title: "Peça atualizada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
-      });
-      showToast.success(
-        "Peça atualizada",
-        `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`
-      );
-    } else {
-      // Create new installation
-      savedInstallation = await storage.upsertInstallation({
-        ...installationData,
-        id: `installation_${Date.now()}`,
-        project_id: projectId,
-        installed: false,
-        photos: [],
-        revisado: false,
-        revisao: 1,
-        updated_at: new Date().toISOString()
-      });
-
-      toast({
-        title: "Peça criada",
-        description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`,
-      });
-      showToast.success(
-        "Peça criada",
-        `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`
-      );
     }
 
-    handleClose();
-    onUpdate();
-    setIsSaving(false);
+    setIsSaving(true);
+
+    try {
+      let savedInstallation: Installation;
+
+      if (editingInstallation) {
+        // Update existing installation
+        savedInstallation = await storage.upsertInstallation({ ...editingInstallation, ...installationData });
+        toast({
+          title: "Peça atualizada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
+        });
+        showToast.success(
+          "Peça atualizada",
+          `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
+        );
+      } else if (existingInstallation && showOverwriteConfirm) {
+        // Overwrite existing installation
+        savedInstallation = await storage.upsertInstallation({
+          ...existingInstallation,
+          ...installationData,
+          revisado: true,
+          revisao: (existingInstallation.revisao || 1) + 1
+        });
+
+        toast({
+          title: "Peça atualizada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
+        });
+        showToast.success(
+          "Peça atualizada",
+          `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`
+        );
+      } else {
+        // Create new installation
+        savedInstallation = await storage.upsertInstallation({
+          ...installationData,
+          id: `installation_${Date.now()}`,
+          project_id: projectId,
+          installed: false,
+          photos: [],
+          revisado: false,
+          revisao: 1,
+          updated_at: new Date().toISOString()
+        });
+
+        toast({
+          title: "Peça criada",
+          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`,
+        });
+        showToast.success(
+          "Peça criada",
+          `${savedInstallation.codigo} ${savedInstallation.descricao} foi criada com sucesso`
+        );
+      }
+
+      handleClose();
+      onUpdate();
+    } catch (error) {
+      console.error("Error saving installation:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Não foi possível salvar a instalação. Tente novamente.",
+        variant: "destructive"
+      });
+      showToast.error(
+        "Erro ao salvar",
+        error instanceof Error ? error.message : "Não foi possível salvar a instalação. Tente novamente."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const motivosOptions = [
