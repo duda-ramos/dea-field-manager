@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { showToast } from "@/lib/toast";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { History, Edit3, Eye, Plus } from "lucide-react";
@@ -115,6 +116,7 @@ export function InstallationDetailModalNew({
         title: "Instalação atualizada",
         description: "As informações foram salvas com sucesso.",
       });
+      showToast.success("Instalação atualizada", "As informações foram salvas com sucesso.");
     }
   };
 
@@ -145,6 +147,7 @@ export function InstallationDetailModalNew({
         description: "Selecione um motivo para a revisão",
         variant: "destructive"
       });
+      showToast.error("Erro", "Selecione um motivo para a revisão");
       return;
     }
 
@@ -154,6 +157,7 @@ export function InstallationDetailModalNew({
         description: "Descreva o motivo da revisão",
         variant: "destructive"
       });
+      showToast.error("Erro", "Descreva o motivo da revisão");
       return;
     }
 
@@ -189,6 +193,10 @@ export function InstallationDetailModalNew({
         title: "Revisão criada",
         description: `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`,
       });
+      showToast.success(
+        "Revisão criada",
+        `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`
+      );
 
       // Reset revision state
       setRevisionMotivo("");

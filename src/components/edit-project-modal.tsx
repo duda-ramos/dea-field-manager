@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { showToast } from "@/lib/toast";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Plus, Trash2 } from "lucide-react";
@@ -41,6 +42,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
         description: "Preencha todos os campos obrigatórios",
         variant: "destructive"
       });
+      showToast.error("Erro", "Preencha todos os campos obrigatórios");
       return;
     }
 
@@ -59,6 +61,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
         title: "Projeto atualizado",
         description: "As informações do projeto foram atualizadas com sucesso"
       });
+      showToast.success("Projeto atualizado", "As informações foram atualizadas com sucesso");
     }
   };
 

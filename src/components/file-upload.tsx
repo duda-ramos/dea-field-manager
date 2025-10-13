@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Upload, File as FileIcon, Download, Trash2, Eye, CloudUpload, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { showToast } from '@/lib/toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
@@ -126,6 +127,7 @@ export function FileUpload({
           description: `${file.name}: ${validationError}`,
           variant: 'destructive'
         });
+        showToast.error('Erro no upload', `${file.name}: ${validationError}`);
         continue;
       }
 
@@ -143,6 +145,10 @@ export function FileUpload({
             ? `${file.name} será enviado quando online.`
             : `${file.name} foi enviado com sucesso.`
         });
+        showToast.success(
+          uploadedFile.needsUpload ? 'Arquivo adicionado' : 'Arquivo enviado com sucesso',
+          uploadedFile.needsUpload ? `${file.name} será enviado quando online.` : file.name
+        );
       } catch (error) {
         console.error('File upload failed:', error, { fileName: file.name });
         toast({
@@ -150,6 +156,7 @@ export function FileUpload({
           description: `Falha ao enviar ${file.name}`,
           variant: 'destructive'
         });
+        showToast.error('Erro no upload', `Falha ao enviar ${file.name}`);
       }
     }
   };
@@ -198,6 +205,12 @@ export function FileUpload({
           ? 'O arquivo foi removido com sucesso.'
           : 'Arquivo marcado para remoção. Será removido quando online.'
       });
+      showToast.success(
+        'Arquivo removido',
+        navigator.onLine
+          ? 'O arquivo foi removido com sucesso.'
+          : 'Será removido quando online.'
+      );
     } catch (error) {
       console.error('File removal failed:', error, { fileId: file.id });
       toast({
@@ -205,6 +218,7 @@ export function FileUpload({
         description: 'Houve um problema ao remover o arquivo. Tente novamente.',
         variant: 'destructive'
       });
+      showToast.error('Erro ao remover arquivo', 'Tente novamente.');
     }
   };
 

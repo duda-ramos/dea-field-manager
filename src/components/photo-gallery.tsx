@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { syncPhotoToProjectAlbum } from "@/utils/photoSync";
 import { uploadToStorage } from "@/services/storage/filesStorage";
 import { useToast } from "@/hooks/use-toast";
+import { showToast } from "@/lib/toast";
 
 interface PhotoGalleryProps {
   photos?: string[]; // Made optional to handle undefined
@@ -94,6 +95,7 @@ export function PhotoGallery({
           description: "Não foi possível processar uma das fotos selecionadas.",
           variant: "destructive"
         });
+        showToast.error("Erro ao carregar foto", "Não foi possível processar uma das fotos selecionadas.");
       }
     }
 

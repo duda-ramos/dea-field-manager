@@ -24,6 +24,7 @@ import {
   Tag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { showToast } from '@/lib/toast';
 import { storage } from '@/lib/storage';
 import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
@@ -215,6 +216,7 @@ export function BulkOperationPanel({
         description: 'Selecione pelo menos um item para continuar.',
         variant: 'destructive'
       });
+      showToast.error('Nenhum item selecionado', 'Selecione pelo menos um item para continuar.');
       return;
     }
 
@@ -244,6 +246,10 @@ export function BulkOperationPanel({
         title: 'Operação concluída',
         description: `${operation.label} executada com sucesso para ${selectedItemsData.length} item(ns).`
       });
+      showToast.success(
+        'Operação concluída',
+        `${operation.label} executada com sucesso para ${selectedItemsData.length} item(ns).`
+      );
 
       setSelectedItems([]);
     } catch (error) {
@@ -253,6 +259,7 @@ export function BulkOperationPanel({
         description: `Falha ao executar ${operation.label.toLowerCase()}.`,
         variant: 'destructive'
       });
+      showToast.error('Erro na operação', `Falha ao executar ${operation.label.toLowerCase()}.`);
     } finally {
       setIsProcessing(false);
       setProgress(null);
