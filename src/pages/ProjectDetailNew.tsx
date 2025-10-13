@@ -1021,280 +1021,286 @@ export default function ProjectDetailNew() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate('/')}
-                className="p-2 shrink-0"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-0">
-                <h1 className="text-lg font-bold truncate">{project.name}</h1>
-                <p className="text-xs text-muted-foreground truncate">
-                  {project.client}
-                </p>
-              </div>
-            </div>
-            
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="lg:hidden">
-                  <Menu className="h-4 w-4" />
+    <LoadingBoundary
+      isLoading={isLoadingData}
+      loadingMessage="Carregando informações do projeto..."
+      fallback={ProjectErrorFallback}
+    >
+      <div className="min-h-screen bg-background">
+        {/* Mobile Header */}
+        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  className="p-2 shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Opções do Projeto</SheetTitle>
-                </SheetHeader>
-                <div className="space-y-4 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full justify-start gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Editar Projeto
-                  </Button>
-                  <Button
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowAddModal(true)}
-                    className="w-full justify-start gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Adicionar Item
-                  </Button>
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold truncate">{project.name}</h1>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {project.client}
+                  </p>
                 </div>
-              </SheetContent>
-            </Sheet>
+              </div>
 
-            <div className="hidden lg:flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditModalOpen(true)}
-                className="gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Editar
-              </Button>
-              <Button
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAddModal(true)}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar
-              </Button>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="lg:hidden">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Opções do Projeto</SheetTitle>
+                  </SheetHeader>
+                  <div className="space-y-4 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="w-full justify-start gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Editar Projeto
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddModal(true)}
+                      className="w-full justify-start gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Adicionar Item
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <div className="hidden lg:flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddModal(true)}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="container mx-auto px-4">
-        <div className="lg:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {currentSection === 'info' && <Home className="h-4 w-4" />}
-                  {currentSection === 'pecas' && <FileSpreadsheet className="h-4 w-4" />}
-                  {currentSection === 'relatorios' && <FileText className="h-4 w-4" />}
-                  {currentSection === 'orcamentos' && <Calculator className="h-4 w-4" />}
-                  {currentSection === 'arquivos' && <Archive className="h-4 w-4" />}
-                  {currentSection === 'contatos' && <Users className="h-4 w-4" />}
-                  {currentSection === 'colaboracao' && <UserCog className="h-4 w-4" />}
-                  {currentSection === 'info' && 'Informações'}
-                  {currentSection === 'pecas' && 'Peças'}
-                  {currentSection === 'relatorios' && 'Relatórios'}
-                  {currentSection === 'orcamentos' && 'Orçamentos'}
-                  {currentSection === 'arquivos' && 'Arquivos'}
-                  {currentSection === 'contatos' && 'Contatos'}
-                  {currentSection === 'colaboracao' && 'Colaboração'}
-                </div>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-full">
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}`)}>
-                <Home className="h-4 w-4 mr-2" />
-                Informações
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/pecas`)}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Peças
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/relatorios`)}>
-                <FileText className="h-4 w-4 mr-2" />
-                Relatórios
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/orcamentos`)}>
-                <Calculator className="h-4 w-4 mr-2" />
-                Orçamentos
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/arquivos`)}>
-                <Archive className="h-4 w-4 mr-2" />
-                Arquivos
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/colaboracao`)}>
-                <UserCog className="h-4 w-4 mr-2" />
-                Colaboração
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/contatos`)}>
-                <Users className="h-4 w-4 mr-2" />
-                Contatos
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* Navigation */}
+        <div className="container mx-auto px-4">
+          <div className="lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    {currentSection === 'info' && <Home className="h-4 w-4" />}
+                    {currentSection === 'pecas' && <FileSpreadsheet className="h-4 w-4" />}
+                    {currentSection === 'relatorios' && <FileText className="h-4 w-4" />}
+                    {currentSection === 'orcamentos' && <Calculator className="h-4 w-4" />}
+                    {currentSection === 'arquivos' && <Archive className="h-4 w-4" />}
+                    {currentSection === 'contatos' && <Users className="h-4 w-4" />}
+                    {currentSection === 'colaboracao' && <UserCog className="h-4 w-4" />}
+                    {currentSection === 'info' && 'Informações'}
+                    {currentSection === 'pecas' && 'Peças'}
+                    {currentSection === 'relatorios' && 'Relatórios'}
+                    {currentSection === 'orcamentos' && 'Orçamentos'}
+                    {currentSection === 'arquivos' && 'Arquivos'}
+                    {currentSection === 'contatos' && 'Contatos'}
+                    {currentSection === 'colaboracao' && 'Colaboração'}
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full">
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}`)}>
+                  <Home className="h-4 w-4 mr-2" />
+                  Informações
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/pecas`)}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Peças
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/relatorios`)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Relatórios
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/orcamentos`)}>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Orçamentos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/arquivos`)}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Arquivos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/colaboracao`)}>
+                  <UserCog className="h-4 w-4 mr-2" />
+                  Colaboração
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/projeto/${id}/contatos`)}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Contatos
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="hidden lg:flex gap-2 border-b pb-4 mb-6">
+            {[
+                { key: 'info', label: 'Informações', path: `/projeto/${id}`, icon: Home },
+                { key: 'pecas', label: 'Peças', path: `/projeto/${id}/pecas`, icon: FileSpreadsheet },
+                { key: 'relatorios', label: 'Relatórios', path: `/projeto/${id}/relatorios`, icon: FileText },
+                { key: 'orcamentos', label: 'Orçamentos', path: `/projeto/${id}/orcamentos`, icon: Calculator },
+                { key: 'arquivos', label: 'Arquivos', path: `/projeto/${id}/arquivos`, icon: Archive },
+                { key: 'colaboracao', label: 'Colaboração', path: `/projeto/${id}/colaboracao`, icon: UserCog },
+                { key: 'contatos', label: 'Contatos', path: `/projeto/${id}/contatos`, icon: Users }
+              ].map(tab => (
+                <Button
+                  key={tab.key}
+                  variant={currentSection === tab.key ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => navigate(tab.path)}
+                  className="gap-2"
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+        {/* Content */}
+        <div className="container mx-auto px-4 pb-6 max-w-full overflow-x-hidden">
+          <div className="space-y-4 max-w-full">
+            {currentSection === 'info' && renderInfoSection()}
+            {currentSection === 'pecas' && renderPecasSection()}
+            {currentSection === 'relatorios' && renderRelatoriosSection()}
+            {currentSection === 'orcamentos' && renderOrcamentosSection()}
+            {currentSection === 'arquivos' && renderArquivosSection()}
+            {currentSection === 'colaboracao' && renderColaboracaoSection()}
+            {currentSection === 'contatos' && renderContatosSection()}
+          </div>
         </div>
 
-        <div className="hidden lg:flex gap-2 border-b pb-4 mb-6">
-          {[
-            { key: 'info', label: 'Informações', path: `/projeto/${id}`, icon: Home },
-            { key: 'pecas', label: 'Peças', path: `/projeto/${id}/pecas`, icon: FileSpreadsheet },
-            { key: 'relatorios', label: 'Relatórios', path: `/projeto/${id}/relatorios`, icon: FileText },
-            { key: 'orcamentos', label: 'Orçamentos', path: `/projeto/${id}/orcamentos`, icon: Calculator },
-            { key: 'arquivos', label: 'Arquivos', path: `/projeto/${id}/arquivos`, icon: Archive },
-            { key: 'colaboracao', label: 'Colaboração', path: `/projeto/${id}/colaboracao`, icon: UserCog },
-            { key: 'contatos', label: 'Contatos', path: `/projeto/${id}/contatos`, icon: Users }
-          ].map(tab => (
-            <Button
-              key={tab.key}
-              variant={currentSection === tab.key ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate(tab.path)}
-              className="gap-2"
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </Button>
-          ))}
-        </div>
-      </div>
+        {/* Modals */}
+        {selectedInstallation && (
+          <InstallationDetailModalNew
+            installation={selectedInstallation}
+            isOpen={!!selectedInstallation}
+            onClose={() => setSelectedInstallation(null)}
+            onUpdate={loadProjectData}
+          />
+        )}
 
-      {/* Content */}
-      <div className="container mx-auto px-4 pb-6 max-w-full overflow-x-hidden">
-        <div className="space-y-4 max-w-full">
-          {currentSection === 'info' && renderInfoSection()}
-          {currentSection === 'pecas' && renderPecasSection()}
-          {currentSection === 'relatorios' && renderRelatoriosSection()}
-          {currentSection === 'orcamentos' && renderOrcamentosSection()}
-          {currentSection === 'arquivos' && renderArquivosSection()}
-          {currentSection === 'colaboracao' && renderColaboracaoSection()}
-          {currentSection === 'contatos' && renderContatosSection()}
-        </div>
-      </div>
+        {showAddModal && (
+          <AddInstallationModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onUpdate={loadProjectData}
+            projectId={project.id}
+          />
+        )}
 
-      {/* Modals */}
-      {selectedInstallation && (
-        <InstallationDetailModalNew
-          installation={selectedInstallation}
-          isOpen={!!selectedInstallation}
-          onClose={() => setSelectedInstallation(null)}
-          onUpdate={loadProjectData}
-        />
-      )}
+        {isEditModalOpen && (
+          <EditProjectModal
+            project={project}
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onProjectUpdated={handleProjectUpdated}
+          />
+        )}
 
-      {showAddModal && (
-        <AddInstallationModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onUpdate={loadProjectData}
-          projectId={project.id}
-        />
-      )}
+        {showReportCustomization && (
+          <ReportCustomizationModal
+            isOpen={showReportCustomization}
+            onClose={() => setShowReportCustomization(false)}
+            onGenerate={async (config, format) => {
+              setIsGenerating(true);
+              try {
+                const { generatePDFReport, generateXLSXReport } = await import('@/lib/reports-new');
 
-      {isEditModalOpen && (
-        <EditProjectModal
-          project={project}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onProjectUpdated={handleProjectUpdated}
-        />
-      )}
+                const versions = await Promise.all(
+                  installations.map(installation => storage.getItemVersions(installation.id))
+                ).then(results => results.flat());
 
-      {showReportCustomization && (
-        <ReportCustomizationModal
-          isOpen={showReportCustomization}
-          onClose={() => setShowReportCustomization(false)}
-          onGenerate={async (config, format) => {
-            setIsGenerating(true);
-            try {
-              const { generatePDFReport, generateXLSXReport } = await import('@/lib/reports-new');
-              
-              const versions = await Promise.all(
-                installations.map(installation => storage.getItemVersions(installation.id))
-              ).then(results => results.flat());
+                let filteredInstallations = installations;
 
-              let filteredInstallations = installations;
+                const reportData = {
+                  project,
+                  installations: filteredInstallations,
+                  versions,
+                  generatedBy: project.owner || 'Sistema',
+                  generatedAt: new Date().toISOString(),
+                  interlocutor: config.interlocutor,
+                  customConfig: config
+                };
 
-              const reportData = {
-                project,
-                installations: filteredInstallations,
-                versions,
-                generatedBy: project.owner || 'Sistema',
-                generatedAt: new Date().toISOString(),
-                interlocutor: config.interlocutor,
-                customConfig: config
-              };
-
-              if (format === 'pdf') {
-                return await generatePDFReport(reportData);
-              } else {
-                return await generateXLSXReport(reportData);
+                if (format === 'pdf') {
+                  return await generatePDFReport(reportData);
+                } else {
+                  return await generateXLSXReport(reportData);
+                }
+              } finally {
+                setIsGenerating(false);
               }
-            } finally {
-              setIsGenerating(false);
-            }
-          }}
-          onShare={(blob, format, config) => {
-            setGeneratedReport({ blob, format, config });
-            setShowReportCustomization(false);
-            setShowReportShare(true);
-          }}
-          project={project}
-          installations={installations}
-        />
-      )}
+            }}
+            onShare={(blob, format, config) => {
+              setGeneratedReport({ blob, format, config });
+              setShowReportCustomization(false);
+              setShowReportShare(true);
+            }}
+            project={project}
+            installations={installations}
+          />
+        )}
 
-      {showReportShare && generatedReport && (
-        <ReportShareModal
-          isOpen={showReportShare}
-          onClose={() => {
-            setShowReportShare(false);
-            setGeneratedReport(null);
-            // Reload last report date after saving
-            loadLastReportDate();
-          }}
-          blob={generatedReport.blob}
-          format={generatedReport.format}
-          config={generatedReport.config}
-          project={project}
-          interlocutor={generatedReport.config.interlocutor}
-        />
-      )}
+        {showReportShare && generatedReport && (
+          <ReportShareModal
+            isOpen={showReportShare}
+            onClose={() => {
+              setShowReportShare(false);
+              setGeneratedReport(null);
+              // Reload last report date after saving
+              loadLastReportDate();
+            }}
+            blob={generatedReport.blob}
+            format={generatedReport.format}
+            config={generatedReport.config}
+            project={project}
+            interlocutor={generatedReport.config.interlocutor}
+          />
+        )}
 
-      {/* Blocking Overlay para operações críticas */}
-      <BlockingOverlay 
-        isVisible={isImporting}
-        message="Importando dados do Excel..."
-      />
-      
-      <BlockingOverlay 
-        isVisible={isGenerating}
-        message="Gerando relatório..."
-      />
-    </div>
+        {/* Blocking Overlay para operações críticas */}
+        <BlockingOverlay
+          isVisible={isImporting}
+          message="Importando dados do Excel..."
+        />
+
+        <BlockingOverlay
+          isVisible={isGenerating}
+          message="Gerando relatório..."
+        />
+      </div>
     </LoadingBoundary>
   );
 }
