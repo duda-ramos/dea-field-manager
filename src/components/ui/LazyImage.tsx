@@ -64,7 +64,7 @@ export const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
       <div className={cn('lazy-image-wrapper', wrapperClassName)}>
         <img
           ref={setRefs}
-          src={placeholder || imageSrc}
+          src={isLoaded || !placeholder ? imageSrc : placeholder}
           alt={alt}
           className={cn(
             'lazy-image',
