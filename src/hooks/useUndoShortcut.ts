@@ -11,6 +11,42 @@ import { toast } from 'sonner';
  * Hook que adiciona suporte a atalho Ctrl+Z (ou Cmd+Z no Mac)
  * Deve ser usado no componente raiz da aplicação
  */
+function isEditableElement(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  const element = target as HTMLElement;
+
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    return !element.readOnly && !element.disabled;
+  }
+
+  if (element.isContentEditable) {
+    return true;
+  }
+
+  const editableParent = element.closest<HTMLElement>(
+    'input:not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled]), [contenteditable]'
+  );
+
+  if (!editableParent) {
+    return false;
+  }
+
+  if (
+    editableParent instanceof HTMLInputElement ||
+    editableParent instanceof HTMLTextAreaElement
+  ) {
+    return true;
+  }
+
+  return editableParent.isContentEditable;
+}
+
 export function useUndoShortcut() {
   const { undo, canUndo, lastAction } = useUndo();
 
@@ -20,6 +56,11 @@ export function useUndoShortcut() {
       const isUndoShortcut = (event.ctrlKey || event.metaKey) && event.key === 'z';
       
       if (!isUndoShortcut) {
+        return;
+      }
+
+      // Evita interferir em inputs de texto ou áreas editáveis
+      if (isEditableElement(event.target)) {
         return;
       }
 
