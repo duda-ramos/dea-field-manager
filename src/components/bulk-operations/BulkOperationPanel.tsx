@@ -99,23 +99,141 @@ export function BulkOperationPanel({
         description: 'Criar cópias dos itens selecionados',
         category: 'organize',
         action: async (items) => {
+          const duplicatedIds: string[] = [];
+          
           for (const item of items) {
+            const duplicateId = `${item.id}_copy_${Date.now()}`;
             const duplicate = {
               ...item,
-              id: `${item.id}_copy_${Date.now()}`,
+              id: duplicateId,
               name: `${item.name} - Cópia`,
               created_at: new Date().toISOString()
             };
+            
             if (itemType === 'projects') {
               await storage.upsertProject(duplicate);
+              duplicatedIds.push(duplicateId);
+            } else if (itemType === 'installations') {
+              await storage.upsertInstallation(duplicate);
+              duplicatedIds.push(duplicateId);
             }
           }
-          onItemsChange?.(await storage.getProjects());
+          
+          // Add undo action for duplication
+          addAction({
+            type: 'BULK_UPDATE',
+            description: `Duplicou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+            data: { 
+              itemType,
+              newItemIds: duplicatedIds
+            },
+            undo: async () => {
+              // Delete duplicated items
+              for (const id of duplicatedIds) {
+                if (itemType === 'projects') {
+                  await storage.deleteProject(id);
+                } else if (itemType === 'installations') {
+                  await storage.deleteInstallation(id);
+                }
+              }
+              
+              // Refresh the list
+              if (itemType === 'projects') {
+                onItemsChange?.(await storage.getProjects());
+              } else if (itemType === 'installations') {
+                // Get projectId from first original item
+                const projectId = items[0]?.project_id;
+                if (projectId && onItemsChange) {
+                  const updatedInstallations = await storage.getInstallationsByProject(projectId);
+                  onItemsChange(updatedInstallations);
+                }
+              }
+            }
+          });
+          
+          if (itemType === 'projects') {
+            onItemsChange?.(await storage.getProjects());
+          } else if (itemType === 'installations') {
+            // Get projectId from first item
+            const projectId = items[0]?.project_id;
+            if (projectId && onItemsChange) {
+              const updatedInstallations = await storage.getInstallationsByProject(projectId);
+              onItemsChange(updatedInstallations);
+            }
+          }
         }
       }
     ];
 
     // Add type-specific operations
+    if (itemType === 'installations') {
+      baseOperations.push(
+        {
+          id: 'mark-as-installed',
+          label: 'Marcar como Instalado',
+          icon: CheckSquare,
+          description: 'Marcar instalações selecionadas como instaladas',
+          category: 'organize',
+          action: async (items) => {
+            // Save previous states before update
+            const previousStates = items.map(item => ({
+              id: item.id,
+              installed: item.installed,
+              installed_at: item.installed_at
+            }));
+            
+            // Update all items to installed
+            for (const item of items) {
+              await storage.upsertInstallation({
+                ...item,
+                installed: true,
+                installed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            }
+            
+            // Add undo action
+            addAction({
+              type: 'BULK_UPDATE',
+              description: `Marcou ${items.length} instalação(ões) como instaladas`,
+              data: { 
+                installationIds: items.map((item: any) => item.id),
+                previousStates
+              },
+              undo: async () => {
+                // Restore previous state of each item
+                for (const prevState of previousStates) {
+                  const item = items.find((i: any) => i.id === prevState.id);
+                  if (item) {
+                    await storage.upsertInstallation({
+                      ...item,
+                      installed: prevState.installed,
+                      installed_at: prevState.installed_at,
+                      updated_at: new Date().toISOString()
+                    });
+                  }
+                }
+                
+                // Refresh the list
+                const projectId = items[0]?.project_id;
+                if (projectId && onItemsChange) {
+                  const updatedInstallations = await storage.getInstallationsByProject(projectId);
+                  onItemsChange(updatedInstallations);
+                }
+              }
+            });
+            
+            // Refresh the list
+            const projectId = items[0]?.project_id;
+            if (projectId && onItemsChange) {
+              const updatedInstallations = await storage.getInstallationsByProject(projectId);
+              onItemsChange(updatedInstallations);
+            }
+          }
+        }
+      );
+    }
+    
     if (itemType === 'projects') {
       baseOperations.push(
         {
@@ -144,6 +262,12 @@ export function BulkOperationPanel({
           category: 'organize',
           requiresConfirmation: true,
           action: async (items) => {
+            // Save previous states before archiving
+            const previousStates = items.map(item => ({
+              id: item.id,
+              status: item.status
+            }));
+            
             for (const item of items) {
               await storage.upsertProject({
                 ...item,
@@ -151,6 +275,33 @@ export function BulkOperationPanel({
                 updated_at: new Date().toISOString()
               });
             }
+            
+            // Add undo action
+            addAction({
+              type: 'BULK_UPDATE',
+              description: `Arquivou ${items.length} projeto(s)`,
+              data: { 
+                projectIds: items.map((item: any) => item.id),
+                previousStates
+              },
+              undo: async () => {
+                // Restore previous status of each project
+                for (const prevState of previousStates) {
+                  const item = items.find((i: any) => i.id === prevState.id);
+                  if (item) {
+                    await storage.upsertProject({
+                      ...item,
+                      status: prevState.status,
+                      updated_at: new Date().toISOString()
+                    });
+                  }
+                }
+                
+                // Refresh the list
+                onItemsChange?.(await storage.getProjects());
+              }
+            });
+            
             onItemsChange?.(await storage.getProjects());
           }
         },
@@ -193,30 +344,35 @@ export function BulkOperationPanel({
         }
         
         // Add undo action for bulk deletion
-        if (itemType === 'installations') {
-          addAction({
-            type: 'BULK_DELETE',
-            description: `Deletou ${items.length} instalação(ões)`,
-            data: { 
-              itemType: 'installations',
-              deletedItems: deletedItems 
-            },
-            undo: async () => {
-              // Restore all deleted installations
-              for (const item of deletedItems) {
+        addAction({
+          type: 'BULK_DELETE',
+          description: `Deletou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+          data: { 
+            itemType,
+            deletedItems: deletedItems 
+          },
+          undo: async () => {
+            // Restore all deleted items
+            for (const item of deletedItems) {
+              if (itemType === 'installations') {
                 await storage.upsertInstallation(item);
-              }
-              // Refresh the list
-              if (onItemsChange) {
-                const projectId = deletedItems[0]?.project_id;
-                if (projectId) {
-                  const updatedInstallations = await storage.getInstallationsByProject(projectId);
-                  onItemsChange(updatedInstallations);
-                }
+              } else if (itemType === 'projects') {
+                await storage.upsertProject(item);
               }
             }
-          });
-        }
+            
+            // Refresh the list
+            if (itemType === 'projects') {
+              onItemsChange?.(await storage.getProjects());
+            } else if (itemType === 'installations') {
+              const projectId = deletedItems[0]?.project_id;
+              if (projectId && onItemsChange) {
+                const updatedInstallations = await storage.getInstallationsByProject(projectId);
+                onItemsChange(updatedInstallations);
+              }
+            }
+          }
+        });
         
         if (itemType === 'projects') {
           onItemsChange?.(await storage.getProjects());
