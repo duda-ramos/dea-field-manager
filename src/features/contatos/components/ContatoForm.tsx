@@ -42,15 +42,14 @@ export function ContatoForm({
       newErrors.nome = 'Nome é obrigatório';
     }
 
+    // Validação de email com regex específico
     if (emailValue.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
-      newErrors.email = 'Formato de email inválido';
+      newErrors.email = 'Email inválido. Use o formato: exemplo@email.com';
     }
 
-    if (telefoneValue.trim()) {
-      const digitsOnly = telefoneValue.replace(/\D/g, '');
-      if (digitsOnly.length !== 10 && digitsOnly.length !== 11) {
-        newErrors.telefone = 'Telefone deve ter 10 ou 11 dígitos';
-      }
+    // Validação de telefone brasileiro com regex específico
+    if (telefoneValue.trim() && !/^(\+55\s?)?(\(?\d{2}\)?[\s-]?)?(9?\d{4}[\s-]?\d{4})$/.test(telefoneValue)) {
+      newErrors.telefone = 'Telefone inválido. Use o formato: (XX) XXXXX-XXXX';
     }
 
     if (!telefoneValue.trim() && !emailValue.trim()) {
