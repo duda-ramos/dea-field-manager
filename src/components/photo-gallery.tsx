@@ -8,6 +8,7 @@ import { uploadToStorage } from "@/services/storage/filesStorage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { logger } from '@/services/logger';
+import { LazyImage } from "@/components/ui/LazyImage";
 
 interface PhotoGalleryProps {
   photos?: string[]; // Made optional to handle undefined
@@ -169,11 +170,13 @@ export function PhotoGallery({
         <div className="grid grid-cols-3 gap-2">
           {safePhotos.map((photo, index) => (
             <div key={index} className="relative group">
-              <img
+              <LazyImage
                 src={photo}
                 alt={`Foto ${index + 1}`}
                 className="w-full h-20 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setSelectedPhoto(photo)}
+                threshold={0.1}
+                rootMargin="50px"
               />
               <Button
                 variant="destructive"
@@ -208,10 +211,12 @@ export function PhotoGallery({
             <DialogTitle>Visualizar Foto</DialogTitle>
           </DialogHeader>
           {selectedPhoto && (
-            <img
+            <LazyImage
               src={selectedPhoto}
               alt="Foto ampliada"
               className="w-full h-auto max-h-[70vh] object-contain rounded-md"
+              threshold={0.1}
+              rootMargin="50px"
             />
           )}
         </DialogContent>
