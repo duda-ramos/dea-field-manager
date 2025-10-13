@@ -14,6 +14,8 @@ import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner"
 import { LoadingBoundary } from "@/components/loading-boundary";
 import { errorMonitoring } from "@/services/errorMonitoring";
 import { DashboardErrorFallback } from "@/components/error-fallbacks";
+import { useDebounce } from "@/hooks/useDebounce";
+import { BlockingOverlay } from "@/components/ui/blocking-overlay";
 
 import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +24,12 @@ import { supabase } from "@/integrations/supabase/client";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  
+  // Debounce search to avoid excessive filtering
+  const debouncedSearch = useDebounce((value: string) => {
+    setDebouncedSearchTerm(value);
+  }, 300);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -255,9 +263,9 @@ export default function Dashboard() {
   const activeProjects = projects.filter(p => !p.deleted_at && !p.archived_at);
 
   const filteredProjects = activeProjects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (project.city && project.city.toLowerCase().includes(searchTerm.toLowerCase()))
+    project.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    project.client.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    (project.city && project.city.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
   );
 
   const getProjectStats = () => {
@@ -451,6 +459,7 @@ export default function Dashboard() {
                     disabled={creating || Object.keys(errors).some(key => errors[key] !== '')} 
                     className="flex-1"
                   >
+                    {creating && <LoadingState size="sm" className="mr-2" />}
                     {creating ? "Criando..." : "Criar Projeto"}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm}>
@@ -496,7 +505,10 @@ export default function Dashboard() {
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                debouncedSearch(e.target.value);
+              }}
               className="mobile-input pl-8 sm:pl-10"
             />
           </div>
@@ -542,6 +554,12 @@ export default function Dashboard() {
           isOpen={showOnboarding}
           onClose={closeOnboarding}
           onComplete={markOnboardingComplete}
+        />
+
+        {/* Blocking Overlay para criação de projeto */}
+        <BlockingOverlay 
+          isVisible={creating}
+          message="Criando projeto..."
         />
       </div>
     </LoadingBoundary>

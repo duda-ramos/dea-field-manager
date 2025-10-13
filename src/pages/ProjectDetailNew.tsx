@@ -44,6 +44,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LoadingBoundary } from '@/components/loading-boundary';
 import { ProjectErrorFallback, UploadErrorFallback, ReportErrorFallback } from '@/components/error-fallbacks';
+import { BlockingOverlay } from '@/components/ui/blocking-overlay';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +58,12 @@ export default function ProjectDetailNew() {
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  
+  // Debounce search to avoid excessive filtering
+  const debouncedSearch = useDebounce((value: string) => {
+    setDebouncedSearchTerm(value);
+  }, 300);
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
   const [itemStatusFilter, setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
@@ -155,9 +163,9 @@ export default function ProjectDetailNew() {
   const pavimentos = Array.from(new Set(installations.map(i => i.pavimento))).sort();
 
   const filteredInstallations = installations.filter(installation => {
-    const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          String(installation.codigo).includes(searchTerm.toLowerCase());
+    const matchesSearch = installation.descricao.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                          installation.tipologia.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                          String(installation.codigo).includes(debouncedSearchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || 
                           (statusFilter === "installed" && installation.installed) ||
@@ -196,6 +204,8 @@ export default function ProjectDetailNew() {
     if (!file) return;
 
     setIsImporting(true);
+    
+    console.log('Iniciando importação de Excel:', file.name);
     
     try {
       const result = await importExcelFile(file, project.id);
@@ -789,7 +799,10 @@ export default function ProjectDetailNew() {
             <Input
               placeholder="Buscar por código, tipologia..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                debouncedSearch(e.target.value);
+              }}
               className="pl-10"
             />
           </div>
@@ -1269,6 +1282,17 @@ export default function ProjectDetailNew() {
           interlocutor={generatedReport.config.interlocutor}
         />
       )}
+
+      {/* Blocking Overlay para operações críticas */}
+      <BlockingOverlay 
+        isVisible={isImporting}
+        message="Importando dados do Excel..."
+      />
+      
+      <BlockingOverlay 
+        isVisible={isGenerating}
+        message="Gerando relatório..."
+      />
     </div>
     </LoadingBoundary>
   );
