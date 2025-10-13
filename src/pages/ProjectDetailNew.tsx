@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { 
   ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
   Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
-  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog
+  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2
 } from "lucide-react";
 import { Project, Installation } from "@/types";
 import { storage } from "@/lib/storage";
@@ -35,6 +35,8 @@ import { ProjectVersioning } from "@/components/versioning/ProjectVersioning";
 import { AutomaticBackup } from "@/components/backup/AutomaticBackup";
 import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
+import { Spinner } from '@/components/ui/Spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
 import { ReportShareModal } from "@/components/reports/ReportShareModal";
 import { ReportHistoryPanel } from "@/components/reports/ReportHistoryPanel";
@@ -57,6 +59,7 @@ export default function ProjectDetailNew() {
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showReportCustomization, setShowReportCustomization] = useState(false);
   const [showReportShare, setShowReportShare] = useState(false);
@@ -90,16 +93,21 @@ export default function ProjectDetailNew() {
   const loadProjectData = async () => {
     if (!id) return;
     
-    const projects = await storage.getProjects();
-    const projectData = projects.find(p => p.id === id);
-    if (!projectData) {
-      navigate('/');
-      return;
+    setIsLoadingData(true);
+    try {
+      const projects = await storage.getProjects();
+      const projectData = projects.find(p => p.id === id);
+      if (!projectData) {
+        navigate('/');
+        return;
+      }
+      
+      setProject(projectData);
+      const projectInstallations = await storage.getInstallationsByProject(id);
+      setInstallations(projectInstallations);
+    } finally {
+      setIsLoadingData(false);
     }
-    
-    setProject(projectData);
-    const projectInstallations = await storage.getInstallationsByProject(id);
-    setInstallations(projectInstallations);
   };
 
   const loadLastReportDate = async () => {
@@ -257,6 +265,41 @@ export default function ProjectDetailNew() {
 
   // Info Section
   const renderInfoSection = () => {
+    if (isLoadingData) {
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-1/2" />
+              <Skeleton className="h-4 w-1/3 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+                <div>
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-8 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         {/* Project Overview Card */}
@@ -504,10 +547,14 @@ export default function ProjectDetailNew() {
               </div>
               <Button
                 onClick={() => setShowReportCustomization(true)}
+                disabled={isGenerating}
                 className="gap-2 w-full sm:w-auto"
               >
-                <FileText className="h-4 w-4" />
-                Gerar Relatório
+                {isGenerating ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
+                ) : (
+                  <><FileText className="h-4 w-4" /> Gerar Relatório</>
+                )}
               </Button>
             </div>
           </CardHeader>
@@ -741,6 +788,26 @@ export default function ProjectDetailNew() {
           </div>
           
           <div className="flex gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => document.getElementById('excel-upload-input')?.click()}
+              disabled={isImporting}
+              className="gap-2"
+            >
+              {isImporting ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Importando...</>
+              ) : (
+                <><Upload className="h-4 w-4" /> Importar Excel</>
+              )}
+            </Button>
+            <input
+              id="excel-upload-input"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-1 justify-between">
@@ -788,7 +855,25 @@ export default function ProjectDetailNew() {
 
         {/* Mobile-Optimized Installation List */}
         <div className="space-y-4">
-          {Object.keys(groupedInstallations).length === 0 ? (
+          {isLoadingData ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-6 w-1/3" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <div className="flex gap-2 pt-2">
+                        <Skeleton className="h-9 flex-1" />
+                        <Skeleton className="h-9 w-9" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : Object.keys(groupedInstallations).length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />

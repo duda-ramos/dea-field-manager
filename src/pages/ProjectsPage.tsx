@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Trash2, Archive } from "lucide-react";
+import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Trash2, Archive, Loader2 } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -28,6 +29,8 @@ export default function ProjectsPage() {
     suppliers: [""]
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isCreating, setIsCreating] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,8 +38,13 @@ export default function ProjectsPage() {
   }, []);
 
   const loadProjects = async () => {
-    const projects = await storage.getProjects();
-    setAllProjects(projects);
+    setIsLoadingProjects(true);
+    try {
+      const projects = await storage.getProjects();
+      setAllProjects(projects);
+    } finally {
+      setIsLoadingProjects(false);
+    }
   };
 
   // Filter projects based on active tab
@@ -89,32 +97,37 @@ export default function ProjectsPage() {
       return;
     }
 
-    const project = await storage.upsertProject({
-      ...newProject,
-      id: '',
-      status: 'planning' as const,
-      suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
+    setIsCreating(true);
+    try {
+      const project = await storage.upsertProject({
+        ...newProject,
+        id: '',
+        status: 'planning' as const,
+        suppliers: newProject.suppliers.filter(s => s.trim() !== ''),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
 
-    await loadProjects();
-    setIsCreateModalOpen(false);
-    setNewProject({
-      name: "",
-      client: "",
-      city: "",
-      code: "",
-      owner: "",
-      project_files_link: "",
-      suppliers: [""]
-    });
-    setErrors({});
+      await loadProjects();
+      setIsCreateModalOpen(false);
+      setNewProject({
+        name: "",
+        client: "",
+        city: "",
+        code: "",
+        owner: "",
+        project_files_link: "",
+        suppliers: [""]
+      });
+      setErrors({});
 
-    toast({
-      title: "Projeto criado",
-      description: `Projeto "${project.name}" foi criado com sucesso`
-    });
+      toast({
+        title: "Projeto criado",
+        description: `Projeto "${project.name}" foi criado com sucesso`
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const addSupplierField = () => {
@@ -253,9 +266,13 @@ export default function ProjectsPage() {
               <Button 
                 onClick={handleCreateProject} 
                 className="w-full"
-                disabled={Object.keys(errors).some(key => errors[key] !== '')}
+                disabled={isCreating || Object.keys(errors).some(key => errors[key] !== '')}
               >
-                Criar Projeto
+                {isCreating ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Salvando Projeto...</>
+                ) : (
+                  'Criar Projeto'
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -318,7 +335,21 @@ export default function ProjectsPage() {
           </div>
 
           {/* Projects List */}
-          {filteredProjects.length === 0 ? (
+          {isLoadingProjects ? (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="border rounded-lg p-4 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
                 {searchTerm ? "Nenhum projeto encontrado." : 
