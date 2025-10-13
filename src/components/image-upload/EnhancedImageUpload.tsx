@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
-import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag, Loader2 } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag, Loader2, X, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,19 @@ import { BulkDownloader } from './BulkDownloader';
 import type { ProjectFile } from '@/types';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Validation constants
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MAX_IMAGES_PER_INSTALLATION = 10;
+
+interface FilePreview {
+  file: File;
+  preview: string;
+  id: string;
+}
 
 interface EnhancedImageUploadProps {
   projectId: string;
@@ -42,6 +55,8 @@ export function EnhancedImageUpload({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [installations, setInstallations] = useState<Map<string, { codigo: number; descricao: string }>>(new Map());
   const [isUploading, setIsUploading] = useState(false);
+  const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +67,15 @@ export function EnhancedImageUpload({
     loadAllImages();
     loadInstallations();
   }, [projectId]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach(preview => {
+        URL.revokeObjectURL(preview.preview);
+      });
+    };
+  }, [filePreviews]);
 
   const loadAllImages = async () => {
     try {
@@ -92,6 +116,39 @@ export function EnhancedImageUpload({
       img.name.includes(`${context}_${today}`)
     );
     return todayImages.length + 1;
+  };
+
+  // Validate file type
+  const validateFileType = (file: File): boolean => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    return ALLOWED_FILE_TYPES.includes(file.type) && 
+           extension !== undefined && 
+           ALLOWED_EXTENSIONS.includes(extension);
+  };
+
+  // Validate file size
+  const validateFileSize = (file: File): boolean => {
+    return file.size <= MAX_FILE_SIZE;
+  };
+
+  // Validate image limit
+  const validateImageLimit = (newFilesCount: number): boolean => {
+    if (!installationId) return true; // No limit for general project images
+    const currentInstallationImages = images.filter(img => img.installationId === installationId).length;
+    return (currentInstallationImages + newFilesCount) <= MAX_IMAGES_PER_INSTALLATION;
+  };
+
+  // Check for duplicate files
+  const isDuplicateFile = (fileName: string): boolean => {
+    return images.some(img => img.name === fileName) || 
+           filePreviews.some(preview => preview.file.name === fileName);
+  };
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   // Upload single image
@@ -167,30 +224,89 @@ export function EnhancedImageUpload({
     }
   };
 
-  // Handle file uploads
+  // Handle file uploads - validate and create previews
   const handleFiles = async (files: FileList) => {
-    const imageFiles = Array.from(files).filter(file => 
-      file.type.startsWith('image/')
-    );
+    const fileArray = Array.from(files);
+    const errors: string[] = [];
+    const validFiles: FilePreview[] = [];
 
-    if (imageFiles.length === 0) {
-      toast({
-        title: 'Erro',
-        description: 'Por favor, selecione apenas arquivos de imagem.',
-        variant: 'destructive'
+    // Validate each file
+    for (const file of fileArray) {
+      // Check file type
+      if (!validateFileType(file)) {
+        errors.push(`Formato não suportado. Use JPG, PNG ou WEBP`);
+        continue;
+      }
+
+      // Check file size
+      if (!validateFileSize(file)) {
+        errors.push(`Arquivo muito grande. Máximo 5MB`);
+        continue;
+      }
+
+      // Check for duplicates
+      if (isDuplicateFile(file.name)) {
+        errors.push(`Esta foto já foi adicionada`);
+        continue;
+      }
+
+      // Create preview
+      const preview = URL.createObjectURL(file);
+      validFiles.push({
+        file,
+        preview,
+        id: crypto.randomUUID()
       });
-      showToast.error('Erro', 'Por favor, selecione apenas arquivos de imagem.');
+    }
+
+    // Check image limit
+    if (!validateImageLimit(validFiles.length + filePreviews.length)) {
+      errors.push(`Limite de 10 fotos atingido`);
+      setValidationErrors(errors);
       return;
     }
 
+    // Update state
+    if (validFiles.length > 0) {
+      setFilePreviews(prev => [...prev, ...validFiles]);
+    }
+
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+    }
+  };
+
+  // Remove preview
+  const removePreview = (id: string) => {
+    setFilePreviews(prev => {
+      const preview = prev.find(p => p.id === id);
+      if (preview) {
+        URL.revokeObjectURL(preview.preview);
+      }
+      return prev.filter(p => p.id !== id);
+    });
+  };
+
+  // Confirm and upload all previewed files
+  const confirmUpload = async () => {
+    if (filePreviews.length === 0) return;
+
     setIsUploading(true);
+    setValidationErrors([]);
+    
     try {
-      const uploadPromises = imageFiles.map(uploadImage);
+      const uploadPromises = filePreviews.map(preview => uploadImage(preview.file));
       const uploadedImages = await Promise.all(uploadPromises);
       
       const newImages = [...images, ...uploadedImages];
       setImages(newImages);
       onImagesChange?.(newImages);
+      
+      // Clear previews
+      filePreviews.forEach(preview => {
+        URL.revokeObjectURL(preview.preview);
+      });
+      setFilePreviews([]);
       
       toast({
         title: 'Sucesso',
@@ -214,6 +330,15 @@ export function EnhancedImageUpload({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Cancel all previews
+  const cancelPreviews = () => {
+    filePreviews.forEach(preview => {
+      URL.revokeObjectURL(preview.preview);
+    });
+    setFilePreviews([]);
+    setValidationErrors([]);
   };
 
   // Handle file input change
@@ -352,7 +477,7 @@ export function EnhancedImageUpload({
           <input
             ref={cameraInputRef}
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             capture="environment"
             multiple
             onChange={handleFileInput}
@@ -361,13 +486,92 @@ export function EnhancedImageUpload({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             multiple
             onChange={handleFileInput}
             className="hidden"
           />
         </CardContent>
       </Card>
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <ul className="list-disc list-inside space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* File Previews */}
+      {filePreviews.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  Preview das Fotos ({filePreviews.length})
+                </h3>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={cancelPreviews}
+                    disabled={isUploading}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={confirmUpload}
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Confirmar Upload
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {filePreviews.map((preview) => (
+                  <div key={preview.id} className="relative group">
+                    <div className="aspect-square rounded-lg overflow-hidden border-2 border-border">
+                      <img
+                        src={preview.preview}
+                        alt={preview.file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removePreview(preview.id)}
+                      disabled={isUploading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium truncate" title={preview.file.name}>
+                        {preview.file.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(preview.file.size)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upload Progress */}
       {Object.entries(uploadProgress).length > 0 && (
