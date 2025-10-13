@@ -63,6 +63,28 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## 📚 Documentation
+
+- **[Error Handling Guide](docs/ERROR_HANDLING_GUIDE.md)** - Comprehensive guide on error handling patterns, retry logic, error boundaries, and best practices
+
+## 🤝 Contributing
+
+When contributing to this project, please follow these guidelines:
+
+1. **Error Handling**: All async operations must have proper error handling with logging. See the [Error Handling Guide](docs/ERROR_HANDLING_GUIDE.md) for details.
+2. **Loading States**: Implement appropriate loading states for all async operations
+3. **Error Boundaries**: Wrap critical components with error boundaries
+4. **Code Review**: Use the PR checklist in the Error Handling Guide before submitting
+
+### Quick Checklist
+
+Before submitting a PR, ensure:
+- ✅ All `catch` blocks have logging with context
+- ✅ Network operations use `withRetry` for resilience
+- ✅ Critical components have error boundaries
+- ✅ Loading states are implemented
+- ✅ Error messages are user-friendly
+
 ## API Proxy Configuration
 
 This project includes a BFF (Backend for Frontend) proxy to handle external API calls and prevent CORS issues.
