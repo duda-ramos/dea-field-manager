@@ -115,6 +115,22 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
 
+## Contributing
+
+When contributing to this project, please follow our established guidelines:
+
+### Error Handling
+
+We have comprehensive error handling standards to ensure a reliable user experience. Before submitting a PR, please:
+
+- Review the [Error Handling Guide](./docs/ERROR_HANDLING_GUIDE.md)
+- Ensure all catch blocks have proper logging
+- Use retry logic for network operations
+- Wrap critical sections in error boundaries
+- Provide user-friendly error messages
+
+See the full checklist in the [Error Handling Guide](./docs/ERROR_HANDLING_GUIDE.md#checklist-para-prs).
+
 ## CI Degradado (bypass temporário)
 
 - Defina o secret de repositório **DEGRADED_CI=true** para que o pipeline **pule instalação/build/test** e marque os jobs como sucesso controlado.
