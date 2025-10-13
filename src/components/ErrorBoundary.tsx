@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { logError } from "@/utils/error-logger";
 
 interface Props {
   children: ReactNode;
@@ -31,17 +32,18 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to the console
-    console.error("Erro capturado pelo Error Boundary:", error, errorInfo);
+    // Log the error using our error logger
+    logError(error, {
+      type: 'ErrorBoundary',
+      componentStack: errorInfo.componentStack,
+      errorInfo: errorInfo,
+    });
     
     // Update state with error details
     this.setState({
       error,
       errorInfo,
     });
-
-    // TODO: Send error to error reporting service
-    // Example: logErrorToService(error, errorInfo);
   }
 
   private handleReload = () => {
@@ -50,12 +52,17 @@ class ErrorBoundary extends Component<Props, State> {
 
   private handleSendError = () => {
     const { error, errorInfo } = this.state;
-    console.error("Enviando erro:", {
-      error: error?.toString(),
-      componentStack: errorInfo?.componentStack,
-      timestamp: new Date().toISOString(),
-    });
-    // TODO: Implement actual error reporting service integration
+    if (error) {
+      // Log error again when user clicks report button
+      logError(error, {
+        type: 'UserReported',
+        componentStack: errorInfo?.componentStack,
+        userAction: 'manual_report',
+      });
+    }
+    
+    // Show confirmation to user
+    alert('Erro reportado e salvo nos logs. Obrigado!');
   };
 
   public render() {

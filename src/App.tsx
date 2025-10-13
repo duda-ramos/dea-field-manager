@@ -27,6 +27,7 @@ import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -213,6 +214,13 @@ const App = () => {
                       <ProtectedRoute>
                         <AppLayout>
                           <ConfiguracoesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/debug" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Debug />
                         </AppLayout>
                       </ProtectedRoute>
                     } />
