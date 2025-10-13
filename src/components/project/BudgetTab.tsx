@@ -123,11 +123,11 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       newErrors.supplier = 'Fornecedor é obrigatório';
     }
 
-    // Valor: número positivo
+    // Valor: deve ser número positivo (> 0)
     if (newProposal.value) {
       const valueNum = parseFloat(newProposal.value);
       if (isNaN(valueNum) || valueNum <= 0) {
-        newErrors.value = 'Valor deve ser um número positivo';
+        newErrors.value = 'Valor deve ser maior que zero';
       }
     }
 
@@ -137,7 +137,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (proposalDate > today) {
-        newErrors.proposal_date = 'Data não pode ser futura';
+        newErrors.proposal_date = 'Data não pode ser no futuro';
       }
     }
 

@@ -34,7 +34,9 @@ export default function Dashboard() {
     owner: "",
     project_files_link: "",
     suppliers: "",
-    installation_time_estimate_days: ""
+    installation_time_estimate_days: "",
+    installation_date: "",
+    inauguration_date: ""
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -100,6 +102,15 @@ export default function Dashboard() {
       newErrors.client = 'Cliente é obrigatório';
     }
 
+    // Validação de datas: data de início não pode ser maior que data de fim
+    if (newProject.installation_date && newProject.inauguration_date) {
+      const startDate = new Date(newProject.installation_date);
+      const endDate = new Date(newProject.inauguration_date);
+      if (startDate > endDate) {
+        newErrors.installation_date = 'Data de início deve ser anterior à data de término';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -154,7 +165,9 @@ export default function Dashboard() {
         owner: "",
         project_files_link: "",
         suppliers: "",
-        installation_time_estimate_days: ""
+        installation_time_estimate_days: "",
+        installation_date: "",
+        inauguration_date: ""
       });
       setErrors({});
 
@@ -185,7 +198,9 @@ export default function Dashboard() {
       owner: "",
       project_files_link: "",
       suppliers: "",
-      installation_time_estimate_days: ""
+      installation_time_estimate_days: "",
+      installation_date: "",
+      inauguration_date: ""
     });
     setErrors({});
   };
@@ -220,7 +235,9 @@ export default function Dashboard() {
       owner: "",
       project_files_link: "",
       suppliers: "",
-      installation_time_estimate_days: ""
+      installation_time_estimate_days: "",
+      installation_date: "",
+      inauguration_date: ""
     });
   };
 
@@ -384,6 +401,34 @@ export default function Dashboard() {
                     value={newProject.installation_time_estimate_days}
                     onChange={(e) => setNewProject(prev => ({ ...prev, installation_time_estimate_days: e.target.value }))}
                     placeholder="Ex: 15"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="installation_date">Data de Início</Label>
+                  <Input
+                    id="installation_date"
+                    type="date"
+                    value={newProject.installation_date}
+                    onChange={(e) => {
+                      setNewProject(prev => ({ ...prev, installation_date: e.target.value }));
+                      if (errors.installation_date) setErrors(prev => ({ ...prev, installation_date: '' }));
+                    }}
+                    className={errors.installation_date ? 'border-destructive' : ''}
+                  />
+                  {errors.installation_date && (
+                    <p className="text-sm text-destructive mt-1">{errors.installation_date}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="inauguration_date">Data de Término</Label>
+                  <Input
+                    id="inauguration_date"
+                    type="date"
+                    value={newProject.inauguration_date}
+                    onChange={(e) => {
+                      setNewProject(prev => ({ ...prev, inauguration_date: e.target.value }));
+                      if (errors.installation_date) setErrors(prev => ({ ...prev, installation_date: '' }));
+                    }}
                   />
                 </div>
                 <div className="flex gap-2">
