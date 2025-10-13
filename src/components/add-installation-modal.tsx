@@ -10,6 +10,7 @@ import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { Plus, Edit3, Loader2 } from "lucide-react";
+import { useUndo } from "@/hooks/useUndo";
 
 interface AddInstallationModalProps {
   projectId: string;
@@ -27,6 +28,7 @@ export function AddInstallationModal({
   editingInstallation
 }: AddInstallationModalProps) {
   const { toast } = useToast();
+  const { addAction } = useUndo();
   const [formData, setFormData] = useState({
     tipologia: "",
     codigo: "",
@@ -218,8 +220,28 @@ export function AddInstallationModal({
       let savedInstallation: Installation;
 
       if (editingInstallation) {
+        // Save previous state before updating
+        const previousState = { ...editingInstallation };
+        
         // Update existing installation
         savedInstallation = await storage.upsertInstallation({ ...editingInstallation, ...installationData });
+        
+        // Add undo action for edition
+        addAction({
+          type: 'UPDATE_INSTALLATION',
+          description: `Editou instalação "${formData.descricao}"`,
+          data: { 
+            installationId: savedInstallation.id,
+            previousState: previousState 
+          },
+          undo: async () => {
+            // Restaurar estado anterior
+            await storage.upsertInstallation(previousState);
+            // Atualizar UI
+            onUpdate();
+          }
+        });
+        
         toast({
           title: "Peça atualizada",
           description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
@@ -256,6 +278,22 @@ export function AddInstallationModal({
           revisado: false,
           revisao: 1,
           updated_at: new Date().toISOString()
+        });
+
+        // Add undo action for creation
+        addAction({
+          type: 'CREATE_INSTALLATION',
+          description: `Criou instalação "${formData.descricao}"`,
+          data: { 
+            projectId,
+            installation: savedInstallation 
+          },
+          undo: async () => {
+            // Deletar instalação do storage
+            await storage.deleteInstallation(savedInstallation.id);
+            // Atualizar lista (callback para componente pai)
+            onUpdate();
+          }
         });
 
         toast({

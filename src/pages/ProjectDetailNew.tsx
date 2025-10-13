@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useUndo } from "@/hooks/useUndo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -56,6 +57,7 @@ export default function ProjectDetailNew() {
   const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { addAction } = useUndo();
   
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
@@ -181,6 +183,9 @@ export default function ProjectDetailNew() {
     const installation = installations.find(i => i.id === installationId);
     if (!installation) return;
 
+    // Save previous state
+    const previousInstalled = installation.installed;
+
     const updated = await storage.upsertInstallation({
       ...installation,
       installed: !installation.installed
@@ -189,6 +194,29 @@ export default function ProjectDetailNew() {
     if (updated) {
       const updatedInstallations = await storage.getInstallationsByProject(project.id);
       setInstallations(updatedInstallations);
+      
+      // Add undo action
+      addAction({
+        type: 'UPDATE_INSTALLATION',
+        description: updated.installed 
+          ? `Marcou "${installation.descricao}" como instalado`
+          : `Marcou "${installation.descricao}" como pendente`,
+        data: { 
+          installationId: installation.id,
+          previousInstalled: previousInstalled 
+        },
+        undo: async () => {
+          // Restaurar status anterior
+          await storage.upsertInstallation({
+            ...installation,
+            installed: previousInstalled
+          });
+          // Atualizar UI
+          const refreshedInstallations = await storage.getInstallationsByProject(project.id);
+          setInstallations(refreshedInstallations);
+        }
+      });
+      
       toast({
         title: updated.installed ? "Item instalado" : "Item desmarcado",
         description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
