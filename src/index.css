@@ -147,4 +147,38 @@
       @apply bg-background;
     }
   }
+  
+  /* Lazy Image Loading Styles */
+  .lazy-image-wrapper {
+    @apply relative overflow-hidden;
+  }
+  
+  .lazy-image {
+    @apply w-full h-full object-cover;
+    transition: opacity 0.5s ease-in-out, filter 0.5s ease-in-out;
+  }
+  
+  .lazy-image-loading {
+    @apply opacity-60;
+    filter: blur(8px);
+    animation: shimmer 2s infinite;
+  }
+  
+  .lazy-image-loaded {
+    @apply opacity-100;
+    filter: blur(0);
+  }
+  
+  /* Shimmer animation for loading state */
+  @keyframes shimmer {
+    0% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0.6;
+    }
+  }
 }
