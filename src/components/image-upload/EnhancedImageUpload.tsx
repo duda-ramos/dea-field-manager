@@ -234,19 +234,24 @@ export function EnhancedImageUpload({
     for (const file of fileArray) {
       // Check file type
       if (!validateFileType(file)) {
-        errors.push(`Formato não suportado. Use JPG, PNG ou WEBP`);
+        const error = `${file.name}: Formato não suportado. Use JPG, PNG ou WEBP`;
+        errors.push(error);
+        showToast.error("Formato não suportado", "Use JPG, PNG ou WEBP");
         continue;
       }
 
       // Check file size
       if (!validateFileSize(file)) {
-        errors.push(`Arquivo muito grande. Máximo 5MB`);
+        const error = `${file.name}: Arquivo muito grande (${formatFileSize(file.size)})`;
+        errors.push(error);
+        showToast.error("Arquivo muito grande", "Máximo 5MB por imagem");
         continue;
       }
 
       // Check for duplicates
       if (isDuplicateFile(file.name)) {
-        errors.push(`Esta foto já foi adicionada`);
+        errors.push(`${file.name}: Esta foto já foi adicionada`);
+        showToast.error("Foto duplicada", "Esta foto já foi adicionada");
         continue;
       }
 
@@ -261,7 +266,9 @@ export function EnhancedImageUpload({
 
     // Check image limit
     if (!validateImageLimit(validFiles.length + filePreviews.length)) {
-      errors.push(`Limite de 10 fotos atingido`);
+      const error = `Limite de ${MAX_IMAGES_PER_INSTALLATION} fotos atingido para esta instalação`;
+      errors.push(error);
+      showToast.error("Limite atingido", `Máximo de ${MAX_IMAGES_PER_INSTALLATION} fotos por instalação`);
       setValidationErrors(errors);
       return;
     }
@@ -371,6 +378,18 @@ export function EnhancedImageUpload({
     return { total, withInstallation, general };
   }, [images]);
 
+  // Calculate current installation image count
+  const currentInstallationImageCount = useMemo(() => {
+    if (!installationId) return 0;
+    return images.filter(img => img.installationId === installationId).length;
+  }, [images, installationId]);
+
+  // Check if upload should be disabled due to limit
+  const isUploadDisabled = useMemo(() => {
+    if (!installationId) return false;
+    return currentInstallationImageCount >= MAX_IMAGES_PER_INSTALLATION;
+  }, [currentInstallationImageCount, installationId]);
+
   // Filter and sort images
   const filteredAndSortedImages = images
     .filter(img => {
@@ -446,12 +465,29 @@ export function EnhancedImageUpload({
       {/* Upload Controls */}
       <Card>
         <CardContent className="p-6">
+          {/* Photo Counter for Installations */}
+          {installationId && (
+            <div className="mb-4 flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                <span className="font-medium">
+                  Fotos desta instalação: {currentInstallationImageCount}/{MAX_IMAGES_PER_INSTALLATION}
+                </span>
+              </div>
+              {currentInstallationImageCount >= MAX_IMAGES_PER_INSTALLATION && (
+                <Badge variant="destructive" className="ml-2">
+                  Limite Atingido
+                </Badge>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
               onClick={handleCameraCapture}
               className="flex-1 h-12"
               variant="default"
-              disabled={isUploading}
+              disabled={isUploading || isUploadDisabled}
             >
               <Camera className="h-5 w-5 mr-2" />
               Capturar Foto
@@ -460,7 +496,7 @@ export function EnhancedImageUpload({
               onClick={handleGalleryUpload}
               variant="outline"
               className="flex-1 h-12"
-              disabled={isUploading}
+              disabled={isUploading || isUploadDisabled}
             >
               <Upload className="h-5 w-5 mr-2" />
               Galeria/Arquivo
