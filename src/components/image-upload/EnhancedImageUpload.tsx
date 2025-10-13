@@ -20,6 +20,7 @@ import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/logger';
 import { withRetry } from '@/services/sync/utils';
+import { compressImage, shouldCompress } from '@/utils/imageCompression';
 
 // Validation constants
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -31,6 +32,7 @@ interface FilePreview {
   file: File;
   preview: string;
   id: string;
+  wasCompressed?: boolean;
 }
 
 interface EnhancedImageUploadProps {
@@ -39,6 +41,7 @@ interface EnhancedImageUploadProps {
   context?: string; // For naming convention
   onImagesChange?: (images: ProjectFile[]) => void;
   className?: string;
+  disableCompression?: boolean; // Optional: disable automatic compression
 }
 
 export function EnhancedImageUpload({ 
@@ -46,7 +49,8 @@ export function EnhancedImageUpload({
   installationId, 
   context = 'arquivo',
   onImagesChange,
-  className 
+  className,
+  disableCompression = false
 }: EnhancedImageUploadProps) {
   const [images, setImages] = useState<ProjectFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -57,6 +61,8 @@ export function EnhancedImageUpload({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [installations, setInstallations] = useState<Map<string, { codigo: number; descricao: string }>>(new Map());
   const [isUploading, setIsUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number } | null>(null);
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
@@ -162,16 +168,60 @@ export function EnhancedImageUpload({
   };
 
   // Upload single image
-  const uploadImage = async (file: File): Promise<ProjectFile> => {
+  const uploadImage = async (
+    file: File,
+    options: { alreadyCompressed?: boolean } = {}
+  ): Promise<ProjectFile> => {
+    const { alreadyCompressed = false } = options;
     const id = crypto.randomUUID();
     const sequential = await getNextSequential();
     const newFileName = generateFileName(file.name, sequential);
-    
+
     setUploadProgress(prev => ({ ...prev, [id]: 0 }));
 
     try {
+      // Compress image before upload (unless disabled)
+      let fileToUpload = file;
+      const startTime = Date.now();
+
+      if (!disableCompression && !alreadyCompressed && shouldCompress(file)) {
+        logger.info('Comprimindo imagem antes do upload', {
+          fileName: file.name,
+          originalSize: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+          operacao: 'uploadImage'
+        });
+
+        const compressedFile = await compressImage(file);
+        const compressionTime = Date.now() - startTime;
+        
+        // Calculate reduction
+        const originalSizeMB = file.size / (1024 * 1024);
+        const compressedSizeMB = compressedFile.size / (1024 * 1024);
+        const reductionPercent = ((file.size - compressedFile.size) / file.size) * 100;
+        
+        // Log compression results
+        logger.info('Imagem comprimida com sucesso', {
+          fileName: file.name,
+          originalSize: `${originalSizeMB.toFixed(2)}MB`,
+          compressedSize: `${compressedSizeMB.toFixed(2)}MB`,
+          reduction: `${reductionPercent.toFixed(1)}%`,
+          compressionTime: `${compressionTime}ms`,
+          operacao: 'uploadImage'
+        });
+
+        console.log(`📦 Comprimiu ${file.name} de ${originalSizeMB.toFixed(2)}MB para ${compressedSizeMB.toFixed(2)}MB (${reductionPercent.toFixed(1)}% redução) em ${compressionTime}ms`);
+        
+        fileToUpload = compressedFile;
+      } else if (!disableCompression) {
+        logger.info('Imagem não requer compressão', {
+          fileName: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+          operacao: 'uploadImage'
+        });
+      }
+
       // Create new file with renamed filename
-      const renamedFile = new File([file], newFileName, { type: file.type });
+      const renamedFile = new File([fileToUpload], newFileName, { type: fileToUpload.type });
       
       const res = await withRetry(
         () => uploadToStorage(renamedFile, { projectId, installationId, id }),
@@ -342,11 +392,66 @@ export function EnhancedImageUpload({
   const confirmUpload = async () => {
     if (filePreviews.length === 0) return;
 
-    setIsUploading(true);
     setValidationErrors([]);
     
     try {
-      const uploadPromises = filePreviews.map(preview => uploadImage(preview.file));
+      // Compress images first if compression is enabled
+      let filesToUpload = filePreviews;
+      
+      if (!disableCompression) {
+        const filesToCompress = filePreviews.filter(preview => shouldCompress(preview.file));
+        
+        if (filesToCompress.length > 0) {
+          setIsCompressing(true);
+          setCompressionProgress({ current: 0, total: filesToCompress.length });
+          
+          logger.info('Iniciando compressão em lote', {
+            totalFiles: filePreviews.length,
+            filesToCompress: filesToCompress.length,
+            operacao: 'confirmUpload'
+          });
+
+          // Show compression toast
+          if (filesToCompress.length > 1) {
+            showToast.info(
+              'Comprimindo imagens',
+              `Comprimindo ${filesToCompress.length} ${filesToCompress.length === 1 ? 'imagem' : 'imagens'}...`
+            );
+          }
+
+          // Compress all images in parallel
+          const compressionStartTime = Date.now();
+          const compressedFiles = await Promise.all(
+            filePreviews.map(async (preview, index) => {
+              if (shouldCompress(preview.file)) {
+                const compressed = await compressImage(preview.file);
+                setCompressionProgress({ current: index + 1, total: filesToCompress.length });
+                return { ...preview, file: compressed, wasCompressed: true };
+              }
+              return preview;
+            })
+          );
+          
+          const totalCompressionTime = Date.now() - compressionStartTime;
+          
+          logger.info('Compressão em lote concluída', {
+            totalFiles: filesToCompress.length,
+            totalTime: `${totalCompressionTime}ms`,
+            avgTime: `${(totalCompressionTime / filesToCompress.length).toFixed(0)}ms`,
+            operacao: 'confirmUpload'
+          });
+
+          filesToUpload = compressedFiles;
+          setIsCompressing(false);
+          setCompressionProgress(null);
+        }
+      }
+
+      // Now upload all files
+      setIsUploading(true);
+      const uploadPromises = filesToUpload.map(preview =>
+        uploadImage(preview.file, { alreadyCompressed: preview.wasCompressed })
+      );
       const uploadedImages = await Promise.all(uploadPromises);
       
       const newImages = [...images, ...uploadedImages];
@@ -390,6 +495,8 @@ export function EnhancedImageUpload({
       );
     } finally {
       setIsUploading(false);
+      setIsCompressing(false);
+      setCompressionProgress(null);
     }
   };
 
@@ -515,8 +622,26 @@ export function EnhancedImageUpload({
 
   return (
     <div className={cn('space-y-6 max-w-full overflow-x-hidden relative', className)}>
+      {/* Compression Overlay */}
+      {isCompressing && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-background p-6 rounded-lg shadow-lg flex flex-col items-center gap-4 min-w-[300px]">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-medium text-lg">Comprimindo imagens...</p>
+              {compressionProgress && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {compressionProgress.current} de {compressionProgress.total} imagens
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Por favor, aguarde</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload Overlay */}
-      {isUploading && (
+      {isUploading && !isCompressing && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-background p-6 rounded-lg shadow-lg flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -552,7 +677,7 @@ export function EnhancedImageUpload({
               onClick={handleCameraCapture}
               className="flex-1 h-12"
               variant="default"
-              disabled={isUploading || isUploadDisabled}
+              disabled={isUploading || isCompressing || isUploadDisabled}
             >
               <Camera className="h-5 w-5 mr-2" />
               Capturar Foto
@@ -561,7 +686,7 @@ export function EnhancedImageUpload({
               onClick={handleGalleryUpload}
               variant="outline"
               className="flex-1 h-12"
-              disabled={isUploading || isUploadDisabled}
+              disabled={isUploading || isCompressing || isUploadDisabled}
             >
               <Upload className="h-5 w-5 mr-2" />
               Galeria/Arquivo
@@ -623,7 +748,7 @@ export function EnhancedImageUpload({
                     variant="outline" 
                     size="sm"
                     onClick={cancelPreviews}
-                    disabled={isUploading}
+                    disabled={isUploading || isCompressing}
                   >
                     <X className="h-4 w-4 mr-2" />
                     Cancelar
@@ -631,10 +756,19 @@ export function EnhancedImageUpload({
                   <Button 
                     size="sm"
                     onClick={confirmUpload}
-                    disabled={isUploading}
+                    disabled={isUploading || isCompressing}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Confirmar Upload
+                    {isCompressing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Comprimindo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Confirmar Upload
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -654,7 +788,7 @@ export function EnhancedImageUpload({
                       size="icon"
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => removePreview(preview.id)}
-                      disabled={isUploading}
+                      disabled={isUploading || isCompressing}
                     >
                       <X className="h-4 w-4" />
                     </Button>
