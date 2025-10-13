@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
 import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
+import { withRetry } from '@/services/sync/utils';
 import type { ProjectFile } from '@/types';
 
 interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
@@ -76,11 +77,29 @@ export function FileUpload({
     let needsUpload = 0;
 
     try {
-      const res = await uploadToStorage(file, { projectId, installationId, id });
+      const res = await withRetry(
+        () => uploadToStorage(file, { projectId, installationId, id }),
+        {
+          maxAttempts: 5,
+          baseDelay: 500,
+          retryCondition: (error) => {
+            console.log(`Tentativa de upload falhou para ${file.name}, verificando se deve tentar novamente...`, error);
+            // Retry em erros de rede ou 5xx
+            return error?.message?.includes('fetch') || 
+                   error?.message?.includes('network') ||
+                   error?.status >= 500;
+          }
+        }
+      );
       storagePath = res.storagePath;
       uploadedAtISO = res.uploadedAtISO;
     } catch (err) {
-      console.error('File upload to storage failed:', err);
+      console.error('File upload to storage failed after all retry attempts:', err, {
+        fileName: file.name,
+        fileSize: file.size,
+        projectId,
+        installationId
+      });
       needsUpload = 1;
     }
 

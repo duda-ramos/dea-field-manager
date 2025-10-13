@@ -18,6 +18,7 @@ import type { ProjectFile } from '@/types';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { withRetry } from '@/services/sync/utils';
 
 // Validation constants
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -163,7 +164,20 @@ export function EnhancedImageUpload({
       // Create new file with renamed filename
       const renamedFile = new File([file], newFileName, { type: file.type });
       
-      const res = await uploadToStorage(renamedFile, { projectId, installationId, id });
+      const res = await withRetry(
+        () => uploadToStorage(renamedFile, { projectId, installationId, id }),
+        {
+          maxAttempts: 5,
+          baseDelay: 500,
+          retryCondition: (error) => {
+            console.log(`Tentativa de upload de imagem falhou para ${newFileName}, verificando se deve tentar novamente...`, error);
+            // Retry em erros de rede ou 5xx
+            return error?.message?.includes('fetch') || 
+                   error?.message?.includes('network') ||
+                   error?.status >= 500;
+          }
+        }
+      );
       
       const imageRecord: ProjectFile = {
         id,

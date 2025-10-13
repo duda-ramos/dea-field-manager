@@ -49,16 +49,23 @@ export async function withRetry<T>(
   
   for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
     try {
+      if (attempt > 1) {
+        console.log(`Tentativa ${attempt} de ${opts.maxAttempts}...`);
+      }
       return await operation();
     } catch (error) {
       lastError = error;
       
       if (attempt === opts.maxAttempts || !opts.retryCondition(error)) {
+        if (attempt === opts.maxAttempts) {
+          console.error(`❌ Todas as ${opts.maxAttempts} tentativas falharam. Operação não pode ser completada.`, error);
+        }
         throw error;
       }
       
       const delay = Math.min(opts.baseDelay * Math.pow(2, attempt - 1), opts.maxDelay);
-      logger.warn(`Sync attempt ${attempt} failed, retrying in ${delay}ms:`, error);
+      console.warn(`⚠️ Tentativa ${attempt} de ${opts.maxAttempts} falhou. Tentando novamente em ${delay}ms...`);
+      logger.warn(`Retry attempt ${attempt}/${opts.maxAttempts} failed, retrying in ${delay}ms:`, error);
       
       await new Promise(resolve => setTimeout(resolve, delay));
     }

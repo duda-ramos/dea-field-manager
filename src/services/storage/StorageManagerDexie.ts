@@ -12,6 +12,7 @@ import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
+import { withRetry } from '@/services/sync/utils';
 
 const now = () => Date.now();
 
@@ -34,23 +35,39 @@ async function syncToServerImmediate(entityType: string, data: any) {
 
     syncStateManager.updateState({ status: 'syncing' });
 
-    switch (entityType) {
-      case 'project':
-        await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
-        break;
-      case 'installation':
-        await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
-        break;
-      case 'contact':
-        await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
-        break;
-      case 'budget':
-        await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
-        break;
-      case 'file':
-        await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
-        break;
-    }
+    // Usar retry em todas as operações de sincronização para o servidor
+    await withRetry(
+      async () => {
+        switch (entityType) {
+          case 'project':
+            await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
+            break;
+          case 'installation':
+            await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
+            break;
+          case 'contact':
+            await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
+            break;
+          case 'budget':
+            await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
+            break;
+          case 'file':
+            await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
+            break;
+        }
+      },
+      {
+        maxAttempts: 5,
+        baseDelay: 500,
+        retryCondition: (error) => {
+          console.log(`Tentativa de sincronização falhou para ${entityType}, verificando se deve tentar novamente...`, error);
+          // Retry em erros de rede ou 5xx
+          return error?.message?.includes('fetch') || 
+                 error?.message?.includes('network') ||
+                 error?.status >= 500;
+        }
+      }
+    );
 
     syncStateManager.updateState({ 
       status: 'idle',
