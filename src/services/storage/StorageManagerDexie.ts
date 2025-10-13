@@ -12,6 +12,7 @@ import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
+import { withRetry } from '@/services/sync/utils';
 
 const now = () => Date.now();
 
@@ -34,23 +35,40 @@ async function syncToServerImmediate(entityType: string, data: any) {
 
     syncStateManager.updateState({ status: 'syncing' });
 
-    switch (entityType) {
-      case 'project':
-        await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
-        break;
-      case 'installation':
-        await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
-        break;
-      case 'contact':
-        await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
-        break;
-      case 'budget':
-        await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
-        break;
-      case 'file':
-        await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
-        break;
-    }
+    // Apply retry to Supabase operations
+    await withRetry(
+      async () => {
+        switch (entityType) {
+          case 'project':
+            await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
+            break;
+          case 'installation':
+            await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
+            break;
+          case 'contact':
+            await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
+            break;
+          case 'budget':
+            await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
+            break;
+          case 'file':
+            await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
+            break;
+        }
+      },
+      {
+        maxAttempts: 5,
+        baseDelay: 500,
+        retryCondition: (error) => {
+          // Retry em erros de rede, rate limit ou 5xx
+          return error?.message?.includes('fetch') || 
+                 error?.message?.includes('network') ||
+                 error?.status === 429 ||
+                 (error?.status >= 500 && error?.status < 600);
+        }
+      },
+      `Sincronização de ${entityType}`
+    );
 
     syncStateManager.updateState({ 
       status: 'idle',
@@ -58,7 +76,7 @@ async function syncToServerImmediate(entityType: string, data: any) {
       pendingPush: syncQueue.length 
     });
   } catch (error) {
-    console.error('Erro ao sincronizar:', error);
+    console.error('❌ Erro ao sincronizar após retries:', error);
     syncQueue.push({ type: entityType, data });
     syncStateManager.setError('Falha na sincronização - item adicionado à fila');
   }
@@ -182,33 +200,64 @@ export const StorageManagerDexie: any = {
 
         // Se é novo projeto, criar no Supabase
         if (!project.id || project.id === '' || project.id.startsWith('project_')) {
-          const { data, error } = await supabase
-            .from('projects')
-            .insert([transformProjectForSupabase({ ...withDates, id: undefined }, user.id)])
-            .select()
-            .single();
+          const result = await withRetry(
+            async () => {
+              const { data, error } = await supabase
+                .from('projects')
+                .insert([transformProjectForSupabase({ ...withDates, id: undefined }, user.id)])
+                .select()
+                .single();
 
-          if (error) throw error;
+              if (error) throw error;
+              return data;
+            },
+            {
+              maxAttempts: 5,
+              baseDelay: 500,
+              retryCondition: (error) => {
+                return error?.message?.includes('fetch') || 
+                       error?.message?.includes('network') ||
+                       error?.status === 429 ||
+                       (error?.status >= 500 && error?.status < 600);
+              }
+            },
+            'Criação de novo projeto'
+          );
 
-          withDates.id = data.id;
+          withDates.id = result.id;
           await db.projects.put(withDates);
           syncStateManager.updateState({ lastSyncAt: Date.now() });
           return withDates;
         }
 
         // Atualizar projeto existente
-        const { error } = await supabase
-          .from('projects')
-          .upsert(transformProjectForSupabase(withDates, user.id));
+        await withRetry(
+          async () => {
+            const { error } = await supabase
+              .from('projects')
+              .upsert(transformProjectForSupabase(withDates, user.id));
 
-        if (error) throw error;
+            if (error) throw error;
+          },
+          {
+            maxAttempts: 5,
+            baseDelay: 500,
+            retryCondition: (error) => {
+              return error?.message?.includes('fetch') || 
+                     error?.message?.includes('network') ||
+                     error?.status === 429 ||
+                     (error?.status >= 500 && error?.status < 600);
+            }
+          },
+          `Atualização de projeto: ${withDates.name}`
+        );
 
         await db.projects.put(withDates);
         realtimeManager.trackLocalOperation('projects');
         syncStateManager.updateState({ lastSyncAt: Date.now() });
         return withDates;
       } catch (error) {
-        console.error('Erro ao salvar online, salvando offline:', error);
+        console.error('❌ Erro ao salvar projeto online após retries, salvando offline:', error);
         withDates._dirty = 1;
         await db.projects.put(withDates);
         realtimeManager.trackLocalOperation('projects');
