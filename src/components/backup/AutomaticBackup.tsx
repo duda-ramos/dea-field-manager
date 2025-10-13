@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Project } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { logger } from '@/services/logger';
 
 interface ProjectBackup {
   id: string;
@@ -63,7 +64,12 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
       if (error) throw error;
       setBackups(data || []);
     } catch (error) {
-      console.error('Erro ao carregar backups:', error);
+      logger.error('Erro ao carregar backups', {
+        error,
+        projectId: project.id,
+        projectName: project.name,
+        operacao: 'loadBackups'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao carregar lista de backups',
@@ -107,7 +113,13 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
 
       loadBackups();
     } catch (error) {
-      console.error('Erro ao criar backup:', error);
+      logger.error('Erro ao criar backup manual', {
+        error,
+        projectId: project.id,
+        projectName: project.name,
+        userId: user?.id,
+        operacao: 'createManualBackup'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao criar backup manual',

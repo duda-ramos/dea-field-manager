@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { logger } from '@/services/logger';
 import {
   LineChart,
   Line,
@@ -115,7 +116,11 @@ export function ProjectProgressCharts({ projects, className }: ProjectProgressCh
 
       setStatusData(currentStatusData);
     } catch (error) {
-      console.error('Error generating chart data:', error);
+      logger.error('Error generating chart data', {
+        error,
+        projectCount: projects?.length || 0,
+        operacao: 'generateChartData'
+      });
     } finally {
       setLoading(false);
     }

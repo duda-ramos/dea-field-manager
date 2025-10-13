@@ -18,6 +18,7 @@ import type { ProjectFile } from '@/types';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { logger } from '@/services/logger';
 
 // Validation constants
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -84,7 +85,11 @@ export function EnhancedImageUpload({
       setImages(imageFiles);
       onImagesChange?.(imageFiles);
     } catch (error) {
-      console.error('Error loading images:', error);
+      logger.error('Error loading images', {
+        error,
+        projectId,
+        operacao: 'loadAllImages'
+      });
     }
   };
 
@@ -97,7 +102,11 @@ export function EnhancedImageUpload({
       });
       setInstallations(map);
     } catch (error) {
-      console.error('Error loading installations:', error);
+      logger.error('Error loading installations', {
+        error,
+        projectId,
+        operacao: 'loadInstallations'
+      });
     }
   };
 
@@ -202,7 +211,13 @@ export function EnhancedImageUpload({
           }
         } catch (syncError) {
           // Erro de sync não deve bloquear o upload principal
-          console.error('Erro ao sincronizar foto com álbum:', syncError);
+          logger.error('Erro ao sincronizar foto com álbum', {
+            error: syncError,
+            projectId,
+            installationId,
+            storagePath: res.storagePath,
+            operacao: 'syncPhotoToProjectAlbum'
+          });
         }
       }
       
@@ -216,6 +231,14 @@ export function EnhancedImageUpload({
 
       return imageRecord;
     } catch (error) {
+      logger.error('Image upload failed', {
+        error,
+        fileName: file.name,
+        fileSize: file.size,
+        projectId,
+        installationId,
+        operacao: 'uploadImage'
+      });
       setUploadProgress(prev => {
         const { [id]: _, ...rest } = prev;
         return rest;
@@ -328,6 +351,13 @@ export function EnhancedImageUpload({
           : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       );
     } catch (error) {
+      logger.error('Erro ao enviar imagens em lote', {
+        error,
+        fileCount: filePreviews.length,
+        projectId,
+        installationId,
+        operacao: 'confirmUpload'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao enviar imagens. Tente novamente.',
@@ -439,6 +469,14 @@ export function EnhancedImageUpload({
       });
       showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
+      logger.error('Erro ao salvar imagem editada', {
+        error,
+        originalImageId: originalImage.id,
+        originalImageName: originalImage.name,
+        projectId,
+        installationId,
+        operacao: 'handleImageEdited'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao salvar imagem editada.',

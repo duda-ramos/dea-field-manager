@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Canvas as FabricCanvas, Image as FabricImage, PencilBrush, Rect, Circle, Textbox, filters } from 'fabric';
+import { logger } from '@/services/logger';
 import { 
   RotateCcw, 
   Crop, 
@@ -95,7 +96,13 @@ export function ImageEditor({ isOpen, onClose, image, onSave }: ImageEditorProps
         setIsLoading(false);
       });
     } catch (error) {
-      console.error('Error loading image:', error);
+      logger.error('Error loading image for editing', {
+        error,
+        imageId: image.id,
+        imageName: image.name,
+        storagePath: image.storagePath,
+        operacao: 'loadImageForEditing'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao carregar imagem para edição.',

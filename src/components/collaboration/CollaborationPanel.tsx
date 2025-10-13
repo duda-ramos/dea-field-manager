@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { logger } from '@/services/logger';
 
 interface RealtimeEvent {
   id: string;
@@ -137,7 +138,11 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (error) throw error;
       setCollaborators(data || []);
     } catch (error) {
-      // Error logged via logger service
+      logger.error('Error loading collaborators', {
+        error,
+        projectId,
+        operacao: 'loadCollaborators'
+      });
     } finally {
       setLoading(false);
     }
@@ -191,7 +196,11 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         .rpc('get_user_by_email', { user_email: inviteEmail.toLowerCase().trim() });
 
       if (searchError) {
-        console.error('Error searching user:', searchError);
+        logger.error('Error searching user by email', {
+          error: searchError,
+          email: inviteEmail,
+          operacao: 'get_user_by_email'
+        });
         toast({
           title: 'Erro',
           description: 'Erro ao buscar usuário',
@@ -254,7 +263,13 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         }]);
 
       if (error) {
-        console.error('Error adding collaborator:', error);
+        logger.error('Error adding collaborator', {
+          error,
+          projectId,
+          email: inviteEmail,
+          role: inviteRole,
+          operacao: 'handleInviteUser_insert'
+        });
         throw error;
       }
 
@@ -273,7 +288,13 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       onCollaboratorAdded?.();
 
     } catch (error) {
-      console.error('Error inviting user:', error);
+      logger.error('Error inviting user', {
+        error,
+        projectId,
+        email: inviteEmail,
+        role: inviteRole,
+        operacao: 'handleInviteUser'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao adicionar colaborador',
@@ -300,7 +321,12 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
 
       loadCollaborators();
     } catch (error) {
-      // Error logged via logger service
+      logger.error('Error removing collaborator', {
+        error,
+        collaboratorId,
+        projectId,
+        operacao: 'handleRemoveCollaborator'
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao remover colaborador',

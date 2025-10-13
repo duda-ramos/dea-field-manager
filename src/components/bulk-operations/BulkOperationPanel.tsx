@@ -29,6 +29,7 @@ import { storage } from '@/lib/storage';
 import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/logger';
 
 export interface BulkOperation {
   id: string;
@@ -253,7 +254,14 @@ export function BulkOperationPanel({
 
       setSelectedItems([]);
     } catch (error) {
-      // Error logged via logger service
+      logger.error('Erro na operação em lote', {
+        error,
+        operation: operation.id,
+        operationLabel: operation.label,
+        itemCount: selectedItemsData.length,
+        itemType,
+        operacao: 'executeOperation'
+      });
       toast({
         title: 'Erro na operação',
         description: `Falha ao executar ${operation.label.toLowerCase()}.`,

@@ -8,6 +8,7 @@ import { fullSync } from '@/services/sync/sync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager, type SyncState } from '@/services/sync/syncState';
 import { SyncSettingsModal } from './sync-settings-modal';
+import { logger } from '@/services/logger';
 
 export function SyncButton() {
   const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState());
@@ -63,7 +64,11 @@ export function SyncButton() {
         description: `Enviados: ${pushTotals.pushed} | Recebidos: ${pullTotals.pulled} | Removidos: ${pushTotals.deleted}`
       });
     } catch (error) {
-      console.error('Sync error:', error);
+      logger.error('Erro na sincronização manual', {
+        error,
+        isOnline: syncState.isOnline,
+        operacao: 'handleSync'
+      });
       toast({
         title: "Erro na Sincronização",
         description: error instanceof Error ? error.message : "Erro desconhecido ao sincronizar dados.",

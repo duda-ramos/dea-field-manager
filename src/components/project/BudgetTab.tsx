@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, FileText, Edit, Trash2, Download, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logger } from '@/services/logger';
 
 interface SupplierProposal {
   id: string;
@@ -87,6 +88,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         setProposals(proposalsData as SupplierProposal[]);
       }
     } catch (error) {
+      logger.error('Erro ao carregar propostas de fornecedores', {
+        error,
+        projectId,
+        userId: user?.id,
+        operacao: 'loadProposals'
+      });
       toast({
         title: "Erro",
         description: "Erro inesperado ao carregar propostas",
@@ -223,6 +230,14 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         });
       }
     } catch (error: any) {
+      logger.error('Erro ao criar proposta de fornecedor', {
+        error,
+        supplier: newProposal.supplier,
+        projectId,
+        fileName: newProposal.file?.name,
+        fileSize: newProposal.file?.size,
+        operacao: 'handleCreateProposal'
+      });
       toast({
         title: "Erro",
         description: error.message || "Erro no upload do arquivo",
@@ -297,6 +312,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         description: "Proposta foi excluída com sucesso"
       });
     } catch (error) {
+      logger.error('Erro ao excluir proposta de fornecedor', {
+        error,
+        proposalId,
+        filePath,
+        operacao: 'handleDeleteProposal'
+      });
       toast({
         title: "Erro",
         description: "Erro ao excluir arquivo",
@@ -351,6 +372,12 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
+      logger.error('Erro ao fazer download de proposta', {
+        error,
+        filePath,
+        fileName,
+        operacao: 'downloadFile'
+      });
       toast({
         title: "Erro",
         description: "Erro ao processar download",
