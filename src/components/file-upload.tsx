@@ -12,6 +12,7 @@ import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
 import { logger } from '@/services/logger';
+import { withRetry } from '@/services/sync/utils';
 
 interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
   uploadedAt: Date;
@@ -77,11 +78,24 @@ export function FileUpload({
     let needsUpload = 0;
 
     try {
-      const res = await uploadToStorage(file, { projectId, installationId, id });
+      const res = await withRetry(
+        () => uploadToStorage(file, { projectId, installationId, id }),
+        {
+          maxAttempts: 5,
+          baseDelay: 500,
+          retryCondition: (error) => {
+            // Retry em erros de rede ou 5xx
+            return error?.message?.includes('fetch') || 
+                   error?.message?.includes('network') ||
+                   error?.status >= 500;
+          }
+        },
+        `Upload de arquivo: ${file.name}`
+      );
       storagePath = res.storagePath;
       uploadedAtISO = res.uploadedAtISO;
     } catch (err) {
-      logger.error('File upload to storage failed', {
+      logger.error('File upload to storage failed after retries', {
         error: err,
         fileName: file.name,
         fileSize: file.size,
@@ -206,7 +220,19 @@ export function FileUpload({
       });
 
       if (navigator.onLine && file.storagePath) {
-        await deleteFromStorage(file.storagePath);
+        await withRetry(
+          () => deleteFromStorage(file.storagePath!),
+          {
+            maxAttempts: 3,
+            baseDelay: 500,
+            retryCondition: (error) => {
+              return error?.message?.includes('fetch') || 
+                     error?.message?.includes('network') ||
+                     error?.status >= 500;
+            }
+          },
+          `Remoção de arquivo: ${file.name}`
+        );
       }
 
       await Storage.deleteFile(file.id);
@@ -224,7 +250,7 @@ export function FileUpload({
           : 'Será removido quando online.'
       );
     } catch (error) {
-      logger.error('File removal failed', {
+      logger.error('File removal failed after retries', {
         error,
         fileId: file.id,
         fileName: file.name,
@@ -233,10 +259,13 @@ export function FileUpload({
       });
       toast({
         title: 'Erro ao remover arquivo',
-        description: 'Houve um problema ao remover o arquivo. Tente novamente.',
+        description: 'Não foi possível remover o arquivo após várias tentativas. Verifique sua conexão e tente novamente.',
         variant: 'destructive'
       });
-      showToast.error('Erro ao remover arquivo', 'Tente novamente.');
+      showToast.error(
+        'Erro ao remover arquivo',
+        'Não foi possível remover o arquivo após várias tentativas. Verifique sua conexão e tente novamente.'
+      );
     }
   };
 
@@ -257,7 +286,19 @@ export function FileUpload({
       const fileObj = new File([blob], file.name, { type: file.type });
 
       try {
-        const { storagePath, uploadedAtISO } = await uploadToStorage(fileObj, { projectId, installationId, id: file.id });
+        const { storagePath, uploadedAtISO } = await withRetry(
+          () => uploadToStorage(fileObj, { projectId, installationId, id: file.id }),
+          {
+            maxAttempts: 5,
+            baseDelay: 500,
+            retryCondition: (error) => {
+              return error?.message?.includes('fetch') || 
+                     error?.message?.includes('network') ||
+                     error?.status >= 500;
+            }
+          },
+          `Migração de arquivo: ${file.name}`
+        );
 
           await Storage.upsertFile({
             ...file,
@@ -307,7 +348,7 @@ export function FileUpload({
         }
       }
     } catch (error) {
-      logger.error('File migration failed', {
+      logger.error('File migration failed after retries', {
         error,
         fileId: file.id,
         fileName: file.name,
@@ -316,9 +357,13 @@ export function FileUpload({
       });
       toast({
         title: 'Falha na migração',
-        description: 'Não foi possível migrar o arquivo. Reenvie manualmente.',
+        description: 'Não foi possível migrar o arquivo após várias tentativas. Verifique sua conexão e tente novamente.',
         variant: 'destructive'
       });
+      showToast.error(
+        'Falha na migração',
+        'Não foi possível migrar o arquivo após várias tentativas. Verifique sua conexão e tente novamente.'
+      );
     }
   };
 

@@ -19,6 +19,7 @@ import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/logger';
+import { withRetry } from '@/services/sync/utils';
 
 // Validation constants
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -172,7 +173,20 @@ export function EnhancedImageUpload({
       // Create new file with renamed filename
       const renamedFile = new File([file], newFileName, { type: file.type });
       
-      const res = await uploadToStorage(renamedFile, { projectId, installationId, id });
+      const res = await withRetry(
+        () => uploadToStorage(renamedFile, { projectId, installationId, id }),
+        {
+          maxAttempts: 5,
+          baseDelay: 500,
+          retryCondition: (error) => {
+            // Retry em erros de rede ou 5xx
+            return error?.message?.includes('fetch') || 
+                   error?.message?.includes('network') ||
+                   error?.status >= 500;
+          }
+        },
+        `Upload de imagem: ${newFileName}`
+      );
       
       const imageRecord: ProjectFile = {
         id,
@@ -231,7 +245,7 @@ export function EnhancedImageUpload({
 
       return imageRecord;
     } catch (error) {
-      logger.error('Image upload failed', {
+      logger.error('Image upload failed after retries', {
         error,
         fileName: file.name,
         fileSize: file.size,
@@ -243,6 +257,13 @@ export function EnhancedImageUpload({
         const { [id]: _, ...rest } = prev;
         return rest;
       });
+      
+      // Show user-friendly error message
+      showToast.error(
+        'Erro no upload',
+        'Não foi possível enviar a imagem após várias tentativas. Verifique sua conexão e tente novamente.'
+      );
+      
       throw error;
     }
   };
@@ -351,7 +372,7 @@ export function EnhancedImageUpload({
           : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       );
     } catch (error) {
-      logger.error('Erro ao enviar imagens em lote', {
+      logger.error('Erro ao enviar imagens em lote após retries', {
         error,
         fileCount: filePreviews.length,
         projectId,
@@ -360,10 +381,13 @@ export function EnhancedImageUpload({
       });
       toast({
         title: 'Erro',
-        description: 'Erro ao enviar imagens. Tente novamente.',
+        description: 'Não foi possível enviar as imagens após várias tentativas. Verifique sua conexão e tente novamente.',
         variant: 'destructive'
       });
-      showToast.error('Erro ao enviar imagens', 'Tente novamente.');
+      showToast.error(
+        'Erro ao enviar imagens',
+        'Não foi possível completar a operação após várias tentativas. Verifique sua conexão e tente novamente.'
+      );
     } finally {
       setIsUploading(false);
     }
@@ -469,7 +493,7 @@ export function EnhancedImageUpload({
       });
       showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
-      logger.error('Erro ao salvar imagem editada', {
+      logger.error('Erro ao salvar imagem editada após retries', {
         error,
         originalImageId: originalImage.id,
         originalImageName: originalImage.name,
@@ -479,10 +503,13 @@ export function EnhancedImageUpload({
       });
       toast({
         title: 'Erro',
-        description: 'Erro ao salvar imagem editada.',
+        description: 'Não foi possível salvar a imagem editada após várias tentativas. Verifique sua conexão e tente novamente.',
         variant: 'destructive'
       });
-      showToast.error('Erro ao salvar imagem editada');
+      showToast.error(
+        'Erro ao salvar imagem editada',
+        'Não foi possível completar a operação após várias tentativas. Verifique sua conexão e tente novamente.'
+      );
     }
   };
 
