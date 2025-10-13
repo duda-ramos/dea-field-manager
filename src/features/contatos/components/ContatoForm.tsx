@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 import { Contato } from '../index';
 
 interface ContatoFormProps {
@@ -28,6 +29,7 @@ export function ContatoForm({
   const [telefone, setTelefone] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const computeErrors = (values: {
@@ -110,32 +112,37 @@ export function ContatoForm({
     return Object.keys(computedErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
-    const now = new Date().toISOString();
-    const novoContato: Contato = {
-      id: contato?.id || `contato_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      projetoId,
-      tipo,
-      nome: nome.trim(),
-      empresa: empresa.trim() || undefined,
-      telefone: telefone.trim() || undefined,
-      email: email.trim() || undefined,
-      criadoEm: contato?.criadoEm || now,
-      atualizadoEm: now
-    };
+    setIsSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const novoContato: Contato = {
+        id: contato?.id || `contato_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        projetoId,
+        tipo,
+        nome: nome.trim(),
+        empresa: empresa.trim() || undefined,
+        telefone: telefone.trim() || undefined,
+        email: email.trim() || undefined,
+        criadoEm: contato?.criadoEm || now,
+        atualizadoEm: now
+      };
 
-    onSave(novoContato);
-    
-    toast({
-      title: "Contato salvo",
-      description: `${nome} foi ${contato ? 'atualizado' : 'criado'} com sucesso.`
-    });
-    
-    onClose();
+      await onSave(novoContato);
+      
+      toast({
+        title: "Contato salvo",
+        description: `${nome} foi ${contato ? 'atualizado' : 'criado'} com sucesso.`
+      });
+      
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {
@@ -219,15 +226,19 @@ export function ContatoForm({
           )}
 
           <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1" disabled={isSaving}>
               Cancelar
             </Button>
             <Button 
               type="submit" 
               className="flex-1"
-              disabled={Object.keys(errors).some(key => errors[key] !== '')}
+              disabled={isSaving || Object.keys(errors).some(key => errors[key] !== '')}
             >
-              {contato ? 'Atualizar' : 'Salvar'}
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>
+              ) : (
+                contato ? 'Atualizar' : 'Salvar'
+              )}
             </Button>
           </div>
         </form>

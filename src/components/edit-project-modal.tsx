@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
 
 interface EditProjectModalProps {
   project: Project;
@@ -20,6 +20,7 @@ interface EditProjectModalProps {
 export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }: EditProjectModalProps) {
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: project.name,
     client: project.client,
@@ -75,22 +76,27 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
       return;
     }
 
-    const updatedProject = await storage.upsertProject({
-      ...project,
-      ...formData,
-      suppliers: formData.suppliers.filter(s => s.trim() !== ''),
-      installation_time_estimate_days: formData.installation_time_estimate_days ? 
-        parseInt(formData.installation_time_estimate_days.toString()) : undefined
-    });
-
-    if (updatedProject) {
-      onProjectUpdated(updatedProject);
-      onClose();
-      toast({
-        title: "Projeto atualizado",
-        description: "As informações do projeto foram atualizadas com sucesso"
+    setIsSaving(true);
+    try {
+      const updatedProject = await storage.upsertProject({
+        ...project,
+        ...formData,
+        suppliers: formData.suppliers.filter(s => s.trim() !== ''),
+        installation_time_estimate_days: formData.installation_time_estimate_days ? 
+          parseInt(formData.installation_time_estimate_days.toString()) : undefined
       });
-      showToast.success("Projeto atualizado", "As informações foram atualizadas com sucesso");
+
+      if (updatedProject) {
+        onProjectUpdated(updatedProject);
+        onClose();
+        toast({
+          title: "Projeto atualizado",
+          description: "As informações do projeto foram atualizadas com sucesso"
+        });
+        showToast.success("Projeto atualizado", "As informações foram atualizadas com sucesso");
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -310,14 +316,18 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
               Cancelar
             </Button>
             <Button 
               onClick={handleSave}
-              disabled={Object.keys(errors).some(key => errors[key] !== '')}
+              disabled={isSaving || Object.keys(errors).some(key => errors[key] !== '')}
             >
-              Salvar Alterações
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>
+              ) : (
+                'Salvar Alterações'
+              )}
             </Button>
           </div>
         </div>

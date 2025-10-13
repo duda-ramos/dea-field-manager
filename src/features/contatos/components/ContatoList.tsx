@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Search, Plus, Phone, Mail, Edit, Trash2, Download } from 'lucide-react';
 import { Contato } from '../index';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface ContatoListProps {
   contatos: Contato[];
@@ -28,6 +29,7 @@ export function ContatoList({
   onSelectionChange
 }: ContatoListProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [deleteContato, setDeleteContato] = useState<Contato | null>(null);
   const { toast } = useToast();
 
@@ -38,10 +40,10 @@ export function ContatoList({
   };
 
   const filteredContatos = contatos.filter(contato =>
-    contato.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (contato.empresa && contato.empresa.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (contato.email && contato.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (contato.telefone && contato.telefone.toLowerCase().includes(searchTerm.toLowerCase()))
+    contato.nome.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    (contato.empresa && contato.empresa.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+    (contato.email && contato.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+    (contato.telefone && contato.telefone.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
   );
 
   const handleDelete = (contato: Contato) => {

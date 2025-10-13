@@ -110,7 +110,7 @@ export function ReportCustomizationModal({
   }, [config]);
 
   // Calculate preview data with useMemo
-  const calculatePreview = useCallback(() => {
+  const calculatePreview = useCallback((currentConfig: ReportConfig) => {
     setIsLoadingPreview(true);
     try {
       const versions: any[] = []; // Simplified for preview
@@ -120,7 +120,7 @@ export function ReportCustomizationModal({
         versions,
         generatedBy: project.owner || 'Sistema',
         generatedAt: new Date().toISOString(),
-        interlocutor: config.interlocutor,
+        interlocutor: currentConfig.interlocutor,
       };
 
       const sections = calculateReportSections(reportData);
@@ -138,26 +138,26 @@ export function ReportCustomizationModal({
       });
     } catch (error) {
       console.error('Error updating preview:', error);
-        toast({
-          title: 'Erro ao atualizar prévia',
-          description: 'Não foi possível calcular a prévia do relatório.',
-          variant: 'destructive',
-        });
-        showToast.error('Erro ao atualizar prévia', 'Não foi possível calcular a prévia do relatório.');
+      toast({
+        title: 'Erro ao atualizar prévia',
+        description: 'Não foi possível calcular a prévia do relatório.',
+        variant: 'destructive',
+      });
+      showToast.error('Erro ao atualizar prévia', 'Não foi possível calcular a prévia do relatório.');
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [project, installations, config.interlocutor, toast]);
+  }, [project, installations, toast]);
 
-  // Debounced version of preview calculation (300ms delay)
-  const debouncedUpdatePreview = useDebounce(calculatePreview, 300);
+  // Debounced configuration to throttle preview updates
+  const debouncedConfig = useDebounce(config, 300);
 
   // Update preview when modal opens or config changes
   useEffect(() => {
     if (isOpen && installations.length > 0) {
-      debouncedUpdatePreview();
+      calculatePreview(debouncedConfig);
     }
-  }, [isOpen, installations, config, debouncedUpdatePreview]);
+  }, [isOpen, installations, debouncedConfig, calculatePreview]);
 
   // Check if at least one section is selected
   const hasSelectedSections = useMemo(() => {

@@ -12,12 +12,14 @@ import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Trash2, A
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'deleted' | 'archived'>('active');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({
     name: "",
@@ -62,10 +64,10 @@ export default function ProjectsPage() {
   const projects = getProjectsByTab();
 
   const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.code.toLowerCase().includes(searchTerm.toLowerCase())
+    project.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    project.client.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    project.city.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    project.code.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   );
 
   const validateForm = () => {
