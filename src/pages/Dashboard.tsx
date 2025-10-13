@@ -36,6 +36,7 @@ export default function Dashboard() {
     suppliers: "",
     installation_time_estimate_days: ""
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -84,11 +85,30 @@ export default function Dashboard() {
     }
   };
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Nome do projeto: obrigatório, mínimo 3 caracteres
+    if (!newProject.name.trim()) {
+      newErrors.name = 'Nome do projeto é obrigatório';
+    } else if (newProject.name.trim().length < 3) {
+      newErrors.name = 'Nome do projeto deve ter no mínimo 3 caracteres';
+    }
+
+    // Cliente: obrigatório
+    if (!newProject.client.trim()) {
+      newErrors.client = 'Cliente é obrigatório';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleCreateProject = async () => {
-    if (!newProject.name || !newProject.client) {
+    if (!validateForm()) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Nome do projeto e cliente são obrigatórios",
+        title: "Erro de validação",
+        description: "Corrija os erros no formulário antes de continuar",
         variant: "destructive"
       });
       return;
@@ -136,6 +156,7 @@ export default function Dashboard() {
         suppliers: "",
         installation_time_estimate_days: ""
       });
+      setErrors({});
 
       toast({
         title: "Projeto criado",
@@ -166,6 +187,7 @@ export default function Dashboard() {
       suppliers: "",
       installation_time_estimate_days: ""
     });
+    setErrors({});
   };
 
   const handleSelectTemplate = async (template: any) => {
@@ -281,18 +303,32 @@ export default function Dashboard() {
                   <Input
                     id="name"
                     value={newProject.name}
-                    onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => {
+                      setNewProject(prev => ({ ...prev, name: e.target.value }));
+                      if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                    }}
                     placeholder="Nome do projeto"
+                    className={errors.name ? 'border-destructive' : ''}
                   />
+                  {errors.name && (
+                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="client">Cliente *</Label>
                   <Input
                     id="client"
                     value={newProject.client}
-                    onChange={(e) => setNewProject(prev => ({ ...prev, client: e.target.value }))}
+                    onChange={(e) => {
+                      setNewProject(prev => ({ ...prev, client: e.target.value }));
+                      if (errors.client) setErrors(prev => ({ ...prev, client: '' }));
+                    }}
                     placeholder="Nome do cliente"
+                    className={errors.client ? 'border-destructive' : ''}
                   />
+                  {errors.client && (
+                    <p className="text-sm text-destructive mt-1">{errors.client}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="city">Cidade</Label>
@@ -351,7 +387,11 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleCreateProject} disabled={creating} className="flex-1">
+                  <Button 
+                    onClick={handleCreateProject} 
+                    disabled={creating || Object.keys(errors).some(key => errors[key] !== '')} 
+                    className="flex-1"
+                  >
                     {creating ? "Criando..." : "Criar Projeto"}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm}>

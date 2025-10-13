@@ -30,6 +30,50 @@ export function ContatoForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
+  const computeErrors = (values: {
+    nome: string;
+    telefone: string;
+    email: string;
+  }) => {
+    const { nome: nomeValue, telefone: telefoneValue, email: emailValue } = values;
+    const newErrors: Record<string, string> = {};
+
+    if (!nomeValue.trim()) {
+      newErrors.nome = 'Nome é obrigatório';
+    }
+
+    if (emailValue.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      newErrors.email = 'Formato de email inválido';
+    }
+
+    if (telefoneValue.trim()) {
+      const digitsOnly = telefoneValue.replace(/\D/g, '');
+      if (digitsOnly.length !== 10 && digitsOnly.length !== 11) {
+        newErrors.telefone = 'Telefone deve ter 10 ou 11 dígitos';
+      }
+    }
+
+    if (!telefoneValue.trim() && !emailValue.trim()) {
+      newErrors.contato = 'Pelo menos telefone ou email deve ser preenchido';
+    }
+
+    return newErrors;
+  };
+
+  const refreshErrors = (override?: Partial<{ nome: string; telefone: string; email: string }>) => {
+    setErrors((prev) => {
+      if (Object.keys(prev).length === 0) {
+        return prev;
+      }
+
+      return computeErrors({
+        nome: override?.nome ?? nome,
+        telefone: override?.telefone ?? telefone,
+        email: override?.email ?? email
+      });
+    });
+  };
+
   // Formatação de telefone
   const formatTelefone = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -43,6 +87,7 @@ export function ContatoForm({
   const handleTelefoneChange = (value: string) => {
     const formatted = formatTelefone(value);
     setTelefone(formatted);
+    refreshErrors({ telefone: formatted });
   };
 
   useEffect(() => {
@@ -61,22 +106,9 @@ export function ContatoForm({
   }, [contato, isOpen]);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!nome.trim()) {
-      newErrors.nome = 'Nome é obrigatório';
-    }
-
-    if (!telefone.trim() && !email.trim()) {
-      newErrors.contato = 'Pelo menos telefone ou email deve ser preenchido';
-    }
-
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Formato de email inválido';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const computedErrors = computeErrors({ nome, telefone, email });
+    setErrors(computedErrors);
+    return Object.keys(computedErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,7 +159,11 @@ export function ContatoForm({
             <Input
               id="nome"
               value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setNome(value);
+                refreshErrors({ nome: value });
+              }}
               placeholder="Nome completo"
               className={errors.nome ? 'border-destructive' : ''}
             />
@@ -153,8 +189,11 @@ export function ContatoForm({
               value={telefone}
               onChange={(e) => handleTelefoneChange(e.target.value)}
               placeholder="(11) 99999-9999"
-              className={errors.contato ? 'border-destructive' : ''}
+              className={errors.contato || errors.telefone ? 'border-destructive' : ''}
             />
+            {errors.telefone && (
+              <p className="text-sm text-destructive">{errors.telefone}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -163,7 +202,11 @@ export function ContatoForm({
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEmail(value);
+                refreshErrors({ email: value });
+              }}
               placeholder="email@exemplo.com"
               className={errors.email || errors.contato ? 'border-destructive' : ''}
             />
@@ -180,7 +223,11 @@ export function ContatoForm({
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
+            <Button 
+              type="submit" 
+              className="flex-1"
+              disabled={Object.keys(errors).some(key => errors[key] !== '')}
+            >
               {contato ? 'Atualizar' : 'Salvar'}
             </Button>
           </div>

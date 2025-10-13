@@ -18,6 +18,7 @@ interface EditProjectModalProps {
 
 export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }: EditProjectModalProps) {
   const { toast } = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: project.name,
     client: project.client,
@@ -34,11 +35,39 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
     access_notes: (project as any).access_notes || ''
   });
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Nome do projeto: obrigatório, mínimo 3 caracteres
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nome do projeto é obrigatório';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Nome do projeto deve ter no mínimo 3 caracteres';
+    }
+
+    // Cliente: obrigatório
+    if (!formData.client.trim()) {
+      newErrors.client = 'Cliente é obrigatório';
+    }
+
+    // Validação de datas: data início não pode ser maior que data fim
+    if (formData.installation_date && formData.inauguration_date) {
+      const startDate = new Date(formData.installation_date);
+      const endDate = new Date(formData.inauguration_date);
+      if (startDate > endDate) {
+        newErrors.dates = 'Data de instalação não pode ser posterior à data de inauguração';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
-    if (!formData.name || !formData.client || !formData.city) {
+    if (!validateForm()) {
       toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        title: "Erro de validação",
+        description: "Corrija os erros no formulário antes de continuar",
         variant: "destructive"
       });
       return;
@@ -96,18 +125,32 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
               <Input 
                 id="name" 
                 value={formData.name} 
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, name: e.target.value }));
+                  if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                }}
                 placeholder="Ex: Shopping Center ABC" 
+                className={errors.name ? 'border-destructive' : ''}
               />
+              {errors.name && (
+                <p className="text-sm text-destructive mt-1">{errors.name}</p>
+              )}
             </div>
             <div>
               <Label htmlFor="client">Cliente *</Label>
               <Input 
                 id="client" 
                 value={formData.client} 
-                onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, client: e.target.value }));
+                  if (errors.client) setErrors(prev => ({ ...prev, client: '' }));
+                }}
                 placeholder="Ex: Construtora XYZ" 
+                className={errors.client ? 'border-destructive' : ''}
               />
+              {errors.client && (
+                <p className="text-sm text-destructive mt-1">{errors.client}</p>
+              )}
             </div>
           </div>
 
@@ -177,7 +220,11 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 id="installation_date" 
                 type="date"
                 value={formData.installation_date} 
-                onChange={(e) => setFormData(prev => ({ ...prev, installation_date: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, installation_date: e.target.value }));
+                  if (errors.dates) setErrors(prev => ({ ...prev, dates: '' }));
+                }}
+                className={errors.dates ? 'border-destructive' : ''}
               />
             </div>
             <div>
@@ -186,10 +233,17 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 id="inauguration_date" 
                 type="date"
                 value={formData.inauguration_date} 
-                onChange={(e) => setFormData(prev => ({ ...prev, inauguration_date: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, inauguration_date: e.target.value }));
+                  if (errors.dates) setErrors(prev => ({ ...prev, dates: '' }));
+                }}
+                className={errors.dates ? 'border-destructive' : ''}
               />
             </div>
           </div>
+          {errors.dates && (
+            <p className="text-sm text-destructive mt-1">{errors.dates}</p>
+          )}
 
           <div>
             <Label htmlFor="installation_time_estimate_days">Estimativa de Tempo de Instalação (dias úteis)</Label>
@@ -256,7 +310,10 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
+            <Button 
+              onClick={handleSave}
+              disabled={Object.keys(errors).some(key => errors[key] !== '')}
+            >
               Salvar Alterações
             </Button>
           </div>

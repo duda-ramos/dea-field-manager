@@ -27,6 +27,7 @@ export default function ProjectsPage() {
     project_files_link: "",
     suppliers: [""]
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,11 +60,30 @@ export default function ProjectsPage() {
     project.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Nome do projeto: obrigatório, mínimo 3 caracteres
+    if (!newProject.name.trim()) {
+      newErrors.name = 'Nome do projeto é obrigatório';
+    } else if (newProject.name.trim().length < 3) {
+      newErrors.name = 'Nome do projeto deve ter no mínimo 3 caracteres';
+    }
+
+    // Cliente: obrigatório
+    if (!newProject.client.trim()) {
+      newErrors.client = 'Cliente é obrigatório';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleCreateProject = async () => {
-    if (!newProject.name || !newProject.client || !newProject.city) {
+    if (!validateForm()) {
       toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        title: "Erro de validação",
+        description: "Corrija os erros no formulário antes de continuar",
         variant: "destructive"
       });
       return;
@@ -89,6 +109,7 @@ export default function ProjectsPage() {
       project_files_link: "",
       suppliers: [""]
     });
+    setErrors({});
 
     toast({
       title: "Projeto criado",
@@ -146,18 +167,32 @@ export default function ProjectsPage() {
                 <Input 
                   id="name" 
                   value={newProject.name} 
-                  onChange={e => setNewProject(prev => ({ ...prev, name: e.target.value }))} 
+                  onChange={e => {
+                    setNewProject(prev => ({ ...prev, name: e.target.value }));
+                    if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                  }} 
                   placeholder="Ex: Shopping Center ABC" 
+                  className={errors.name ? 'border-destructive' : ''}
                 />
+                {errors.name && (
+                  <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="client">Cliente *</Label>
                 <Input 
                   id="client" 
                   value={newProject.client} 
-                  onChange={e => setNewProject(prev => ({ ...prev, client: e.target.value }))} 
+                  onChange={e => {
+                    setNewProject(prev => ({ ...prev, client: e.target.value }));
+                    if (errors.client) setErrors(prev => ({ ...prev, client: '' }));
+                  }} 
                   placeholder="Nome do cliente" 
+                  className={errors.client ? 'border-destructive' : ''}
                 />
+                {errors.client && (
+                  <p className="text-sm text-destructive mt-1">{errors.client}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="city">Cidade *</Label>
@@ -215,7 +250,11 @@ export default function ProjectsPage() {
                   + Adicionar Fornecedor
                 </Button>
               </div>
-              <Button onClick={handleCreateProject} className="w-full">
+              <Button 
+                onClick={handleCreateProject} 
+                className="w-full"
+                disabled={Object.keys(errors).some(key => errors[key] !== '')}
+              >
                 Criar Projeto
               </Button>
             </div>
