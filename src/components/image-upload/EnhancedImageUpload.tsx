@@ -32,6 +32,7 @@ interface FilePreview {
   file: File;
   preview: string;
   id: string;
+  wasCompressed?: boolean;
 }
 
 interface EnhancedImageUploadProps {
@@ -167,19 +168,23 @@ export function EnhancedImageUpload({
   };
 
   // Upload single image
-  const uploadImage = async (file: File): Promise<ProjectFile> => {
+  const uploadImage = async (
+    file: File,
+    options: { alreadyCompressed?: boolean } = {}
+  ): Promise<ProjectFile> => {
+    const { alreadyCompressed = false } = options;
     const id = crypto.randomUUID();
     const sequential = await getNextSequential();
     const newFileName = generateFileName(file.name, sequential);
-    
+
     setUploadProgress(prev => ({ ...prev, [id]: 0 }));
 
     try {
       // Compress image before upload (unless disabled)
       let fileToUpload = file;
       const startTime = Date.now();
-      
-      if (!disableCompression && shouldCompress(file)) {
+
+      if (!disableCompression && !alreadyCompressed && shouldCompress(file)) {
         logger.info('Comprimindo imagem antes do upload', {
           fileName: file.name,
           originalSize: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
@@ -421,7 +426,7 @@ export function EnhancedImageUpload({
               if (shouldCompress(preview.file)) {
                 const compressed = await compressImage(preview.file);
                 setCompressionProgress({ current: index + 1, total: filesToCompress.length });
-                return { ...preview, file: compressed };
+                return { ...preview, file: compressed, wasCompressed: true };
               }
               return preview;
             })
@@ -444,7 +449,9 @@ export function EnhancedImageUpload({
 
       // Now upload all files
       setIsUploading(true);
-      const uploadPromises = filesToUpload.map(preview => uploadImage(preview.file));
+      const uploadPromises = filesToUpload.map(preview =>
+        uploadImage(preview.file, { alreadyCompressed: preview.wasCompressed })
+      );
       const uploadedImages = await Promise.all(uploadPromises);
       
       const newImages = [...images, ...uploadedImages];
