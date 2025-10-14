@@ -51,6 +51,14 @@ export const showToast = {
   dismissAll: () => {
     toast.dismiss();
   },
+
+  info: (message: string, description?: string) => {
+    toast(description ? `${message}\n${description}` : message, {
+      duration: 3000,
+      position: 'top-right',
+      icon: 'ℹ️',
+    });
+  },
 };
 
 /**

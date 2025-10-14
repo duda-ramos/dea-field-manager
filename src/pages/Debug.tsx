@@ -104,7 +104,7 @@ export default function Debug() {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([testProject])
+        .insert([testProject as any])
         .select()
         .single();
 
@@ -202,7 +202,7 @@ export default function Debug() {
 
       const { data: created, error: createError } = await supabase
         .from('projects')
-        .insert([testProject])
+        .insert([testProject as any])
         .select()
         .single();
 
@@ -271,7 +271,7 @@ export default function Debug() {
 
       const { data, error } = await supabase
         .from('installations')
-        .insert([testInstallation])
+        .insert([testInstallation as any])
         .select()
         .single();
 
@@ -333,7 +333,7 @@ export default function Debug() {
 
       const { data, error } = await supabase
         .from('installations')
-        .insert(installations)
+        .insert(installations as any)
         .select();
 
       if (error) throw error;

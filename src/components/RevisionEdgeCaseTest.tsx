@@ -79,11 +79,10 @@ export function RevisionEdgeCaseTest() {
       id: "test-installation-" + scenario,
       project_id: "test-project",
       tipologia: scenario === "empty-fields" ? "" : "Placa de Sinalização",
-      codigo: scenario === "empty-fields" ? "" : "TEST-001",
+      codigo: scenario === "empty-fields" ? 0 : 1001,
       descricao: scenario === "empty-fields" ? "" : "Placa de saída de emergência",
       quantidade: scenario === "empty-fields" ? 0 : 5,
       pavimento: scenario === "empty-fields" ? "" : "Térreo",
-      local: scenario === "empty-fields" ? "" : "Corredor Principal",
       diretriz_altura_cm: scenario === "empty-fields" ? undefined : 210,
       diretriz_dist_batente_cm: scenario === "empty-fields" ? undefined : 15,
       installed: scenario === "full-fields",
@@ -91,11 +90,7 @@ export function RevisionEdgeCaseTest() {
       revisao: scenario === "single" ? 1 : scenario === "many" ? 50 : 5,
       observacoes: scenario === "full-fields" ? "Instalação completa com todas as especificações" : "",
       comentarios_fornecedor: scenario === "full-fields" ? "Material de alta qualidade, instalação conforme normas" : "",
-      photos: scenario === "full-fields" ? [
-        { url: "photo1.jpg", caption: "Vista frontal" },
-        { url: "photo2.jpg", caption: "Vista lateral" }
-      ] : [],
-      created_at: new Date().toISOString(),
+      photos: scenario === "full-fields" ? ["photo1.jpg", "photo2.jpg"] : [],
       updated_at: new Date().toISOString()
     };
 
@@ -115,25 +110,26 @@ export function RevisionEdgeCaseTest() {
 
       const revision: ItemVersion = {
         id: `revision-${scenario}-${i}`,
-        instalacao_id: `test-installation-${scenario}`,
+        installationId: `test-installation-${scenario}`,
+        itemId: `test-installation-${scenario}`,
         revisao: i,
         type: i === 1 ? "created" : "edited",
-        motivo: i === 1 ? "created" : isEmptyFields ? "" : "revisao-conteudo",
+        motivo: (i === 1 ? "created" : isEmptyFields ? "outros" : "revisao-conteudo") as ItemVersion['motivo'],
         descricao_motivo: isEmptyFields ? "" : `Revisão ${i} - ${scenario}`,
         snapshot: {
           project_id: "test-project",
           tipologia: isEmptyFields ? "" : `Tipologia Rev ${i}`,
-          codigo: isEmptyFields ? "" : `CODE-${i}`,
+          codigo: isEmptyFields ? 0 : 1000 + i,
           descricao: isEmptyFields ? "" : `Descrição da revisão ${i}`,
           quantidade: isEmptyFields ? 0 : i,
           pavimento: isEmptyFields ? "" : `Pavimento ${i % 5}`,
-          local: isEmptyFields ? "" : `Local ${i}`,
           diretriz_altura_cm: isEmptyFields ? undefined : 200 + i,
           diretriz_dist_batente_cm: isEmptyFields ? undefined : 10 + i,
           installed: isFullFields ? i % 2 === 0 : false,
           observacoes: isFullFields ? `Observações detalhadas da revisão ${i}` : "",
           comentarios_fornecedor: isFullFields ? `Comentários do fornecedor para revisão ${i}` : "",
-          photos: isFullFields ? [{ url: `photo${i}.jpg`, caption: `Foto ${i}` }] : []
+          photos: isFullFields ? [`photo${i}.jpg`] : [],
+          updated_at: new Date(Date.now() - (count - i) * 60 * 60 * 1000).toISOString()
         },
         criadoEm: new Date(Date.now() - (count - i) * 60 * 60 * 1000).toISOString()
       };

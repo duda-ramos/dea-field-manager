@@ -178,6 +178,7 @@ export function ReportShareModal({
 
     // Save to Supabase database
     if (uploadedFilePath) {
+      /* Commented out - table doesn't exist yet
       try {
         const { data, error } = await supabase
           .from('project_report_history')
@@ -204,6 +205,7 @@ export function ReportShareModal({
         console.error('❌ Error saving report to database:', error);
         // Don't show error toast as local storage already has the report
       }
+      */
     }
   }, [blob, project, user, fileName, format, interlocutor, config]);
 

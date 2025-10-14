@@ -33,8 +33,9 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       // Load from local storage
       const localReports = await storage.getReports(projectId);
       
-      // Load from Supabase
+      // Load from Supabase - commented out as table doesn't exist yet
       let supabaseReports: any[] = [];
+      /* 
       if (user) {
         try {
           const { data, error } = await supabase
@@ -69,6 +70,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
           console.error('Error fetching Supabase reports:', error);
         }
       }
+      */
 
       // Merge reports, prioritizing Supabase reports (remove duplicates from local)
       const supabaseFileNames = new Set(supabaseReports.map(r => r.fileName));
@@ -209,6 +211,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const report = reports.find(r => r.id === reportId);
       
       // Delete from Supabase if it's a Supabase report
+      /* Commented out - table doesn't exist yet
       if (report && (report as any).source === 'supabase') {
         // Delete from database
         const { error: dbError } = await supabase
@@ -231,8 +234,9 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
           }
         }
       }
+      */
       
-      // Delete from local storage as well
+      // Delete from local storage
       try {
         await storage.deleteReport(reportId);
       } catch (error) {

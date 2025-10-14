@@ -62,7 +62,10 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
         .limit(20);
 
       if (error) throw error;
-      setBackups(data || []);
+      setBackups((data || []).map(b => ({
+        ...b,
+        backup_data: (typeof b.backup_data === 'object' && b.backup_data !== null) ? b.backup_data as Record<string, unknown> : {}
+      })));
     } catch (error) {
       logger.error('Erro ao carregar backups', {
         error,
@@ -87,7 +90,8 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
     try {
       // Simulate collecting project data
       const backupData = {
-        project,
+        project_name: project.name,
+        project_client: project.client,
         timestamp: new Date().toISOString(),
         type: 'manual',
         user_id: user.id
@@ -95,14 +99,14 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
 
       const { error } = await supabase
         .from('project_backups')
-        .insert({
+        .insert([{
           project_id: project.id,
           backup_type: 'manual',
-          backup_data: backupData as Record<string, unknown>,
+          backup_data: backupData as any,
           file_count: 0,
           total_size: JSON.stringify(backupData).length,
           restore_point: true
-        });
+        }]);
 
       if (error) throw error;
 
