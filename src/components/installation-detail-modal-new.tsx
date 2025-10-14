@@ -69,7 +69,7 @@ export function InstallationDetailModalNew({
         const versions = await storage.getItemVersions(installation.id);
         setVersions(versions);
       } catch (error) {
-        console.error('Erro ao carregar versões:', error);
+        // Erro já é tratado com toast
         toast({
           title: "Erro ao carregar histórico",
           description: "Não foi possível carregar o histórico de revisões.",
@@ -138,7 +138,7 @@ export function InstallationDetailModalNew({
         showToast.success("Instalação atualizada", "As informações foram salvas com sucesso.");
       }
     } catch (error) {
-      console.error('Erro ao salvar instalação:', error);
+      // Erro já é tratado com toast
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as alterações. Tente novamente.",
@@ -348,7 +348,7 @@ export function InstallationDetailModalNew({
         );
       }
     } catch (error) {
-      console.error("Erro ao restaurar versão:", error);
+      // Erro já é tratado com toast
       toast({
         title: "Erro ao restaurar versão",
         description: "Não foi possível restaurar esta versão. Tente novamente.",
