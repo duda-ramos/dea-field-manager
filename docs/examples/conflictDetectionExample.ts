@@ -1,4 +1,8 @@
 /**
+ * NOTA: Este é um exemplo de como a detecção foi integrada.
+ * O sistema agora está ATIVO em src/services/sync/sync.ts
+ * Este arquivo serve apenas como referência de implementação.
+ * 
  * Exemplo de integração da detecção de conflitos na sincronização
  * 
  * Este arquivo demonstra como modificar a função pullEntityType existente
