@@ -90,18 +90,29 @@ async function createTestInstallation(projectId: string, index: number) {
   // Criar primeira revisão (criação)
   await createRevision(installation.id, 1, 'created', null, installation);
 
+  let currentInstallation = installation;
+
   // Criar revisões adicionais baseado no índice
   if (index > 0) {
     const numRevisions = index === 1 ? 3 : index === 2 ? 5 : 8;
-    
+
     for (let i = 2; i <= numRevisions; i++) {
       // Simular alterações progressivas
-      const changes = generateRandomChanges(installation, i);
-      
+      const changes = generateRandomChanges(currentInstallation, i);
+
+      const updatedAt = new Date().toISOString();
+      const nextInstallationState = {
+        ...currentInstallation,
+        ...changes,
+        revisado: true,
+        revisao: i,
+        updated_at: updatedAt
+      };
+
       // Tipo de revisão
-      const type = i === numRevisions && index === 3 ? 'restored' : 
+      const type = i === numRevisions && index === 3 ? 'restored' :
                    faker.helpers.arrayElement(revisionTypes);
-      
+
       const description = type === 'restored' ? 
         'Restauração para versão anterior' :
         faker.helpers.arrayElement(revisionDescriptions[type as keyof typeof revisionDescriptions]);
@@ -115,7 +126,7 @@ async function createTestInstallation(projectId: string, index: number) {
           motivo: type,
           descricao_motivo: description
         },
-        { ...installation, ...changes }
+        nextInstallationState
       );
 
       // Atualizar instalação com as mudanças
@@ -125,7 +136,7 @@ async function createTestInstallation(projectId: string, index: number) {
           ...changes,
           revisado: true,
           revisao: i,
-          updated_at: new Date().toISOString()
+          updated_at: updatedAt
         })
         .eq('id', installation.id);
 
@@ -133,6 +144,7 @@ async function createTestInstallation(projectId: string, index: number) {
         console.error(`❌ Erro ao atualizar instalação para revisão ${i}:`, updateError);
       } else {
         console.log(`  ↳ Revisão ${i} criada: ${type} - ${description}`);
+        currentInstallation = nextInstallationState;
       }
 
       // Delay para simular tempo entre revisões
@@ -140,7 +152,7 @@ async function createTestInstallation(projectId: string, index: number) {
     }
   }
 
-  return installation;
+  return currentInstallation;
 }
 
 async function createRevision(
