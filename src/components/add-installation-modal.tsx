@@ -43,10 +43,6 @@ export function AddInstallationModal({
     pendencia_descricao: ""
   });
   
-  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
-  const [overwriteMotivo, setOverwriteMotivo] = useState<string>("");
-  const [overwriteDescricao, setOverwriteDescricao] = useState("");
-  const [existingInstallation, setExistingInstallation] = useState<Installation | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -95,10 +91,6 @@ export function AddInstallationModal({
       pendencia_tipo: "",
       pendencia_descricao: ""
     });
-    setShowOverwriteConfirm(false);
-    setOverwriteMotivo("");
-    setOverwriteDescricao("");
-    setExistingInstallation(null);
   };
 
   const handleClose = () => {
@@ -106,19 +98,7 @@ export function AddInstallationModal({
     onClose();
   };
 
-  const checkForExistingInstallation = async () => {
-    const installations = await storage.getInstallationsByProject(projectId);
-    const codigo = parseInt(formData.codigo);
-    
-    if (isNaN(codigo)) return null;
-    
-    return installations.find(inst => 
-      inst.codigo === codigo && 
-      inst.tipologia === formData.tipologia && 
-      inst.pavimento === formData.pavimento &&
-      inst.id !== editingInstallation?.id // Exclude current item when editing
-    );
-  };
+  // Removed duplicate code check - codes can be duplicated
 
   const handleSubmit = async () => {
     // Validate required fields
@@ -156,16 +136,7 @@ export function AddInstallationModal({
       return;
     }
 
-    // Check for existing installation only when creating new (not editing)
-    if (!editingInstallation) {
-      const existing = await checkForExistingInstallation();
-      if (existing) {
-        setExistingInstallation(existing);
-        setShowOverwriteConfirm(true);
-        return;
-      }
-    }
-
+    // Removed duplicate code check - codes can be duplicated
     // Proceed with save
     saveInstallation();
   };
@@ -191,28 +162,6 @@ export function AddInstallationModal({
         pendencia_descricao: formData.pendencia_descricao || undefined
       })
     };
-
-    if (existingInstallation && showOverwriteConfirm && !editingInstallation) {
-      if (!overwriteMotivo) {
-        toast({
-          title: "Erro",
-          description: "Selecione um motivo para a revisão",
-          variant: "destructive"
-        });
-        showToast.error("Erro", "Selecione um motivo para a revisão");
-        return;
-      }
-
-      if (overwriteMotivo === 'outros' && !overwriteDescricao.trim()) {
-        toast({
-          title: "Erro",
-          description: "Descreva o motivo da revisão",
-          variant: "destructive"
-        });
-        showToast.error("Erro", "Descreva o motivo da revisão");
-        return;
-      }
-    }
 
     setIsSaving(true);
 
@@ -257,23 +206,6 @@ export function AddInstallationModal({
         showToast.success(
           "Peça atualizada",
           `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
-        );
-      } else if (existingInstallation && showOverwriteConfirm) {
-        // Overwrite existing installation
-        savedInstallation = await storage.upsertInstallation({
-          ...existingInstallation,
-          ...installationData,
-          revisado: true,
-          revisao: (existingInstallation.revisao || 1) + 1
-        });
-
-        toast({
-          title: "Peça atualizada",
-          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`,
-        });
-        showToast.success(
-          "Peça atualizada",
-          `${savedInstallation.codigo} ${savedInstallation.descricao} foi revisada (rev. ${savedInstallation.revisao})`
         );
       } else {
         // Create new installation
@@ -339,73 +271,6 @@ export function AddInstallationModal({
       setIsSaving(false);
     }
   };
-
-  const motivosOptions = [
-    { value: 'problema-instalacao', label: 'Problema de instalação' },
-    { value: 'revisao-conteudo', label: 'Revisão de conteúdo' },
-    { value: 'desaprovado-cliente', label: 'Desaprovado pelo cliente' },
-    { value: 'outros', label: 'Outros' },
-  ];
-
-  if (showOverwriteConfirm) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmar Revisão</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Já existe uma peça com código <strong>{formData.codigo}</strong>, tipologia <strong>{formData.tipologia}</strong> 
-              e pavimento <strong>{formData.pavimento}</strong>. Deseja criar uma revisão?
-            </p>
-
-            <div>
-              <Label>Motivo da revisão *</Label>
-              <Select value={overwriteMotivo} onValueChange={setOverwriteMotivo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o motivo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {motivosOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {overwriteMotivo === 'outros' && (
-              <div>
-                <Label>Descrição do motivo *</Label>
-                <Textarea
-                  value={overwriteDescricao}
-                  onChange={(e) => setOverwriteDescricao(e.target.value)}
-                  placeholder="Descreva o motivo da revisão..."
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowOverwriteConfirm(false)} disabled={isSaving}>
-                Cancelar
-              </Button>
-              <Button onClick={saveInstallation} disabled={isSaving}>
-                {isSaving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>
-                ) : (
-                  'Confirmar Revisão'
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

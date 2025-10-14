@@ -83,7 +83,7 @@ const supabase = createClient<Database>(
 // Hash API key function using bcrypt (secure)
 async function hashKey(key: string): Promise<string> {
   // Use bcrypt with salt rounds of 12 for security
-  return await bcrypt.hash(key, 12)
+  return await bcrypt.hash(key, "12")
 }
 
 // Verify API key against hash
@@ -124,27 +124,31 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
 
   // Find matching key by comparing hashes
   for (const keyData of apiKeys) {
-    const isMatch = await verifyKey(apiKey, keyData.key_hash)
+    if (!keyData || typeof keyData !== 'object') continue;
+    
+    const isMatch = await verifyKey(apiKey, (keyData as any).key_hash || '')
     
     if (isMatch) {
       // Check if key is expired
-      if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
+      const expiresAt = (keyData as any).expires_at;
+      if (expiresAt && new Date(expiresAt) < new Date()) {
         console.warn('API key expired')
         return null
       }
 
       // Update last used timestamp (async, don't await)
+      const keyId = (keyData as any).id;
       supabase
         .from('api_keys')
-        .update({ last_used_at: new Date().toISOString() })
-        .eq('id', keyData.id)
+        .update({ last_used_at: new Date().toISOString() } as any)
+        .eq('id', keyId)
         .then(() => console.log('API key last_used_at updated'))
         .catch(err => console.error('Error updating last_used_at:', err))
 
       return {
-        user_id: keyData.user_id,
-        permissions: keyData.permissions,
-        api_key_id: keyData.id
+        user_id: (keyData as any).user_id,
+        permissions: (keyData as any).permissions,
+        api_key_id: keyId
       }
     }
   }
