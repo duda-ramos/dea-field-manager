@@ -39,6 +39,20 @@ const notifySubscribers = () => {
   listeners.forEach((listener) => listener());
 };
 
+const isSameConflict = (
+  a: ConflictDetails | null,
+  b: ConflictDetails | null
+): boolean => {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    a.recordType === b.recordType &&
+    a.localVersion.id === b.localVersion.id
+  );
+};
+
 const loadPersistedData = (): ConflictStoreData => {
   if (!isBrowser) {
     return { ...defaultData };
@@ -135,13 +149,17 @@ const initializeState = (): ConflictState => {
     ...base,
     addConflict: (conflict) => {
       setState((state) => {
-        const exists = state.pendingConflicts.some(
-          (c) =>
-            c.recordType === conflict.recordType &&
-            c.localVersion.id === conflict.localVersion.id
+        const existsInPending = state.pendingConflicts.some((c) =>
+          isSameConflict(c, conflict)
         );
 
-        if (exists) {
+        const matchesCurrent = isSameConflict(state.currentConflict, conflict);
+
+        if (existsInPending || matchesCurrent) {
+          if (matchesCurrent && !state.showConflictAlert) {
+            return { showConflictAlert: true } satisfies Partial<ConflictState>;
+          }
+
           return state;
         }
 
