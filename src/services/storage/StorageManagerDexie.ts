@@ -302,7 +302,104 @@ export const StorageManagerDexie: any = {
 
   // -------- INSTALLATIONS ----------
   async getInstallationsByProject(projectId: string) {
-    return db.installations.where('project_id').equals(projectId).and(item => item._deleted !== 1).toArray();
+    const installations = await db.installations
+      .where('project_id')
+      .equals(projectId)
+      .and(item => item._deleted !== 1)
+      .toArray();
+
+    if (installations.length === 0) {
+      return installations;
+    }
+
+    const installationIds = installations.map(installation => installation.id);
+    const allVersions = await db.itemVersions
+      .where('installationId')
+      .anyOf(installationIds)
+      .and(version => version._deleted !== 1)
+      .toArray();
+
+    const versionsByInstallation = new Map<string, ItemVersion[]>();
+    for (const version of allVersions) {
+      const existing = versionsByInstallation.get(version.installationId) ?? [];
+      existing.push(version);
+      versionsByInstallation.set(version.installationId, existing);
+    }
+
+    const installationsWithLatest = await Promise.all(
+      installations.map(async installation => {
+        const versions = versionsByInstallation.get(installation.id);
+        if (!versions || versions.length === 0) {
+          return installation;
+        }
+
+        const latestVersion = versions.reduce<ItemVersion | null>((latest, current) => {
+          if (!latest) return current;
+
+          const latestRevision = latest.revisao ?? 0;
+          const currentRevision = current.revisao ?? 0;
+
+          if (currentRevision > latestRevision) {
+            return current;
+          }
+
+          if (currentRevision === latestRevision) {
+            const latestCreated = latest.createdAt ?? new Date(latest.criadoEm).getTime();
+            const currentCreated = current.createdAt ?? new Date(current.criadoEm).getTime();
+            if (currentCreated > latestCreated) {
+              return current;
+            }
+          }
+
+          return latest;
+        }, null);
+
+        if (!latestVersion) {
+          return installation;
+        }
+
+        const snapshotData = latestVersion.snapshot ?? {};
+        const mergedInstallation: Installation = { ...installation };
+
+        Object.entries(snapshotData).forEach(([key, value]) => {
+          if (value !== undefined) {
+            (mergedInstallation as any)[key] = value;
+          }
+        });
+
+        mergedInstallation.revisao = latestVersion.revisao ?? installation.revisao;
+        mergedInstallation.revisado = latestVersion.revisao
+          ? latestVersion.revisao > 1
+          : installation.revisado;
+        mergedInstallation.project_id = installation.project_id;
+
+        if (installation.projectId) {
+          mergedInstallation.projectId = installation.projectId;
+        }
+
+        if (!mergedInstallation.updated_at && installation.updated_at) {
+          mergedInstallation.updated_at = installation.updated_at;
+        }
+
+        if (!mergedInstallation.updatedAt && installation.updatedAt) {
+          mergedInstallation.updatedAt = installation.updatedAt;
+        }
+
+        const hasChanges = Object.keys(mergedInstallation).some(key => {
+          const typedKey = key as keyof Installation;
+          return mergedInstallation[typedKey] !== installation[typedKey];
+        });
+
+        if (hasChanges) {
+          await db.installations.put(mergedInstallation);
+          return mergedInstallation;
+        }
+
+        return installation;
+      })
+    );
+
+    return installationsWithLatest;
   },
   async upsertInstallation(installation: Installation) {
     const withDates = { 
