@@ -1630,7 +1630,10 @@ function getMotivoPtBr(motivo: string): string {
     'revisao-conteudo': 'Revisão de conteúdo',
     'desaprovado-cliente': 'Desaprovado pelo cliente',
     'update-manual': 'Atualização manual',
-    'outros': 'Outros'
+    'outros': 'Outros',
+    created: 'Criação da instalação',
+    edited: 'Edição da instalação',
+    restored: 'Revisão restaurada',
   };
   return motivosMap[motivo] || motivo;
 }
