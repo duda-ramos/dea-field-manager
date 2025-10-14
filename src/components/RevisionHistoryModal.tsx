@@ -3,15 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Installation, ItemVersion } from "@/types";
-import { Clock, Eye, RotateCcw, X } from "lucide-react";
+import { Clock, Eye, RotateCcw, X, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { VersionDiffView } from "./VersionDiffView";
 
 interface RevisionHistoryModalProps {
   installation: Installation;
@@ -28,7 +26,7 @@ export function RevisionHistoryModal({
   onClose,
   onRestore,
 }: RevisionHistoryModalProps) {
-  const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
+  const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const [versionToRestore, setVersionToRestore] = useState<ItemVersion | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -85,6 +83,17 @@ export function RevisionHistoryModal({
     new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
   );
 
+  // Helper to get previous revision
+  const getPreviousRevision = (currentIndex: number): ItemVersion | null => {
+    // Next item in the sorted array is the previous revision (older)
+    return sortedRevisions[currentIndex + 1] || null;
+  };
+
+  // Toggle expansion
+  const toggleExpansion = (versionId: string) => {
+    setExpandedVersionId(expandedVersionId === versionId ? null : versionId);
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -127,204 +136,107 @@ export function RevisionHistoryModal({
                 <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
                 
                 <div className="space-y-6">
-                  {sortedRevisions.map((revision, index) => (
-                    <div key={revision.id} className="relative pl-14">
-                      {/* Timeline dot */}
-                      <div className="absolute left-4 top-6 h-5 w-5 rounded-full border-4 border-background bg-primary" />
-                      
-                      <Card className="shadow-sm hover:shadow-md transition-shadow">
-                        <CardContent className="pt-6">
-                          <div className="space-y-4">
-                            {/* Header */}
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-lg">
-                                    Revisão {revision.revisao}
-                                  </span>
-                                  {getChangeTypeBadge(revision.motivo)}
+                  {sortedRevisions.map((revision, index) => {
+                    const isExpanded = expandedVersionId === revision.id;
+                    const previousRevision = getPreviousRevision(index);
+                    
+                    return (
+                      <div key={revision.id} className="relative pl-14">
+                        {/* Timeline dot */}
+                        <div className="absolute left-4 top-6 h-5 w-5 rounded-full border-4 border-background bg-primary" />
+                        
+                        <Card className="shadow-sm hover:shadow-md transition-shadow">
+                          <CardContent className="pt-6">
+                            <div className="space-y-4">
+                              {/* Header */}
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-lg">
+                                      Revisão {revision.revisao}
+                                    </span>
+                                    {getChangeTypeBadge(revision.motivo)}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Clock className="h-4 w-4" />
+                                    <span>
+                                      {format(new Date(revision.criadoEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                    </span>
+                                  </div>
+                                  {revision.descricao_motivo && (
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                      {revision.descricao_motivo}
+                                    </p>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-4 w-4" />
-                                  <span>
-                                    {format(new Date(revision.criadoEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                  </span>
+                                
+                                {/* Action buttons */}
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleExpansion(revision.id)}
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="h-4 w-4 mr-2" />
+                                        Ocultar
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Ver Detalhes
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setVersionToRestore(revision)}
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Restaurar
+                                  </Button>
                                 </div>
-                                {revision.descricao_motivo && (
-                                  <p className="text-sm text-muted-foreground mt-2">
-                                    {revision.descricao_motivo}
-                                  </p>
-                                )}
                               </div>
-                              
-                              {/* Action buttons */}
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedVersion(revision)}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalhes
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setVersionToRestore(revision)}
-                                >
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                  Restaurar
-                                </Button>
-                              </div>
-                            </div>
 
-                            {/* Quick preview */}
-                            <div className="grid grid-cols-3 gap-3 pt-3 border-t text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Tipologia:</span>
-                                <p className="font-medium truncate">{revision.snapshot.tipologia}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Quantidade:</span>
-                                <p className="font-medium">{revision.snapshot.quantidade}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Pavimento:</span>
-                                <p className="font-medium truncate">{revision.snapshot.pavimento}</p>
-                              </div>
+                              {/* Quick preview */}
+                              {!isExpanded && (
+                                <div className="grid grid-cols-3 gap-3 pt-3 border-t text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground">Tipologia:</span>
+                                    <p className="font-medium truncate">{revision.snapshot.tipologia}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Quantidade:</span>
+                                    <p className="font-medium">{revision.snapshot.quantidade}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Pavimento:</span>
+                                    <p className="font-medium truncate">{revision.snapshot.pavimento}</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Expanded diff view */}
+                              {isExpanded && (
+                                <VersionDiffView
+                                  currentRevision={revision.snapshot}
+                                  previousRevision={previousRevision?.snapshot || null}
+                                />
+                              )}
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ))}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
-
-      {/* Version Detail Modal */}
-      {selectedVersion && (
-        <Dialog open={!!selectedVersion} onOpenChange={() => setSelectedVersion(null)}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <span>Revisão {selectedVersion.revisao}</span>
-                <span className="text-muted-foreground font-normal">-</span>
-                <span className="font-normal">{selectedVersion.snapshot.codigo} {selectedVersion.snapshot.descricao}</span>
-              </DialogTitle>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
-                <Clock className="h-4 w-4" />
-                <span>
-                  {format(new Date(selectedVersion.criadoEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </span>
-                <span className="mx-2">•</span>
-                {getChangeTypeBadge(selectedVersion.motivo)}
-              </div>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              {selectedVersion.descricao_motivo && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <Label className="text-sm font-medium">Motivo da Revisão</Label>
-                  <p className="text-sm mt-1">{selectedVersion.descricao_motivo}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Tipologia</Label>
-                  <Input value={selectedVersion.snapshot.tipologia} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Código</Label>
-                  <Input value={String(selectedVersion.snapshot.codigo)} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Quantidade</Label>
-                  <Input value={String(selectedVersion.snapshot.quantidade)} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Pavimento</Label>
-                  <Input value={selectedVersion.snapshot.pavimento} readOnly className="bg-muted" />
-                </div>
-              </div>
-
-              <div>
-                <Label>Descrição</Label>
-                <Textarea 
-                  value={selectedVersion.snapshot.descricao} 
-                  readOnly 
-                  className="bg-muted min-h-[80px]" 
-                />
-              </div>
-
-              {(selectedVersion.snapshot.diretriz_altura_cm || selectedVersion.snapshot.diretriz_dist_batente_cm) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Altura da Diretriz (cm)</Label>
-                    <Input 
-                      value={selectedVersion.snapshot.diretriz_altura_cm ? String(selectedVersion.snapshot.diretriz_altura_cm) : "Não especificado"} 
-                      readOnly 
-                      className="bg-muted" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Distância do Batente (cm)</Label>
-                    <Input 
-                      value={selectedVersion.snapshot.diretriz_dist_batente_cm ? String(selectedVersion.snapshot.diretriz_dist_batente_cm) : "Não especificado"} 
-                      readOnly 
-                      className="bg-muted" 
-                    />
-                  </div>
-                </div>
-              )}
-
-              {selectedVersion.snapshot.observacoes && (
-                <div>
-                  <Label>Observações</Label>
-                  <Textarea 
-                    value={selectedVersion.snapshot.observacoes} 
-                    readOnly 
-                    className="bg-muted min-h-[80px]" 
-                  />
-                </div>
-              )}
-
-              {selectedVersion.snapshot.comentarios_fornecedor && (
-                <div>
-                  <Label>Comentários para o Fornecedor</Label>
-                  <Textarea 
-                    value={selectedVersion.snapshot.comentarios_fornecedor} 
-                    readOnly 
-                    className="bg-muted min-h-[80px]" 
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setSelectedVersion(null)}
-                >
-                  Fechar
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setVersionToRestore(selectedVersion);
-                    setSelectedVersion(null);
-                  }}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Restaurar Esta Versão
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Restore Confirmation Dialog */}
       <AlertDialog open={!!versionToRestore} onOpenChange={() => setVersionToRestore(null)}>
