@@ -41,7 +41,7 @@ export function RevisionHistoryModal({
       setVersionToRestore(null);
       onClose();
     } catch (error) {
-      console.error("Erro ao restaurar versão:", error);
+      // Erro já é tratado pelo componente pai
     } finally {
       setIsRestoring(false);
       setRestoringVersionId(null);
