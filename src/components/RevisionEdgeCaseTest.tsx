@@ -156,7 +156,7 @@ export function RevisionEdgeCaseTest() {
 
   const handleRestore = async (version: ItemVersion) => {
     // Simulate restore operation
-    console.log("Restoring version:", version);
+    // Restaurar versão selecionada
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
