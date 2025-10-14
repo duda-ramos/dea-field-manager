@@ -199,8 +199,8 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
             }
 
             // No conflict or no local changes - apply remote version
-            const localRecord = transformRecordForLocal(remoteRecord, entityName);
-            await localTable.put(localRecord);
+            const transformedRecord = transformRecordForLocal(remoteRecord, entityName);
+            await localTable.put(transformedRecord);
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);

@@ -1,8 +1,25 @@
 // This file contains the modifications needed for the sync.ts file
 // to integrate conflict detection
 
-import { pullEntityWithConflictDetection, transformForUploadWithForceCheck } from './syncWithConflictDetection';
 import { clearForceUploadFlag } from '@/lib/conflictResolution';
+
+function transformForUploadWithForceCheck(
+  record: any,
+  transformRecordForSupabase: any,
+  entityName: string,
+  userId: string
+) {
+  const normalizedRecord = transformRecordForSupabase(record, entityName, userId);
+
+  if (record._forceUpload) {
+    return {
+      ...normalizedRecord,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  return normalizedRecord;
+}
 
 // Export the modified push function that checks for force upload
 export async function pushEntityTypeWithForceCheck(
