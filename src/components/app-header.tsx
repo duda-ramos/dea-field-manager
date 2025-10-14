@@ -8,6 +8,7 @@ import { NotificationSystem } from "@/components/notifications/NotificationSyste
 import { useTheme } from "@/providers/theme-provider"
 import { useState, useEffect } from "react"
 import { syncStateManager, type SyncState } from "@/services/sync/syncState"
+import { ConflictBadge } from "@/components/ConflictManager"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +91,8 @@ export function AppHeader() {
 
         <div className="flex items-center gap-2">
           {getStatusBadge()}
+          
+          <ConflictBadge />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

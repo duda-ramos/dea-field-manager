@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { onlineMonitor } from "@/services/sync/onlineMonitor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useUndoShortcut } from "@/hooks/useUndoShortcut";
+import { ConflictManager } from "@/components/ConflictManager";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -93,6 +94,7 @@ const App = () => {
                   },
                 }}
               />
+              <ConflictManager />
               <BrowserRouter>
                 <ErrorBoundary>
                   <Routes>
