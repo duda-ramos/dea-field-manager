@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function AppHeader() {
-  const { theme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
   const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState())
   const [isOnline, setIsOnline] = useState(navigator.onLine)
 

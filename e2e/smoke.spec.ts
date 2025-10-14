@@ -59,7 +59,7 @@ test.describe('Smoke Tests', () => {
     await page.waitForTimeout(1000);
     
     // Check for offline indicator
-    const offlineIndicator = page.locator(':has-text("Offline"), :has-text("offline"), [data-testid="offline-status"]');
+    const _offlineIndicator = page.locator(':has-text("Offline"), :has-text("offline"), [data-testid="offline-status"]');
     
     // App should still be functional offline
     await expect(page.locator('body')).toBeVisible();

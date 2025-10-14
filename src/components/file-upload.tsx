@@ -120,7 +120,7 @@ export function FileUpload({
 
     setUploadProgress(prev => ({ ...prev, [id]: 100 }));
     setUploadProgress(prev => {
-      const { [id]: removed, ...rest } = prev;
+      const { [id]: _removed, ...rest } = prev;
       return rest;
     });
 

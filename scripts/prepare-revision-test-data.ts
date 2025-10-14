@@ -226,7 +226,7 @@ async function main() {
   console.log('🚀 Iniciando criação de dados de teste para o sistema de revisões\n');
 
   // Verificar se há um projeto de teste ou criar um
-  let { data: projects } = await supabase
+  const { data: projects } = await supabase
     .from('projects')
     .select('id, name')
     .ilike('name', '%teste%revisão%')

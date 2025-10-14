@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logger } from '@/services/logger';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   BarChart,
@@ -21,8 +19,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
-import { storage } from '@/lib/storage';
+import { TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
 

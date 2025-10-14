@@ -3,8 +3,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Filter, MapPin } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isSameDay, eachDayOfInterval, isWeekend, addDays, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, startOfYear, endOfYear, eachMonthOfInterval, addYears, subYears, isToday, isWithinInterval } from 'date-fns';
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isSameDay, eachDayOfInterval, addDays, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, startOfYear, endOfYear, eachMonthOfInterval, addYears, subYears, isToday, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarEvent, CalendarBlock, CalendarView as ViewType } from '@/types/calendar';
 import { calendarService } from '@/services/calendar';
@@ -96,16 +96,6 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
     return blocks.map(block => parseISO(block.blocked_date + 'T00:00:00'));
   };
 
-  const getEventTypeColor = (type: CalendarEvent['event_type']) => {
-    const colors = {
-      task: 'bg-primary',
-      meeting: 'bg-emerald-500',
-      installation: 'bg-amber-500', 
-      deadline: 'bg-destructive',
-      reminder: 'bg-violet-500'
-    };
-    return colors[type] || 'bg-muted';
-  };
 
   const getStatusBadgeVariant = (status: CalendarEvent['status']) => {
     const variants = {

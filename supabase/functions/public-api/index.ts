@@ -17,7 +17,7 @@ const CreateProjectSchema = z.object({
   status: z.enum(['planning', 'in_progress', 'completed', 'on_hold']).optional(),
 })
 
-const CreateInstallationSchema = z.object({
+const _CreateInstallationSchema = z.object({
   codigo: z.number().int().positive('Codigo must be positive'),
   descricao: z.string().trim().min(1, 'Description is required').max(500, 'Description too long'),
   tipologia: z.string().trim().min(1, 'Type is required').max(100, 'Type too long'),
@@ -81,7 +81,7 @@ const supabase = createClient<Database>(
 )
 
 // Hash API key function using bcrypt (secure)
-async function hashKey(key: string): Promise<string> {
+async function _hashKey(key: string): Promise<string> {
   // Use bcrypt with salt rounds of 12 for security
   return await bcrypt.hash(key, "12")
 }
@@ -291,7 +291,7 @@ serve(async (req) => {
     }
 
     // Project by ID endpoints
-    const projectMatch = path.match(/^\/projects\/([^\/]+)$/)
+    const projectMatch = path.match(/^\/projects\/([^/]+)$/)
     if (projectMatch && method === 'GET') {
       if (!auth.permissions.read) {
         return new Response(
@@ -322,7 +322,7 @@ serve(async (req) => {
     }
 
     // Installations endpoints
-    const installationsMatch = path.match(/^\/projects\/([^\/]+)\/installations$/)
+    const installationsMatch = path.match(/^\/projects\/([^/]+)\/installations$/)
     if (installationsMatch && method === 'GET') {
       if (!auth.permissions.read) {
         return new Response(

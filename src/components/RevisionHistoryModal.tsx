@@ -40,7 +40,7 @@ export function RevisionHistoryModal({
       await onRestore(versionToRestore);
       setVersionToRestore(null);
       onClose();
-    } catch (error) {
+    } catch (_error) {
       // Erro já é tratado pelo componente pai
     } finally {
       setIsRestoring(false);

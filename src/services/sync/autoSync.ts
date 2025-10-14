@@ -69,7 +69,7 @@ class AutoSyncManager {
       try {
         // Non-blocking background sync
         void syncPush();
-      } catch (error) {
+      } catch (_error) {
         // Background sync failure logged via logger service
       }
     }
@@ -81,7 +81,7 @@ class AutoSyncManager {
       try {
         // Simple push without blocking
         void syncPush();
-      } catch (error) {
+      } catch (_error) {
         // Page unload sync failure (expected behavior)
       }
     }
@@ -93,7 +93,7 @@ class AutoSyncManager {
       try {
         await fullSync();
         await realtimeManager.reconnect();
-      } catch (error) {
+      } catch (_error) {
         // Reconnection sync failed - logged via logger service
       }
     }
@@ -111,7 +111,7 @@ class AutoSyncManager {
           // Debounced auto-push in progress
           await syncPush();
           // Debounced auto-push completed
-        } catch (error) {
+        } catch (_error) {
           // Debounced push failed - logged via logger service
         }
       }
@@ -123,7 +123,7 @@ class AutoSyncManager {
       // Auto-pull on start in progress
       await syncPull();
       // Auto-pull completed
-    } catch (error) {
+    } catch (_error) {
       // Auto-pull failed - logged via logger service
     }
   }
@@ -149,7 +149,7 @@ class AutoSyncManager {
           // Periodic auto-pull in progress
           await syncPull();
           // Periodic auto-pull completed
-        } catch (error) {
+        } catch (_error) {
           // Periodic pull failed - logged via logger service
         }
       }

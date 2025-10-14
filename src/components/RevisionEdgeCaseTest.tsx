@@ -150,7 +150,7 @@ export function RevisionEdgeCaseTest() {
     }, 1000);
   };
 
-  const handleRestore = async (version: ItemVersion) => {
+  const handleRestore = async (_version: ItemVersion) => {
     // Simulate restore operation
     // Restaurar versão selecionada
     await new Promise(resolve => setTimeout(resolve, 1000));

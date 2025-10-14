@@ -173,15 +173,15 @@ export class FileSyncService {
 
     // Prepare data for Supabase (remove local-only fields)
     const {
-      updatedAt,
-      createdAt,
+      updatedAt: _updatedAt,
+      createdAt: _createdAt,
       _dirty,
       _deleted,
-      projectId,
-      installationId,
-      storagePath,
+      projectId: _projectId,
+      installationId: _installationId,
+      storagePath: _storagePath,
       uploadedAt,
-      needsUpload,
+      needsUpload: _needsUpload,
       ...fileData
     } = file;
 

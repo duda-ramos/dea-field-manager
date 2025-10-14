@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
-import { Camera, Upload, Image as ImageIcon, Download, Search, Filter, Tag, Loader2, X, AlertCircle } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Search, Filter, Tag, Loader2, X, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
