@@ -1,3 +1,13 @@
+import type { InstallationVersionSnapshot, RevisionType } from "./installation";
+
+export type {
+  Installation,
+  InstallationRevision,
+  InstallationRevisionData,
+  InstallationVersionSnapshot,
+  RevisionType,
+} from "./installation";
+
 export interface Project {
   id: string;
   name: string;
@@ -25,47 +35,14 @@ export interface Project {
   _deleted?: number;
 }
 
-export interface Installation {
-  id: string;
-  project_id: string;
-  // Campos obrigatórios
-  tipologia: string;
-  codigo: number;
-  descricao: string;
-  quantidade: number;
-  pavimento: string;
-  // Campos opcionais
-  diretriz_altura_cm?: number;
-  diretriz_dist_batente_cm?: number;
-  observacoes?: string;
-  comentarios_fornecedor?: string;
-  // Campos de pendências
-  pendencia_tipo?: 'cliente' | 'fornecedor' | 'projetista';
-  pendencia_descricao?: string;
-  // Campos existentes mantidos
-  installed: boolean;
-  installed_at?: string;
-  status?: 'ativo' | 'on hold' | 'cancelado' | 'pendente';
-  updated_at: string;
-  photos: string[];
-  // Campos de revisão
-  revisado: boolean;
-  revisao: number;
-  // Local timestamp for compatibility
-  updatedAt?: number;
-  createdAt?: number;
-  // Sync flags
-  _dirty?: number;
-  _deleted?: number;
-}
-
 export interface ItemVersion {
   id: string;
   installationId: string;
   itemId: string;
-  snapshot: Omit<Installation, 'id' | 'revisado' | 'revisao'>;
+  snapshot: InstallationVersionSnapshot;
   revisao: number;
-  motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros';
+  motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros' | 'restored';
+  type?: RevisionType;
   descricao_motivo?: string;
   criadoEm: string;
   createdAt?: number;

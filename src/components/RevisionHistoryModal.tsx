@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Installation, ItemVersion } from "@/types";
-import { Clock, Eye, RotateCcw, X, ChevronUp } from "lucide-react";
+import { Clock, Eye, X, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VersionDiffView } from "./VersionDiffView";
@@ -29,11 +29,13 @@ export function RevisionHistoryModal({
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const [versionToRestore, setVersionToRestore] = useState<ItemVersion | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
 
   const handleRestore = async () => {
     if (!versionToRestore) return;
-    
+
     setIsRestoring(true);
+    setRestoringVersionId(versionToRestore.id);
     try {
       await onRestore(versionToRestore);
       setVersionToRestore(null);
@@ -42,10 +44,14 @@ export function RevisionHistoryModal({
       console.error("Erro ao restaurar versão:", error);
     } finally {
       setIsRestoring(false);
+      setRestoringVersionId(null);
     }
   };
 
-  const getChangeTypeLabel = (motivo: string) => {
+  const getRevisionTypeKey = (revision: ItemVersion) => revision.type || revision.motivo;
+
+  const getChangeTypeLabel = (revision: ItemVersion) => {
+    const typeKey = getRevisionTypeKey(revision);
     const labels: Record<string, string> = {
       'problema-instalacao': 'Problema de Instalação',
       'revisao-conteudo': 'Revisão de Conteúdo',
@@ -55,10 +61,11 @@ export function RevisionHistoryModal({
       'edited': 'Editado',
       'restored': 'Restaurado',
     };
-    return labels[motivo] || motivo;
+    return labels[typeKey] || typeKey;
   };
 
-  const getChangeTypeBadge = (motivo: string) => {
+  const getChangeTypeBadge = (revision: ItemVersion) => {
+    const typeKey = getRevisionTypeKey(revision);
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
       'problema-instalacao': { variant: "destructive", className: "bg-red-100 text-red-800 border-red-300" },
       'revisao-conteudo': { variant: "default", className: "bg-blue-100 text-blue-800 border-blue-300" },
@@ -68,12 +75,12 @@ export function RevisionHistoryModal({
       'edited': { variant: "secondary", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
       'restored': { variant: "outline", className: "bg-purple-100 text-purple-800 border-purple-300" },
     };
-    
-    const badgeConfig = variants[motivo] || variants['outros'];
-    
+
+    const badgeConfig = variants[typeKey] || variants['outros'];
+
     return (
       <Badge variant={badgeConfig.variant} className={badgeConfig.className}>
-        {getChangeTypeLabel(motivo)}
+        {getChangeTypeLabel(revision)}
       </Badge>
     );
   };
@@ -155,7 +162,7 @@ export function RevisionHistoryModal({
                                     <span className="font-semibold text-lg">
                                       Revisão {revision.revisao}
                                     </span>
-                                    {getChangeTypeBadge(revision.motivo)}
+                                    {getChangeTypeBadge(revision)}
                                   </div>
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Clock className="h-4 w-4" />
@@ -189,14 +196,6 @@ export function RevisionHistoryModal({
                                       </>
                                     )}
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setVersionToRestore(revision)}
-                                  >
-                                    <RotateCcw className="h-4 w-4 mr-2" />
-                                    Restaurar
-                                  </Button>
                                 </div>
                               </div>
 
@@ -223,6 +222,9 @@ export function RevisionHistoryModal({
                                 <VersionDiffView
                                   currentRevision={revision.snapshot}
                                   previousRevision={previousRevision?.snapshot || null}
+                                  onRestore={() => setVersionToRestore(revision)}
+                                  isCurrentVersion={revision.revisao === installation.revisao}
+                                  isRestoring={restoringVersionId === revision.id && isRestoring}
                                 />
                               )}
                             </div>
@@ -239,27 +241,25 @@ export function RevisionHistoryModal({
       </Dialog>
 
       {/* Restore Confirmation Dialog */}
-      <AlertDialog open={!!versionToRestore} onOpenChange={() => setVersionToRestore(null)}>
+      <AlertDialog
+        open={!!versionToRestore}
+        onOpenChange={(open) => {
+          if (!open && !isRestoring) {
+            setVersionToRestore(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restaurar Versão Anterior?</AlertDialogTitle>
+            <AlertDialogTitle>Restaurar Versão?</AlertDialogTitle>
             <AlertDialogDescription>
-              Você está prestes a restaurar a <strong>Revisão {versionToRestore?.revisao}</strong> desta instalação.
-              <br /><br />
-              Esta ação irá:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Substituir os dados atuais pelos dados desta revisão</li>
-                <li>Criar uma nova revisão com os dados restaurados</li>
-                <li>Manter o histórico completo de alterações</li>
-              </ul>
-              <br />
-              Deseja continuar?
+              Os dados da instalação voltarão para esta versão. Uma nova revisão será criada no histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRestoring}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleRestore} disabled={isRestoring}>
-              {isRestoring ? "Restaurando..." : "Sim, Restaurar"}
+              {isRestoring ? "Restaurando..." : "Restaurar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

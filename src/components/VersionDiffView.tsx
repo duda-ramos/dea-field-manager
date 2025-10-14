@@ -1,11 +1,15 @@
 import { Installation } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface VersionDiffViewProps {
   currentRevision: Omit<Installation, 'id' | 'revisado' | 'revisao'>;
   previousRevision: Omit<Installation, 'id' | 'revisado' | 'revisao'> | null;
+  onRestore: () => void;
+  isCurrentVersion: boolean;
+  isRestoring?: boolean;
 }
 
 interface FieldComparison {
@@ -16,7 +20,13 @@ interface FieldComparison {
   showField: boolean;
 }
 
-export function VersionDiffView({ currentRevision, previousRevision }: VersionDiffViewProps) {
+export function VersionDiffView({
+  currentRevision,
+  previousRevision,
+  onRestore,
+  isCurrentVersion,
+  isRestoring = false,
+}: VersionDiffViewProps) {
   const isFirstVersion = !previousRevision;
 
   // Helper function to check if values are different
@@ -124,6 +134,23 @@ export function VersionDiffView({ currentRevision, previousRevision }: VersionDi
   // Filter to show only relevant fields
   const visibleFields = fields.filter(field => field.showField);
 
+  const restoreButton = (
+    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between pt-4 border-t">
+      <p className="text-xs text-muted-foreground">
+        {isCurrentVersion
+          ? "Esta já é a versão atual da instalação."
+          : "Ao restaurar, os dados atuais serão substituídos por esta versão."}
+      </p>
+      <Button
+        onClick={onRestore}
+        disabled={isCurrentVersion || isRestoring}
+        variant={isCurrentVersion ? "outline" : "default"}
+      >
+        {isRestoring ? "Restaurando..." : "Restaurar Esta Versão"}
+      </Button>
+    </div>
+  );
+
   if (isFirstVersion) {
     // First version - show only current column
     return (
@@ -149,6 +176,8 @@ export function VersionDiffView({ currentRevision, previousRevision }: VersionDi
             </div>
           ))}
         </div>
+
+        {restoreButton}
       </div>
     );
   }
@@ -249,6 +278,8 @@ export function VersionDiffView({ currentRevision, previousRevision }: VersionDi
           )}
         </div>
       </div>
+
+      {restoreButton}
     </div>
   );
 }
