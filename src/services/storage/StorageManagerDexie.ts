@@ -367,10 +367,16 @@ export const StorageManagerDexie: any = {
           }
         });
 
-        mergedInstallation.revisao = latestVersion.revisao ?? installation.revisao;
-        mergedInstallation.revisado = latestVersion.revisao
-          ? latestVersion.revisao > 1
-          : installation.revisado;
+        const latestRevisionNumber = latestVersion.revisao ?? installation.revisao ?? 0;
+        mergedInstallation.revisao = latestRevisionNumber;
+
+        const snapshotRevisado = (snapshotData as Record<string, unknown>).revisado;
+        if (typeof snapshotRevisado === 'boolean') {
+          mergedInstallation.revisado = snapshotRevisado;
+        } else {
+          mergedInstallation.revisado =
+            installation.revisado ?? (latestRevisionNumber >= 1);
+        }
         mergedInstallation.project_id = installation.project_id;
 
         if (installation.projectId) {
