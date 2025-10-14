@@ -77,7 +77,7 @@ export async function pullEntityWithConflictDetection(
                 conflicts++;
                 const recordName = getRecordDisplayName(recordType, localRecord);
                 
-                conflictStore.addConflict({
+                conflictStore.getState().addConflict({
                   recordType,
                   recordName,
                   localVersion: localRecord,
@@ -114,7 +114,7 @@ export async function pullEntityWithConflictDetection(
 
   // Show conflict notification if any were detected
   if (conflicts > 0) {
-    conflictStore.showConflictNotification();
+    conflictStore.getState().showConflictNotification();
   }
 
   return { pulled, conflicts, errors };
