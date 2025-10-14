@@ -8,13 +8,10 @@ import { rateLimiter } from './rateLimiter';
 import { logger } from '@/services/logger';
 import { getFeatureFlag } from '@/config/featureFlags';
 import { uploadToStorage } from '@/services/storage/filesStorage';
-import { checkForRemoteEdits, getRecordDisplayName } from '@/lib/conflictUtils';
-import { conflictStore } from '@/stores/conflictStore';
 import type { ProjectBudget, ProjectFile } from '@/types';
 
 type EntityName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'item_versions' | 'files';
 type LocalTableName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'itemVersions' | 'files';
-type RecordType = 'project' | 'installation' | 'contact' | 'budget';
 
 const ENTITY_CONFIG: Record<EntityName, { local: LocalTableName; remote: string }> = {
   projects: { local: 'projects', remote: 'projects' },
@@ -34,15 +31,6 @@ const ENTITY_ORDER: EntityName[] = [
   'files'
 ];
 
-const ENTITY_TO_RECORD_TYPE: Record<EntityName, RecordType | null> = {
-  projects: 'project',
-  installations: 'installation',
-  contacts: 'contact',
-  budgets: 'budget',
-  item_versions: null,
-  files: null
-};
-
 const getLocalTable = (table: LocalTableName) => (db as any)[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
@@ -61,12 +49,7 @@ const denormalizeTimestamps = (obj: any) => ({
   updatedAt: obj.updated_at ? new Date(obj.updated_at).getTime() : Date.now()
 });
 
-// Check if record should be force uploaded
-function shouldForceUpload(record: any): boolean {
-  return record._forceUpload === 1;
-}
-
-// Generic push operation with force upload support
+// Generic push/pull operations
 async function pushEntityType(entityName: EntityName): Promise<{ pushed: number; deleted: number; errors: string[] }> {
   const { local, remote } = ENTITY_CONFIG[entityName];
   const { data: { session } } = await supabase.auth.getSession();
@@ -97,21 +80,9 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
           } else {
             // Transform record for Supabase
             const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
-            
-            // If force upload flag is set, ensure updated_at is current
-            if (shouldForceUpload(record)) {
-              normalizedRecord.updated_at = new Date().toISOString();
-              logger.debug(`[Force Upload] ${entityName} ${record.id}`);
-            }
-            
             await supabase.from(remote as any).upsert(normalizedRecord);
             pushed++;
-            
-            // Clear both _dirty and _forceUpload flags after successful push
-            await localTable.update(record.id, { 
-              _dirty: 0, 
-              _forceUpload: 0 
-            });
+            await localTable.update(record.id, { _dirty: 0 });
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -127,8 +98,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
   return { pushed, deleted, errors };
 }
 
-// Pull entity with conflict detection
-async function pullEntityType(entityName: EntityName, lastPulledAt: number): Promise<{ pulled: number; conflicts?: number; errors: string[] }> {
+async function pullEntityType(entityName: EntityName, lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
   const { local, remote } = ENTITY_CONFIG[entityName];
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) throw new Error('User not authenticated');
@@ -137,12 +107,10 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   let hasMore = true;
   let page = 0;
   let pulled = 0;
-  let conflicts = 0;
   const errors: string[] = [];
   const lastPulledDate = new Date(lastPulledAt).toISOString();
 
   const localTable = getLocalTable(local);
-  const recordType = ENTITY_TO_RECORD_TYPE[entityName];
 
   while (hasMore) {
     try {
@@ -167,44 +135,14 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
       if (records && records.length > 0) {
         logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
 
-        for (const remoteRecord of records) {
+        for (const record of records) {
           try {
-            // Get local version
-            const localRecord = await localTable.get(remoteRecord.id);
-            
-            // Check for conflicts only for entities that support it
-            if (localRecord && localRecord._dirty === 1 && recordType) {
-              const conflictInfo = checkForRemoteEdits(
-                localRecord,
-                remoteRecord,
-                remoteRecord.id,
-                recordType
-              );
-
-              if (conflictInfo.hasConflict) {
-                // Store conflict for later resolution
-                conflicts++;
-                const recordName = getRecordDisplayName(recordType, localRecord);
-                
-                conflictStore.getState().addConflict({
-                  recordType,
-                  recordName,
-                  localVersion: localRecord,
-                  remoteVersion: transformRecordForLocal(remoteRecord, entityName)
-                });
-
-                logger.warn(`[Conflict] Detected for ${recordType} ${remoteRecord.id}`);
-                continue; // Skip automatic update
-              }
-            }
-
-            // No conflict or no local changes - apply remote version
-            const localRecord = transformRecordForLocal(remoteRecord, entityName);
+            const localRecord = transformRecordForLocal(record, entityName);
             await localTable.put(localRecord);
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            errors.push(`${entityName}_${(remoteRecord as any).id || 'unknown'}: ${errorMsg}`);
+            errors.push(`${entityName}_${(record as any).id || 'unknown'}: ${errorMsg}`);
           }
         }
 
@@ -220,12 +158,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
     }
   }
 
-  // Show conflict notification if any were detected
-  if (conflicts > 0) {
-    conflictStore.getState().showConflictNotification();
-  }
-
-  return { pulled, conflicts, errors };
+  return { pulled, errors };
 }
 
 function transformRecordForSupabase(record: any, entityName: string, userId: string): any {
@@ -237,7 +170,6 @@ function transformRecordForSupabase(record: any, entityName: string, userId: str
   // Remove local-only fields
   delete base._dirty;
   delete base._deleted;
-  delete base._forceUpload;
   delete base.updatedAt;
   delete base.createdAt;
 
@@ -584,6 +516,3 @@ export async function fullSync(): Promise<LegacySyncMetrics> {
     throw error;
   }
 }
-
-// Export utility functions for conflict resolution
-export { shouldForceUpload };
