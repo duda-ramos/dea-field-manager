@@ -143,9 +143,10 @@ async function compressImageWithCanvas(
   file: File,
   options: Required<CompressionOptions>
 ): Promise<File> {
-  return new Promise(async (resolve, reject) => {
+  const dimensions = await getImageDimensions(file);
+  
+  return new Promise((resolve, reject) => {
     try {
-      const dimensions = await getImageDimensions(file);
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
 

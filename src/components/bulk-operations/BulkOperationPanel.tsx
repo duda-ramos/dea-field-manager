@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUndo } from '@/hooks/useUndo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,28 +6,21 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Trash2, 
   Archive, 
-  Download, 
-  Upload, 
   CheckSquare, 
-  Square, 
   AlertTriangle,
   FileDown,
-  FileUp,
   RefreshCw,
   Copy,
-  Move,
   Tag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { showToast, showUndoToast } from '@/lib/toast';
 import { storage } from '@/lib/storage';
-import { Project } from '@/types';
 import { LoadingState } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/logger';
@@ -80,7 +73,7 @@ export function BulkOperationPanel({
         icon: FileDown, 
         description: 'Exportar itens selecionados para Excel',
         category: 'export',
-        action: async (items) => {
+        action: async (_items) => {
           // Mock export functionality
           await new Promise(resolve => setTimeout(resolve, 2000));
           const blob = new Blob(['Mock CSV data'], { type: 'text/csv' });
@@ -335,7 +328,7 @@ export function BulkOperationPanel({
           icon: Tag,
           description: 'Alterar status de múltiplos projetos',
           category: 'organize',
-          action: async (items) => {
+          action: async (_items) => {
             // This would open a status selection dialog
             toast({
               title: 'Função em desenvolvimento',

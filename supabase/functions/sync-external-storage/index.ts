@@ -114,7 +114,7 @@ serve(async (req) => {
   }
 })
 
-async function syncGoogleDrive(config: any, userId: string) {
+async function syncGoogleDrive(_config: any, _userId: string) {
   console.log('Syncing with Google Drive...')
   
   // Simulate API calls and file processing
@@ -132,7 +132,7 @@ async function syncGoogleDrive(config: any, userId: string) {
   }
 }
 
-async function syncDropbox(config: any, userId: string) {
+async function syncDropbox(_config: any, _userId: string) {
   console.log('Syncing with Dropbox...')
   
   // Simulate API calls and file processing
@@ -150,7 +150,7 @@ async function syncDropbox(config: any, userId: string) {
   }
 }
 
-async function syncOneDrive(config: any, userId: string) {
+async function syncOneDrive(_config: any, _userId: string) {
   console.log('Syncing with OneDrive...')
   
   // Simulate API calls and file processing

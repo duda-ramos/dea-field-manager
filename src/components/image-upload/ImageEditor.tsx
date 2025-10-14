@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Canvas as FabricCanvas, Image as FabricImage, PencilBrush, Rect, Circle, Textbox, filters } from 'fabric';
+import { Canvas as FabricCanvas, Image as FabricImage, PencilBrush, Rect, Circle, Textbox } from 'fabric';
 import { logger } from '@/services/logger';
 import { 
   RotateCcw, 
-  Crop, 
   Paintbrush, 
   Type, 
   Square, 
@@ -16,7 +15,6 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getSignedUrl } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
@@ -36,7 +34,7 @@ export function ImageEditor({ isOpen, onClose, image, onSave }: ImageEditorProps
   const [brushColor, setBrushColor] = useState('#000000');
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
-  const [saturation, setSaturation] = useState(0);
+  const [_saturation, _setSaturation] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(true);

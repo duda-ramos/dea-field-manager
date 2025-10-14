@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, Clock, AlertTriangle, List, MapPin } from "lucide-react";
 import { Project } from "@/types";
-import { format, parseISO, subBusinessDays, eachDayOfInterval, isWeekend, addDays, isSameDay, startOfMonth, endOfMonth, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
+import { format, parseISO, eachDayOfInterval, isWeekend, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface InstallationCalendarProps {

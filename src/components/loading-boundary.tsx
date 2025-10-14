@@ -1,5 +1,5 @@
 import React from 'react';
-import { LoadingState, PageLoadingState } from '@/components/ui/loading-spinner';
+import { PageLoadingState } from '@/components/ui/loading-spinner';
 import { ErrorBoundary, errorMonitoring } from '@/services/errorMonitoring';
 
 interface LoadingBoundaryProps {

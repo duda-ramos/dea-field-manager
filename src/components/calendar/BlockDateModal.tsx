@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Ban, Save } from 'lucide-react';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { CreateCalendarBlockData } from '@/types/calendar';
 import { calendarService } from '@/services/calendar';
 import { useToast } from '@/hooks/use-toast';
