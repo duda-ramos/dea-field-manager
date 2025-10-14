@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Installation, ItemVersion } from "@/types";
+import { Installation, ItemVersion, InstallationRevision, InstallationRevisionData } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
@@ -209,20 +209,64 @@ export function InstallationDetailModalNew({
 
   const handleRestoreVersion = async (version: ItemVersion) => {
     try {
-      // Restore the snapshot data
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const nowTimestamp = now.getTime();
       const newRevisionNumber = (installation.revisao || 0) + 1;
-      const restoredData = {
-        ...installation,
+
+      const projectId = (installation as any)?.projectId ?? installation.project_id;
+      const baseSnapshot = {
         ...version.snapshot,
-        revisado: true,
-        revisao: newRevisionNumber,
-        updated_at: new Date().toISOString(),
       };
 
-      const updated = await storage.upsertInstallation(restoredData);
+      const mergedInstallation = {
+        ...installation,
+        ...baseSnapshot,
+        id: installation.id,
+        project_id: installation.project_id,
+        projectId,
+        revisado: true,
+        revisao: newRevisionNumber,
+        updated_at: nowIso,
+        updatedAt: nowTimestamp,
+        photos: baseSnapshot.photos ?? installation.photos ?? [],
+      } as Installation;
+
+      const existingRevisions: InstallationRevision[] = Array.isArray(installation.revisions)
+        ? (installation.revisions as InstallationRevision[])
+        : [];
+      const { revisions: _ignoreRevisions, ...installationWithoutRevisions } = mergedInstallation;
+      const revisionEntryData: InstallationRevisionData = {
+        ...installationWithoutRevisions,
+        updated_at: nowIso,
+        updatedAt: nowTimestamp,
+        revisao: newRevisionNumber,
+        revisado: true,
+      };
+
+      const restoredInstallation: Installation = {
+        ...installationWithoutRevisions,
+        revisions: [
+          ...existingRevisions,
+          {
+            timestamp: nowIso,
+            type: "restored",
+            data: revisionEntryData,
+          },
+        ],
+      };
+
+      const updated = await storage.upsertInstallation(restoredInstallation);
 
       if (updated) {
-        const { id: _id, revisado: _revisado, revisao: _revisao, ...snapshot } = updated;
+        const {
+          id: _id,
+          revisado: _revisado,
+          revisao: _revisao,
+          revisions: _revisions,
+          ...snapshot
+        } = updated;
+
         const itemId =
           (installation as any)?.itemId ??
           (installation as any)?.item_id ??
@@ -234,38 +278,56 @@ export function InstallationDetailModalNew({
           itemId,
           snapshot,
           revisao: newRevisionNumber,
-          motivo: "outros",
+          motivo: "restored",
+          type: "restored",
           descricao_motivo: `Restaurado a partir da revisão ${version.revisao}`,
-          criadoEm: new Date().toISOString(),
+          criadoEm: nowIso,
+          createdAt: nowTimestamp,
         };
 
         await storage.upsertItemVersion(restoredVersion);
 
-        // Reload versions
         const updatedVersions = await storage.getItemVersions(installation.id);
         setVersions(updatedVersions);
 
-        // Update parent
+        setInstalled(restoredInstallation.installed);
+        setStatus(restoredInstallation.status || 'ativo');
+        setPendenciaTipo(restoredInstallation.pendencia_tipo || '');
+        setPendenciaDescricao(restoredInstallation.pendencia_descricao || '');
+        setPhotos(restoredInstallation.photos);
+
+        if (restoredInstallation.observacoes && restoredInstallation.observacoes.trim() !== "") {
+          setObservationHistory(restoredInstallation.observacoes.split('\n---\n').filter(obs => obs.trim() !== ""));
+        } else {
+          setObservationHistory([]);
+        }
+
+        if (restoredInstallation.comentarios_fornecedor && restoredInstallation.comentarios_fornecedor.trim() !== "") {
+          setSupplierCommentHistory(restoredInstallation.comentarios_fornecedor.split('\n---\n').filter(comment => comment.trim() !== ""));
+        } else {
+          setSupplierCommentHistory([]);
+        }
+
         onUpdate();
-        
+
         toast({
-          title: "Versão restaurada",
-          description: `Revisão ${version.revisao} foi restaurada com sucesso.`,
+          title: "Versão restaurada com sucesso",
+          description: `Uma nova revisão (${newRevisionNumber}) foi criada a partir da revisão ${version.revisao}.`,
         });
         showToast.success(
-          "Versão restaurada",
-          `Revisão ${version.revisao} foi restaurada com sucesso.`
+          "Versão restaurada com sucesso",
+          `Uma nova revisão (${newRevisionNumber}) foi criada a partir da revisão ${version.revisao}.`
         );
       }
     } catch (error) {
       console.error("Erro ao restaurar versão:", error);
       toast({
-        title: "Erro ao restaurar",
+        title: "Erro ao restaurar versão",
         description: "Não foi possível restaurar esta versão. Tente novamente.",
         variant: "destructive",
       });
       showToast.error(
-        "Erro ao restaurar",
+        "Erro ao restaurar versão",
         "Não foi possível restaurar esta versão. Tente novamente."
       );
     }
