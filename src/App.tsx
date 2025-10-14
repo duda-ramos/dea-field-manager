@@ -31,6 +31,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
+import { TestConflictIntegration } from "./components/test-conflict-integration";
 
 const queryClient = new QueryClient();
 
@@ -227,6 +228,13 @@ const App = () => {
                       <ProtectedRoute>
                         <AppLayout>
                           <Debug />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/test-conflicts" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <TestConflictIntegration />
                         </AppLayout>
                       </ProtectedRoute>
                     } />
