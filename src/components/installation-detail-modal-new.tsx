@@ -702,6 +702,10 @@ export function InstallationDetailModalNew({
         }}
         onUpdate={handleRevisionUpdate}
         editingInstallation={installation}
+        isRevision={true}
+        currentRevision={installation.revisao || 1}
+        revisionMotivo={revisionMotivo}
+        revisionDescricao={revisionDescricao}
       />
 
       {/* Revision Motive Selection Modal */}

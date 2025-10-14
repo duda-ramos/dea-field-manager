@@ -18,6 +18,10 @@ interface AddInstallationModalProps {
   onClose: () => void;
   onUpdate: () => void;
   editingInstallation?: Installation | null;
+  isRevision?: boolean; // Indica se é uma nova revisão
+  currentRevision?: number; // Número da revisão atual
+  revisionMotivo?: string; // Motivo da revisão
+  revisionDescricao?: string; // Descrição do motivo
 }
 
 export function AddInstallationModal({ 
@@ -25,7 +29,11 @@ export function AddInstallationModal({
   isOpen, 
   onClose, 
   onUpdate,
-  editingInstallation
+  editingInstallation,
+  isRevision = false,
+  currentRevision = 1,
+  revisionMotivo = "",
+  revisionDescricao = ""
 }: AddInstallationModalProps) {
   const { toast } = useToast();
   const { addAction, undo } = useUndo();
@@ -172,8 +180,40 @@ export function AddInstallationModal({
         // Save previous state before updating
         const previousState = { ...editingInstallation };
         
+        // Se for uma revisão, incrementar o número de revisão
+        const newRevisionNumber = isRevision ? currentRevision + 1 : editingInstallation.revisao || 1;
+        
         // Update existing installation
-        savedInstallation = await storage.upsertInstallation({ ...editingInstallation, ...installationData });
+        savedInstallation = await storage.upsertInstallation({ 
+          ...editingInstallation, 
+          ...installationData,
+          revisao: newRevisionNumber,
+          revisado: isRevision ? true : editingInstallation.revisado
+        });
+
+        // Se for uma revisão, criar um registro no item_versions
+        if (isRevision) {
+          const now = new Date();
+          const nowIso = now.toISOString();
+          const nowTimestamp = now.getTime();
+
+          const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
+
+          const newVersion = {
+            id: crypto.randomUUID(),
+            installationId: editingInstallation.id,
+            itemId: editingInstallation.id,
+            snapshot,
+            revisao: newRevisionNumber,
+            motivo: revisionMotivo || 'edited',
+            type: 'edited' as const,
+            descricao_motivo: revisionDescricao || `Revisão ${newRevisionNumber}`,
+            criadoEm: nowIso,
+            createdAt: nowTimestamp,
+          };
+
+          await storage.upsertItemVersion(newVersion);
+        }
         
         // Add undo action for edition
         addAction({
@@ -200,12 +240,16 @@ export function AddInstallationModal({
         );
         
         toast({
-          title: "Peça atualizada",
-          description: `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
+          title: isRevision ? "Revisão criada" : "Peça atualizada",
+          description: isRevision 
+            ? `Revisão ${savedInstallation.revisao} da peça ${savedInstallation.codigo} ${savedInstallation.descricao} criada com sucesso`
+            : `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
         });
         showToast.success(
-          "Peça atualizada",
-          `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
+          isRevision ? "Revisão criada" : "Peça atualizada",
+          isRevision 
+            ? `Revisão ${savedInstallation.revisao} da peça ${savedInstallation.codigo} ${savedInstallation.descricao} criada com sucesso`
+            : `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`
         );
       } else {
         // Create new installation
