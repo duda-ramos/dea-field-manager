@@ -2,13 +2,22 @@ import { createElement, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { AlertTriangle } from 'lucide-react';
 import { ConflictDetails } from '@/lib/conflictUtils';
+import { logger } from '@/services/logger';
 
+/**
+ * Estrutura de dados base do store de conflitos
+ * Mantém o estado atual e histórico de conflitos pendentes
+ */
 interface ConflictStoreData {
   currentConflict: ConflictDetails | null;
   showConflictAlert: boolean;
   pendingConflicts: ConflictDetails[];
 }
 
+/**
+ * Interface completa do store de conflitos
+ * Inclui dados e todas as ações disponíveis para gerenciar conflitos
+ */
 export interface ConflictState extends ConflictStoreData {
   addConflict: (conflict: ConflictDetails) => void;
   showNextConflict: () => void;
@@ -39,6 +48,13 @@ const notifySubscribers = () => {
   listeners.forEach((listener) => listener());
 };
 
+/**
+ * Verifica se dois conflitos são iguais
+ * Compara por tipo de registro e ID da versão local
+ * @param a - Primeiro conflito para comparação
+ * @param b - Segundo conflito para comparação
+ * @returns true se os conflitos se referem ao mesmo registro
+ */
 const isSameConflict = (
   a: ConflictDetails | null,
   b: ConflictDetails | null
@@ -53,6 +69,11 @@ const isSameConflict = (
   );
 };
 
+/**
+ * Carrega dados persistidos do localStorage
+ * Restaura conflitos pendentes da sessão anterior
+ * @returns Estado inicial do store com dados persistidos
+ */
 const loadPersistedData = (): ConflictStoreData => {
   if (!isBrowser) {
     return { ...defaultData };
@@ -81,13 +102,18 @@ const loadPersistedData = (): ConflictStoreData => {
       pendingConflicts: remainingConflicts,
     };
   } catch (error) {
-    console.warn('Failed to load conflict store from storage', error);
+    logger.warn('[ConflictStore] Failed to load from storage', error);
     return { ...defaultData };
   }
 };
 
 let currentState: ConflictState;
 
+/**
+ * Persiste estado atual no localStorage
+ * Salva todos os conflitos (atual + pendentes) para recuperação futura
+ * Executado automaticamente após cada mudança de estado
+ */
 const persistState = () => {
   if (!isBrowser) {
     return;
@@ -106,7 +132,7 @@ const persistState = () => {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToPersist));
   } catch (error) {
-    console.warn('Failed to persist conflict store', error);
+    logger.warn('[ConflictStore] Failed to persist state', error);
   }
 };
 
@@ -147,6 +173,13 @@ const initializeState = (): ConflictState => {
 
   const store: ConflictState = {
     ...base,
+    /**
+     * Adiciona um novo conflito ao store
+     * - Evita duplicatas verificando conflitos existentes
+     * - Define como conflito atual se não houver nenhum ativo
+     * - Adiciona à fila de pendentes caso contrário
+     * @param conflict - Detalhes do conflito detectado
+     */
     addConflict: (conflict) => {
       setState((state) => {
         const existsInPending = state.pendingConflicts.some((c) =>
@@ -176,6 +209,11 @@ const initializeState = (): ConflictState => {
         return { pendingConflicts: newConflicts } satisfies Partial<ConflictState>;
       });
     },
+    /**
+     * Avança para o próximo conflito na fila
+     * Remove o primeiro conflito pendente e o define como atual
+     * Limpa o estado se não houver mais conflitos
+     */
     showNextConflict: () => {
       setState((state) => {
         if (state.pendingConflicts.length === 0) {
@@ -201,6 +239,11 @@ const initializeState = (): ConflictState => {
       const { showNextConflict } = getState();
       showNextConflict();
     },
+    /**
+     * Exibe notificação toast sobre conflitos pendentes
+     * Permite ao usuário abrir o modal de resolução diretamente
+     * Mostra contagem total de conflitos (atual + pendentes)
+     */
     showConflictNotification: () => {
       const state = getState();
       const pendingCount = state.pendingConflicts.length;
