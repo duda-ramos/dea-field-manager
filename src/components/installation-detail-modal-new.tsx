@@ -338,25 +338,29 @@ export function InstallationDetailModalNew({
 
         onUpdate();
 
-        toast({
-          title: "Versão restaurada com sucesso",
-          description: `Uma nova revisão (${newRevisionNumber}) foi criada a partir da revisão ${version.revisao}.`,
-        });
-        showToast.success(
-          "Versão restaurada com sucesso",
-          `Uma nova revisão (${newRevisionNumber}) foi criada a partir da revisão ${version.revisao}.`
-        );
+        // Pequeno delay para garantir que o toast aparece após o modal fechar
+        setTimeout(() => {
+          toast({
+            title: "Versão restaurada",
+            description: `Revisão ${version.revisao} restaurada com sucesso`,
+            variant: "default",
+          });
+          showToast.success(
+            "Versão restaurada",
+            `Revisão ${version.revisao} restaurada com sucesso`
+          );
+        }, 300);
       }
     } catch (error) {
       // Erro já é tratado com toast
       toast({
-        title: "Erro ao restaurar versão",
-        description: "Não foi possível restaurar esta versão. Tente novamente.",
+        title: "Erro ao restaurar",
+        description: "Não foi possível restaurar a versão. Tente novamente.",
         variant: "destructive",
       });
       showToast.error(
-        "Erro ao restaurar versão",
-        "Não foi possível restaurar esta versão. Tente novamente."
+        "Erro ao restaurar",
+        "Não foi possível restaurar a versão. Tente novamente."
       );
     }
   };
