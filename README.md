@@ -189,6 +189,52 @@ We have comprehensive error handling standards to ensure a reliable user experie
 
 See the full checklist in the [Error Handling Guide](./docs/ERROR_HANDLING_GUIDE.md#checklist-para-prs).
 
+## 🔄 Resolução de Conflitos
+
+Este projeto implementa um sistema robusto de resolução de conflitos para sincronização de dados entre dispositivos.
+
+### Estratégia Last Write Wins (LWW)
+
+O sistema utiliza a estratégia **Last Write Wins** por padrão:
+
+- **Detecção automática**: Conflitos são detectados durante sincronização
+- **Resolução transparente**: Versão mais recente sempre prevalece
+- **Notificação ao usuário**: Toast notifications informam sobre conflitos
+- **Opção manual**: Usuário pode escolher qual versão manter
+
+### Como Funciona
+
+1. **Detecção**: Sistema identifica quando versões local e remota divergem
+2. **Análise**: Compara timestamps e flags de modificação
+3. **Resolução**: Aplica estratégia configurada (LWW por padrão)
+4. **Persistência**: Salva decisão e sincroniza com servidor
+
+### Configuração
+
+```typescript
+// Estratégia padrão (Last Write Wins)
+conflictResolution: {
+  strategy: 'lastWriteWins',
+  automatic: true
+}
+
+// Resolução manual
+conflictResolution: {
+  strategy: 'manual',
+  promptUser: true
+}
+```
+
+### Interface do Usuário
+
+O sistema inclui:
+
+- **ConflictManager**: Modal para resolução manual de conflitos
+- **ConflictBadge**: Indicador visual de conflitos pendentes
+- **Notificações Toast**: Alertas não-intrusivos sobre conflitos
+
+Para mais detalhes sobre o sistema de resolução de conflitos, consulte o [Guia de Resolução de Conflitos](./CONFLICT_RESOLUTION_GUIDE.md).
+
 ## CI Degradado (bypass temporário)
 
 - Defina o secret de repositório **DEGRADED_CI=true** para que o pipeline **pule instalação/build/test** e marque os jobs como sucesso controlado.

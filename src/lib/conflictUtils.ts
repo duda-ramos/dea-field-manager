@@ -1,6 +1,11 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { logger } from '@/services/logger';
 
+/**
+ * Informações sobre um potencial conflito de edição
+ * Usado para rastrear e comparar versões local e remota
+ */
 export interface EditConflictInfo {
   recordId: string;
   recordType: 'project' | 'installation' | 'contact' | 'budget';
@@ -9,6 +14,10 @@ export interface EditConflictInfo {
   hasConflict: boolean;
 }
 
+/**
+ * Detalhes completos de um conflito detectado
+ * Inclui ambas as versões para comparação e resolução
+ */
 export interface ConflictDetails {
   recordType: string;
   recordName: string;
@@ -18,6 +27,19 @@ export interface ConflictDetails {
 
 /**
  * Verifica se há conflitos de edição entre versões local e remota
+ * 
+ * Detecta conflitos quando:
+ * 1. O registro local foi modificado (_dirty === 1)
+ * 2. A versão remota é mais recente que a local
+ * 3. A diferença temporal é significativa (> 1 minuto)
+ * 
+ * O limite de 1 minuto evita falsos positivos em sincronizações rápidas
+ * 
+ * @param localRecord - Registro da base local com flag _dirty
+ * @param remoteRecord - Registro vindo do servidor
+ * @param recordId - ID único do registro
+ * @param recordType - Tipo do registro para categorização
+ * @returns Objeto com informações sobre o conflito
  */
 export function checkForRemoteEdits(
   localRecord: { updated_at: string; _dirty?: number },
@@ -48,6 +70,13 @@ export function checkForRemoteEdits(
 
 /**
  * Obtém preview dos campos principais de um registro
+ * 
+ * Gera um resumo formatado dos campos mais importantes de cada tipo
+ * Usado para exibir comparações no modal de resolução de conflitos
+ * 
+ * @param recordType - Tipo do registro
+ * @param record - Objeto do registro com os dados
+ * @returns Objeto com pares chave-valor formatados para exibição
  */
 export function getRecordPreview(recordType: string, record: any): Record<string, string> {
   switch (recordType) {
@@ -89,6 +118,13 @@ export function getRecordPreview(recordType: string, record: any): Record<string
 
 /**
  * Obtém nome descritivo do registro para exibição
+ * 
+ * Gera um nome amigável baseado no tipo e conteúdo do registro
+ * Usado em notificações e títulos de conflitos
+ * 
+ * @param recordType - Tipo do registro
+ * @param record - Objeto do registro
+ * @returns String descritiva do registro
  */
 export function getRecordDisplayName(recordType: string, record: any): string {
   switch (recordType) {
@@ -110,7 +146,13 @@ export function getRecordDisplayName(recordType: string, record: any): string {
 }
 
 /**
- * Formata data para exibição amigável
+ * Formata data para exibição amigável em português
+ * 
+ * Converte ISO string para formato legível: "15 de janeiro às 14:30"
+ * Trata erros graciosamente retornando mensagem padrão
+ * 
+ * @param dateString - Data em formato ISO string
+ * @returns Data formatada ou "Data inválida" em caso de erro
  */
 export function formatConflictDate(dateString: string): string {
   try {
@@ -122,7 +164,15 @@ export function formatConflictDate(dateString: string): string {
 }
 
 /**
- * Marca registro para upload forçado
+ * Marca registro para upload forçado (ignora verificações de timestamp)
+ * 
+ * Usado quando o usuário escolhe manter sua versão local em um conflito
+ * - Define flag _forceUpload para bypass de verificações
+ * - Marca como dirty para garantir sincronização
+ * - Atualiza timestamp para forçar precedência
+ * 
+ * @param record - Registro a ser marcado
+ * @returns Novo objeto com flags de força aplicadas
  */
 export function markForForceUpload(record: any): any {
   return {
@@ -135,6 +185,12 @@ export function markForForceUpload(record: any): any {
 
 /**
  * Remove flags de sincronização do registro
+ * 
+ * Limpa metadados internos antes de salvar versão remota localmente
+ * Remove _dirty e _forceUpload para evitar sincronizações desnecessárias
+ * 
+ * @param record - Registro com possíveis flags de sync
+ * @returns Registro limpo sem metadados internos
  */
 export function cleanSyncFlags(record: any): any {
   const cleaned = { ...record };
@@ -144,12 +200,18 @@ export function cleanSyncFlags(record: any): any {
 }
 
 /**
- * Log estruturado para conflitos
+ * Log estruturado para conflitos com prefixo consistente
+ * 
+ * Centraliza logs relacionados a conflitos para facilitar debug
+ * Usa níveis apropriados: warn para detecção, log para resolução
+ * 
+ * @param action - Tipo de ação: 'detected' ou 'resolved'
+ * @param details - Objeto com detalhes do conflito/resolução
  */
 export function logConflict(action: 'detected' | 'resolved', details: any): void {
   if (action === 'detected') {
-    console.warn('[Conflict] Edit conflict detected', details);
+    logger.warn('[Conflict] Edit conflict detected', details);
   } else {
-    console.log('[Conflict] Resolved', details);
+    logger.info('[Conflict] Resolved', details);
   }
 }
