@@ -210,21 +210,41 @@ export function InstallationDetailModalNew({
   const handleRestoreVersion = async (version: ItemVersion) => {
     try {
       // Restore the snapshot data
+      const newRevisionNumber = (installation.revisao || 0) + 1;
       const restoredData = {
         ...installation,
         ...version.snapshot,
         revisado: true,
-        revisao: (installation.revisao || 0) + 1,
+        revisao: newRevisionNumber,
         updated_at: new Date().toISOString(),
       };
 
       const updated = await storage.upsertInstallation(restoredData);
-      
+
       if (updated) {
+        const { id: _id, revisado: _revisado, revisao: _revisao, ...snapshot } = updated;
+        const itemId =
+          (installation as any)?.itemId ??
+          (installation as any)?.item_id ??
+          installation.id;
+
+        const restoredVersion: ItemVersion = {
+          id: crypto.randomUUID(),
+          installationId: installation.id,
+          itemId,
+          snapshot,
+          revisao: newRevisionNumber,
+          motivo: "outros",
+          descricao_motivo: `Restaurado a partir da revisão ${version.revisao}`,
+          criadoEm: new Date().toISOString(),
+        };
+
+        await storage.upsertItemVersion(restoredVersion);
+
         // Reload versions
         const updatedVersions = await storage.getItemVersions(installation.id);
         setVersions(updatedVersions);
-        
+
         // Update parent
         onUpdate();
         
