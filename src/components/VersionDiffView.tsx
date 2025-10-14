@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { Installation } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -29,29 +30,29 @@ export function VersionDiffView({
 }: VersionDiffViewProps) {
   const isFirstVersion = !previousRevision;
 
-  // Helper function to check if values are different
-  const hasChanged = (current: unknown, previous: unknown): boolean => {
+  // Helper function to check if values are different - memoized
+  const hasChanged = useCallback((current: unknown, previous: unknown): boolean => {
     if (current === previous) return false;
     if (current === null || current === undefined) return previous !== null && previous !== undefined;
     if (previous === null || previous === undefined) return current !== null && current !== undefined;
     return String(current) !== String(previous);
-  };
+  }, []);
 
-  // Helper function to check if a field should be shown
-  const shouldShowField = (current: unknown, previous: unknown): boolean => {
+  // Helper function to check if a field should be shown - memoized
+  const shouldShowField = useCallback((current: unknown, previous: unknown): boolean => {
     // Show if either value exists
     return (current !== null && current !== undefined && current !== '') ||
            (previous !== null && previous !== undefined && previous !== '');
-  };
+  }, []);
 
-  // Helper to format field value
-  const formatValue = (value: unknown, defaultText: string = "—"): string => {
+  // Helper to format field value - memoized
+  const formatValue = useCallback((value: unknown, defaultText: string = "—"): string => {
     if (value === null || value === undefined || value === '') return defaultText;
     return String(value);
-  };
+  }, []);
 
-  // Define all fields to compare
-  const fields: FieldComparison[] = [
+  // Define all fields to compare - memoized
+  const fields = useMemo<FieldComparison[]>(() => [
     {
       label: "Tipologia",
       currentValue: currentRevision.tipologia,
@@ -129,10 +130,10 @@ export function VersionDiffView({
       hasChanged: hasChanged(currentRevision.photos?.length || 0, previousRevision?.photos?.length || 0),
       showField: true
     },
-  ];
+  ], [currentRevision, previousRevision, hasChanged, shouldShowField]);
 
-  // Filter to show only relevant fields
-  const visibleFields = fields.filter(field => field.showField);
+  // Filter to show only relevant fields - memoized
+  const visibleFields = useMemo(() => fields.filter(field => field.showField), [fields]);
 
   const restoreButton = (
     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between pt-4 border-t">

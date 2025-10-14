@@ -48,42 +48,45 @@ export function RevisionHistoryModal({
     }
   }, [versionToRestore, onRestore, onClose]);
 
+  // Memoize labels object to avoid recreation
+  const changeTypeLabels = useMemo(() => ({
+    'problema-instalacao': 'Problema de Instalação',
+    'revisao-conteudo': 'Revisão de Conteúdo',
+    'desaprovado-cliente': 'Desaprovado pelo Cliente',
+    'outros': 'Outros',
+    'created': 'Criado',
+    'edited': 'Editado',
+    'restored': 'Restaurado',
+  }), []);
+
   const getRevisionTypeKey = useCallback((revision: ItemVersion) => revision.type || revision.motivo, []);
 
   const getChangeTypeLabel = useCallback((revision: ItemVersion) => {
     const typeKey = getRevisionTypeKey(revision);
-    const labels: Record<string, string> = {
-      'problema-instalacao': 'Problema de Instalação',
-      'revisao-conteudo': 'Revisão de Conteúdo',
-      'desaprovado-cliente': 'Desaprovado pelo Cliente',
-      'outros': 'Outros',
-      'created': 'Criado',
-      'edited': 'Editado',
-      'restored': 'Restaurado',
-    };
-    return labels[typeKey] || typeKey;
-  }, [getRevisionTypeKey]);
+    return changeTypeLabels[typeKey as keyof typeof changeTypeLabels] || typeKey;
+  }, [getRevisionTypeKey, changeTypeLabels]);
+
+  // Memoize badge variants to avoid recreation
+  const badgeVariants = useMemo(() => ({
+    'problema-instalacao': { variant: "destructive" as const, className: "bg-red-100 text-red-800 border-red-300" },
+    'revisao-conteudo': { variant: "default" as const, className: "bg-blue-100 text-blue-800 border-blue-300" },
+    'desaprovado-cliente': { variant: "secondary" as const, className: "bg-orange-100 text-orange-800 border-orange-300" },
+    'outros': { variant: "outline" as const, className: "bg-gray-100 text-gray-800 border-gray-300" },
+    'created': { variant: "default" as const, className: "bg-green-100 text-green-800 border-green-300" },
+    'edited': { variant: "secondary" as const, className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
+    'restored': { variant: "outline" as const, className: "bg-purple-100 text-purple-800 border-purple-300" },
+  }), []);
 
   const getChangeTypeBadge = useCallback((revision: ItemVersion) => {
     const typeKey = getRevisionTypeKey(revision);
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
-      'problema-instalacao': { variant: "destructive", className: "bg-red-100 text-red-800 border-red-300" },
-      'revisao-conteudo': { variant: "default", className: "bg-blue-100 text-blue-800 border-blue-300" },
-      'desaprovado-cliente': { variant: "secondary", className: "bg-orange-100 text-orange-800 border-orange-300" },
-      'outros': { variant: "outline", className: "bg-gray-100 text-gray-800 border-gray-300" },
-      'created': { variant: "default", className: "bg-green-100 text-green-800 border-green-300" },
-      'edited': { variant: "secondary", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-      'restored': { variant: "outline", className: "bg-purple-100 text-purple-800 border-purple-300" },
-    };
-
-    const badgeConfig = variants[typeKey] || variants['outros'];
+    const badgeConfig = badgeVariants[typeKey as keyof typeof badgeVariants] || badgeVariants['outros'];
 
     return (
       <Badge variant={badgeConfig.variant} className={badgeConfig.className}>
         {getChangeTypeLabel(revision)}
       </Badge>
     );
-  }, [getRevisionTypeKey, getChangeTypeLabel]);
+  }, [getRevisionTypeKey, getChangeTypeLabel, badgeVariants]);
 
   // Sort revisions by date (most recent first) - memoized
   const sortedRevisions = useMemo(() => 
@@ -99,15 +102,27 @@ export function RevisionHistoryModal({
     return sortedRevisions[currentIndex + 1] || null;
   }, [sortedRevisions]);
 
-  // Toggle expansion
+  // Toggle expansion - memoized
   const toggleExpansion = useCallback((versionId: string) => {
     setExpandedVersionId(current => current === versionId ? null : versionId);
   }, []);
 
+  // Memoize dialog close handler
+  const handleDialogClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  // Memoize restore dialog handlers
+  const handleRestoreDialogChange = useCallback((open: boolean) => {
+    if (!open && !isRestoring) {
+      setVersionToRestore(null);
+    }
+  }, [isRestoring]);
+
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh]" aria-label="Histórico de revisões">
           <DialogHeader className="border-b pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -123,13 +138,15 @@ export function RevisionHistoryModal({
                 size="icon"
                 onClick={onClose}
                 className="h-8 w-8"
+                aria-label="Fechar histórico de revisões"
               >
                 <X className="h-4 w-4" />
+                <span className="sr-only">Fechar</span>
               </Button>
             </div>
           </DialogHeader>
 
-          <ScrollArea className="h-[calc(90vh-120px)] pr-4">
+          <ScrollArea className="h-[calc(90vh-120px)] pr-4" role="region" aria-label="Lista de revisões">
             {sortedRevisions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Clock className="h-16 w-16 text-muted-foreground/40 mb-4" />
@@ -145,13 +162,13 @@ export function RevisionHistoryModal({
                 {/* Timeline line */}
                 <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
                 
-                <div className="space-y-6">
+                <div className="space-y-6" role="list">
                   {sortedRevisions.map((revision, index) => {
                     const isExpanded = expandedVersionId === revision.id;
                     const previousRevision = getPreviousRevision(index);
                     
                     return (
-                      <div key={revision.id} className="relative pl-14">
+                      <div key={revision.id} className="relative pl-14" role="listitem" aria-label={`Revisão ${revision.revisao}`}>
                         {/* Timeline dot */}
                         <div className="absolute left-4 top-6 h-5 w-5 rounded-full border-4 border-background bg-primary" />
                         
@@ -186,6 +203,8 @@ export function RevisionHistoryModal({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => toggleExpansion(revision.id)}
+                                    aria-label={isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
+                                    aria-expanded={isExpanded}
                                   >
                                     {isExpanded ? (
                                       <>
@@ -246,11 +265,7 @@ export function RevisionHistoryModal({
       {/* Restore Confirmation Dialog */}
       <AlertDialog
         open={!!versionToRestore}
-        onOpenChange={(open) => {
-          if (!open && !isRestoring) {
-            setVersionToRestore(null);
-          }
-        }}
+        onOpenChange={handleRestoreDialogChange}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
