@@ -8,13 +8,15 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { AddInstallationModal } from "@/components/add-installation-modal";
-import { History, Edit3, Eye, Plus } from "lucide-react";
+import { RevisionHistoryModal } from "@/components/RevisionHistoryModal";
+import { Plus, Info, Image as ImageIcon, Clock } from "lucide-react";
 
 interface InstallationDetailModalNewProps {
   installation: Installation;
@@ -40,12 +42,11 @@ export function InstallationDetailModalNew({
   const [supplierCommentHistory, setSupplierCommentHistory] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>(installation.photos);
   const [versions, setVersions] = useState<ItemVersion[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState<ItemVersion | null>(null);
   const [showAddRevisionModal, setShowAddRevisionModal] = useState(false);
   const [showRevisionMotiveModal, setShowRevisionMotiveModal] = useState(false);
   const [revisionMotivo, setRevisionMotivo] = useState<string>("");
   const [revisionDescricao, setRevisionDescricao] = useState("");
+  const [showRevisionHistoryModal, setShowRevisionHistoryModal] = useState(false);
 
   useEffect(() => {
     setInstalled(installation.installed);
@@ -206,6 +207,50 @@ export function InstallationDetailModalNew({
     setShowAddRevisionModal(false);
   };
 
+  const handleRestoreVersion = async (version: ItemVersion) => {
+    try {
+      // Restore the snapshot data
+      const restoredData = {
+        ...installation,
+        ...version.snapshot,
+        revisado: true,
+        revisao: (installation.revisao || 0) + 1,
+        updated_at: new Date().toISOString(),
+      };
+
+      const updated = await storage.upsertInstallation(restoredData);
+      
+      if (updated) {
+        // Reload versions
+        const updatedVersions = await storage.getItemVersions(installation.id);
+        setVersions(updatedVersions);
+        
+        // Update parent
+        onUpdate();
+        
+        toast({
+          title: "Versão restaurada",
+          description: `Revisão ${version.revisao} foi restaurada com sucesso.`,
+        });
+        showToast.success(
+          "Versão restaurada",
+          `Revisão ${version.revisao} foi restaurada com sucesso.`
+        );
+      }
+    } catch (error) {
+      console.error("Erro ao restaurar versão:", error);
+      toast({
+        title: "Erro ao restaurar",
+        description: "Não foi possível restaurar esta versão. Tente novamente.",
+        variant: "destructive",
+      });
+      showToast.error(
+        "Erro ao restaurar",
+        "Não foi possível restaurar esta versão. Tente novamente."
+      );
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -221,7 +266,19 @@ export function InstallationDetailModalNew({
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-6">
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="info" className="flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Informações
+              </TabsTrigger>
+              <TabsTrigger value="photos" className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Fotos
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="info" className="space-y-6 mt-6">
             {/* Installation Status Toggle - Moved to top */}
             <div className="flex items-center space-x-2">
               <Switch
@@ -460,169 +517,62 @@ export function InstallationDetailModalNew({
               )}
             </div>
 
-            {/* Photo Gallery */}
-            <PhotoGallery
-              photos={photos}
-              onPhotosChange={setPhotos}
-              projectId={installation.project_id}
-              installationId={installation.id}
-              installationCode={String(installation.codigo)}
-            />
-
             {/* Revision Actions */}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleAddRevision}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Revisão
+            <div className="flex gap-2 justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowRevisionHistoryModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Clock className="h-4 w-4" />
+                Histórico de Revisões
+                {versions.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {versions.length}
+                  </Badge>
+                )}
               </Button>
-              {versions.length > 0 && (
-                <Button variant="outline" onClick={() => setShowHistory(!showHistory)}>
-                  <History className="h-4 w-4 mr-2" />
-                  {showHistory ? "Ocultar Histórico" : "Ver Histórico"}
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleAddRevision}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Revisão
                 </Button>
-              )}
-              <Button onClick={handleSave}>
-                Salvar Alterações
-              </Button>
+                <Button onClick={handleSave}>
+                  Salvar Alterações
+                </Button>
+              </div>
             </div>
+            </TabsContent>
 
-            {/* Version History */}
-            {showHistory && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5" />
-                    Histórico de Revisões
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {versions.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">
-                      Nenhuma revisão anterior encontrada
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {versions.map((version) => (
-                        <div key={version.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <span className="font-semibold">Revisão {version.revisao}</span>
-                              <span className="text-sm text-muted-foreground ml-2">
-                                {new Date(version.criadoEm).toLocaleString('pt-BR')}
-                              </span>
-                            </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedVersion(version)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalhes
-                            </Button>
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Motivo:</span> {
-                              version.motivo === 'problema-instalacao' ? 'Problema de instalação' :
-                              version.motivo === 'revisao-conteudo' ? 'Revisão de conteúdo' :
-                              version.motivo === 'desaprovado-cliente' ? 'Desaprovado pelo cliente' :
-                              'Outros'
-                            }
-                            {version.descricao_motivo && (
-                              <span className="block mt-1 text-muted-foreground">
-                                {version.descricao_motivo}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+            <TabsContent value="photos" className="space-y-6 mt-6">
+              {/* Photo Gallery */}
+              <PhotoGallery
+                photos={photos}
+                onPhotosChange={setPhotos}
+                projectId={installation.project_id}
+                installationId={installation.id}
+                installationCode={String(installation.codigo)}
+              />
+              
+              {/* Save button for photos tab */}
+              <div className="flex justify-end">
+                <Button onClick={handleSave}>
+                  Salvar Alterações
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
-      {/* Version Detail Modal */}
-      {selectedVersion && (
-        <Dialog open={!!selectedVersion} onOpenChange={() => setSelectedVersion(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                Revisão {selectedVersion.revisao} - {selectedVersion.snapshot.codigo} {selectedVersion.snapshot.descricao}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Tipologia</Label>
-                  <Input value={selectedVersion.snapshot.tipologia} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Código</Label>
-                  <Input value={String(selectedVersion.snapshot.codigo)} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Quantidade</Label>
-                  <Input value={String(selectedVersion.snapshot.quantidade)} readOnly className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Pavimento</Label>
-                  <Input value={selectedVersion.snapshot.pavimento} readOnly className="bg-muted" />
-                </div>
-              </div>
-
-              <div>
-                <Label>Descrição</Label>
-                <Textarea value={selectedVersion.snapshot.descricao} readOnly className="bg-muted min-h-[80px]" />
-              </div>
-
-              {(selectedVersion.snapshot.diretriz_altura_cm || selectedVersion.snapshot.diretriz_dist_batente_cm) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Altura da Diretriz (cm)</Label>
-                    <Input 
-                      value={selectedVersion.snapshot.diretriz_altura_cm ? String(selectedVersion.snapshot.diretriz_altura_cm) : "Não especificado"} 
-                      readOnly 
-                      className="bg-muted" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Distância do Batente (cm)</Label>
-                    <Input 
-                      value={selectedVersion.snapshot.diretriz_dist_batente_cm ? String(selectedVersion.snapshot.diretriz_dist_batente_cm) : "Não especificado"} 
-                      readOnly 
-                      className="bg-muted" 
-                    />
-                  </div>
-                </div>
-              )}
-
-              {selectedVersion.snapshot.observacoes && (
-                <div>
-                  <Label>Observações</Label>
-                  <Textarea value={selectedVersion.snapshot.observacoes} readOnly className="bg-muted min-h-[80px]" />
-                </div>
-              )}
-
-              {selectedVersion.snapshot.comentarios_fornecedor && (
-                <div>
-                  <Label>Comentários para o Fornecedor</Label>
-                  <Textarea value={selectedVersion.snapshot.comentarios_fornecedor} readOnly className="bg-muted min-h-[80px]" />
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setSelectedVersion(null)}>
-                  Fechar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Revision History Modal */}
+      <RevisionHistoryModal
+        installation={installation}
+        revisions={versions}
+        isOpen={showRevisionHistoryModal}
+        onClose={() => setShowRevisionHistoryModal(false)}
+        onRestore={handleRestoreVersion}
+      />
 
       {/* Add Revision Modal */}
       <AddInstallationModal
