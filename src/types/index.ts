@@ -41,7 +41,14 @@ export interface ItemVersion {
   itemId: string;
   snapshot: InstallationVersionSnapshot;
   revisao: number;
-  motivo: 'problema-instalacao' | 'revisao-conteudo' | 'desaprovado-cliente' | 'outros' | 'restored';
+  motivo:
+    | 'problema-instalacao'
+    | 'revisao-conteudo'
+    | 'desaprovado-cliente'
+    | 'outros'
+    | 'restored'
+    | 'created'
+    | 'edited';
   type?: RevisionType;
   descricao_motivo?: string;
   criadoEm: string;

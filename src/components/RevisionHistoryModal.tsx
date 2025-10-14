@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ export function RevisionHistoryModal({
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
 
-  const handleRestore = async () => {
+  const handleRestore = useCallback(async () => {
     if (!versionToRestore) return;
 
     setIsRestoring(true);
@@ -46,11 +46,11 @@ export function RevisionHistoryModal({
       setIsRestoring(false);
       setRestoringVersionId(null);
     }
-  };
+  }, [versionToRestore, onRestore, onClose]);
 
-  const getRevisionTypeKey = (revision: ItemVersion) => revision.type || revision.motivo;
+  const getRevisionTypeKey = useCallback((revision: ItemVersion) => revision.type || revision.motivo, []);
 
-  const getChangeTypeLabel = (revision: ItemVersion) => {
+  const getChangeTypeLabel = useCallback((revision: ItemVersion) => {
     const typeKey = getRevisionTypeKey(revision);
     const labels: Record<string, string> = {
       'problema-instalacao': 'Problema de Instalação',
@@ -62,9 +62,9 @@ export function RevisionHistoryModal({
       'restored': 'Restaurado',
     };
     return labels[typeKey] || typeKey;
-  };
+  }, [getRevisionTypeKey]);
 
-  const getChangeTypeBadge = (revision: ItemVersion) => {
+  const getChangeTypeBadge = useCallback((revision: ItemVersion) => {
     const typeKey = getRevisionTypeKey(revision);
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
       'problema-instalacao': { variant: "destructive", className: "bg-red-100 text-red-800 border-red-300" },
@@ -83,23 +83,26 @@ export function RevisionHistoryModal({
         {getChangeTypeLabel(revision)}
       </Badge>
     );
-  };
+  }, [getRevisionTypeKey, getChangeTypeLabel]);
 
-  // Sort revisions by date (most recent first)
-  const sortedRevisions = [...revisions].sort((a, b) => 
-    new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+  // Sort revisions by date (most recent first) - memoized
+  const sortedRevisions = useMemo(() => 
+    [...revisions].sort((a, b) => 
+      new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+    ),
+    [revisions]
   );
 
   // Helper to get previous revision
-  const getPreviousRevision = (currentIndex: number): ItemVersion | null => {
+  const getPreviousRevision = useCallback((currentIndex: number): ItemVersion | null => {
     // Next item in the sorted array is the previous revision (older)
     return sortedRevisions[currentIndex + 1] || null;
-  };
+  }, [sortedRevisions]);
 
   // Toggle expansion
-  const toggleExpansion = (versionId: string) => {
-    setExpandedVersionId(expandedVersionId === versionId ? null : versionId);
-  };
+  const toggleExpansion = useCallback((versionId: string) => {
+    setExpandedVersionId(current => current === versionId ? null : versionId);
+  }, []);
 
   return (
     <>

@@ -313,6 +313,47 @@ export const StorageManagerDexie: any = {
       _deleted: 0
     };
 
+    // Check if installation exists to determine if it's a creation or update
+    const existingInstallation = await db.installations.get(installation.id);
+    const isNewInstallation = !existingInstallation;
+    
+    // Handle revision creation
+    if (isNewInstallation || existingInstallation) {
+      try {
+        // Extract revision-specific fields
+        const {
+          id: _id,
+          revisado: _revisado,
+          revisao: _revisao,
+          revisions: _revisions,
+          _dirty: _dirty,
+          _deleted: _deleted,
+          ...snapshot
+        } = withDates;
+
+        // Create ItemVersion record
+        const itemVersion: ItemVersion = {
+          id: crypto.randomUUID(),
+          installationId: installation.id,
+          itemId: installation.id,
+          snapshot,
+          revisao: withDates.revisao || 0,
+          motivo: isNewInstallation ? 'created' : 'edited',
+          type: isNewInstallation ? 'created' : 'edited',
+          descricao_motivo: isNewInstallation 
+            ? 'Criação inicial da instalação' 
+            : 'Alteração nos dados da instalação',
+          criadoEm: new Date().toISOString(),
+          createdAt: now(),
+        };
+
+        // Save the version record
+        await this.upsertItemVersion(itemVersion);
+      } catch (error) {
+        // Silently fail - revision creation is not critical
+      }
+    }
+
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('installation', withDates);
     await db.installations.put(withDates);
@@ -804,7 +845,7 @@ async function migrateLegacyReportHistory() {
       }
     });
 
-    console.log('✅ Report saved to history:', normalized.id);
+    // Report saved successfully
     return normalized;
   } catch (error) {
     console.error('❌ Error saving report:', error);
@@ -822,7 +863,7 @@ async function migrateLegacyReportHistory() {
       const payloadId = existing ? ((existing as any).payloadId ?? reportId) : reportId;
       await db.reportPayloads.delete(payloadId);
     });
-    console.log('✅ Report deleted from history:', reportId);
+    // Report deleted successfully
   } catch (error) {
     console.error('❌ Error deleting report:', error);
     throw error;

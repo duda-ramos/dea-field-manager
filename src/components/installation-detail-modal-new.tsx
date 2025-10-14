@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { AddInstallationModal } from "@/components/add-installation-modal";
-import { RevisionHistoryModal } from "@/components/RevisionHistoryModal";
+import { LazyRevisionHistoryModal } from "@/components/LazyRevisionHistoryModal";
 import { Plus, Info, Image as ImageIcon, Clock } from "lucide-react";
 
 interface InstallationDetailModalNewProps {
@@ -47,6 +47,8 @@ export function InstallationDetailModalNew({
   const [revisionMotivo, setRevisionMotivo] = useState<string>("");
   const [revisionDescricao, setRevisionDescricao] = useState("");
   const [showRevisionHistoryModal, setShowRevisionHistoryModal] = useState(false);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setInstalled(installation.installed);
@@ -62,8 +64,20 @@ export function InstallationDetailModalNew({
     }
     
     const loadVersions = async () => {
-      const versions = await storage.getItemVersions(installation.id);
-      setVersions(versions);
+      setIsLoadingVersions(true);
+      try {
+        const versions = await storage.getItemVersions(installation.id);
+        setVersions(versions);
+      } catch (error) {
+        console.error('Erro ao carregar versões:', error);
+        toast({
+          title: "Erro ao carregar histórico",
+          description: "Não foi possível carregar o histórico de revisões.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingVersions(false);
+      }
     };
     loadVersions();
     
@@ -83,41 +97,55 @@ export function InstallationDetailModalNew({
   }, [installation]);
 
   const handleSave = async () => {
-    let newObservations = observationHistory.join('\n---\n');
-    let newSupplierComments = supplierCommentHistory.join('\n---\n');
+    if (isSaving) return;
+    setIsSaving(true);
     
-    // Add new observation if provided
-    if (currentObservation.trim() !== "") {
-      const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
-      newObservations = newObservations ? `${newObservations}\n---\n${timestampedObservation}` : timestampedObservation;
-    }
-    
-    // Add new supplier comment if provided
-    if (currentSupplierComment.trim() !== "") {
-      const timestampedComment = `[${new Date().toLocaleString('pt-BR')}] ${currentSupplierComment.trim()}`;
-      newSupplierComments = newSupplierComments ? `${newSupplierComments}\n---\n${timestampedComment}` : timestampedComment;
-    }
+    try {
+      let newObservations = observationHistory.join('\n---\n');
+      let newSupplierComments = supplierCommentHistory.join('\n---\n');
+      
+      // Add new observation if provided
+      if (currentObservation.trim() !== "") {
+        const timestampedObservation = `[${new Date().toLocaleString('pt-BR')}] ${currentObservation.trim()}`;
+        newObservations = newObservations ? `${newObservations}\n---\n${timestampedObservation}` : timestampedObservation;
+      }
+      
+      // Add new supplier comment if provided
+      if (currentSupplierComment.trim() !== "") {
+        const timestampedComment = `[${new Date().toLocaleString('pt-BR')}] ${currentSupplierComment.trim()}`;
+        newSupplierComments = newSupplierComments ? `${newSupplierComments}\n---\n${timestampedComment}` : timestampedComment;
+      }
 
-    const updatedInstallation = { 
-      ...installation, 
-      installed,
-      status,
-      pendencia_tipo: pendenciaTipo as 'cliente' | 'fornecedor' | 'projetista' | undefined,
-      pendencia_descricao: pendenciaDescricao || undefined, 
-      observacoes: newObservations || undefined, 
-      comentarios_fornecedor: newSupplierComments || undefined,
-      photos 
-    };
-    const updated = await storage.upsertInstallation(updatedInstallation);
+      const updatedInstallation = { 
+        ...installation, 
+        installed,
+        status,
+        pendencia_tipo: pendenciaTipo as 'cliente' | 'fornecedor' | 'projetista' | undefined,
+        pendencia_descricao: pendenciaDescricao || undefined, 
+        observacoes: newObservations || undefined, 
+        comentarios_fornecedor: newSupplierComments || undefined,
+        photos 
+      };
+      const updated = await storage.upsertInstallation(updatedInstallation);
 
-    if (updated) {
-      onUpdate();
-      onClose();
+      if (updated) {
+        onUpdate();
+        onClose();
+        toast({
+          title: "Instalação atualizada",
+          description: "As informações foram salvas com sucesso.",
+        });
+        showToast.success("Instalação atualizada", "As informações foram salvas com sucesso.");
+      }
+    } catch (error) {
+      console.error('Erro ao salvar instalação:', error);
       toast({
-        title: "Instalação atualizada",
-        description: "As informações foram salvas com sucesso.",
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as alterações. Tente novamente.",
+        variant: "destructive",
       });
-      showToast.success("Instalação atualizada", "As informações foram salvas com sucesso.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -605,10 +633,11 @@ export function InstallationDetailModalNew({
                 variant="outline" 
                 onClick={() => setShowRevisionHistoryModal(true)}
                 className="flex items-center gap-2"
+                disabled={isLoadingVersions}
               >
                 <Clock className="h-4 w-4" />
-                Histórico de Revisões
-                {versions.length > 0 && (
+                {isLoadingVersions ? "Carregando..." : "Histórico de Revisões"}
+                {!isLoadingVersions && versions.length > 0 && (
                   <Badge variant="secondary" className="ml-1">
                     {versions.length}
                   </Badge>
@@ -619,8 +648,8 @@ export function InstallationDetailModalNew({
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Revisão
                 </Button>
-                <Button onClick={handleSave}>
-                  Salvar Alterações
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? "Salvando..." : "Salvar Alterações"}
                 </Button>
               </div>
             </div>
@@ -638,8 +667,8 @@ export function InstallationDetailModalNew({
               
               {/* Save button for photos tab */}
               <div className="flex justify-end">
-                <Button onClick={handleSave}>
-                  Salvar Alterações
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? "Salvando..." : "Salvar Alterações"}
                 </Button>
               </div>
             </TabsContent>
@@ -647,14 +676,16 @@ export function InstallationDetailModalNew({
         </DialogContent>
       </Dialog>
 
-      {/* Revision History Modal */}
-      <RevisionHistoryModal
-        installation={installation}
-        revisions={versions}
-        isOpen={showRevisionHistoryModal}
-        onClose={() => setShowRevisionHistoryModal(false)}
-        onRestore={handleRestoreVersion}
-      />
+      {/* Revision History Modal - Lazy loaded */}
+      {showRevisionHistoryModal && (
+        <LazyRevisionHistoryModal
+          installation={installation}
+          revisions={versions}
+          isOpen={showRevisionHistoryModal}
+          onClose={() => setShowRevisionHistoryModal(false)}
+          onRestore={handleRestoreVersion}
+        />
+      )}
 
       {/* Add Revision Modal */}
       <AddInstallationModal

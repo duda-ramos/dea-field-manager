@@ -279,12 +279,9 @@ export default function ProjectDetailNew() {
       
       // Sincronizar fotos com galeria (não-bloqueante)
       try {
-        console.log('🔄 Sincronizando fotos com galeria...');
-        const syncResult = await syncImportedPhotosToGallery(project.id, results);
-        console.log(`✅ Sincronização concluída: ${syncResult.success} sucessos, ${syncResult.errors} erros`);
+        await syncImportedPhotosToGallery(project.id, results);
       } catch (error) {
-        console.error('⚠️ Erro na sincronização de fotos (não-bloqueante):', error);
-        // Não bloquear a importação se a sincronização falhar
+        // Silently fail - photo sync is not critical
       }
       
       // Show summary
