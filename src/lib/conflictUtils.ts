@@ -1,0 +1,155 @@
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+export interface EditConflictInfo {
+  recordId: string;
+  recordType: 'project' | 'installation' | 'contact' | 'budget';
+  localUpdatedAt: string;
+  remoteUpdatedAt: string;
+  hasConflict: boolean;
+}
+
+export interface ConflictDetails {
+  recordType: string;
+  recordName: string;
+  localVersion: any;
+  remoteVersion: any;
+}
+
+/**
+ * Verifica se há conflitos de edição entre versões local e remota
+ */
+export function checkForRemoteEdits(
+  localRecord: { updated_at: string; _dirty?: number },
+  remoteRecord: { updated_at: string },
+  recordId: string,
+  recordType: 'project' | 'installation' | 'contact' | 'budget'
+): EditConflictInfo {
+  const localDate = new Date(localRecord.updated_at);
+  const remoteDate = new Date(remoteRecord.updated_at);
+  
+  // Há conflito se:
+  // 1. Registro local foi modificado (_dirty === 1)
+  // 2. Versão remota é mais recente que a local
+  // 3. Diferença é maior que 1 minuto (para evitar falsos positivos)
+  const hasConflict = 
+    localRecord._dirty === 1 &&
+    remoteDate > localDate &&
+    (remoteDate.getTime() - localDate.getTime()) > 60000; // 1 minuto
+
+  return {
+    recordId,
+    recordType,
+    localUpdatedAt: localRecord.updated_at,
+    remoteUpdatedAt: remoteRecord.updated_at,
+    hasConflict
+  };
+}
+
+/**
+ * Obtém preview dos campos principais de um registro
+ */
+export function getRecordPreview(recordType: string, record: any): Record<string, string> {
+  switch (recordType) {
+    case 'installation':
+      return {
+        'Código': record.codigo || '—',
+        'Descrição': record.descricao || '—',
+        'Quantidade': record.quantidade?.toString() || '—',
+        'Status': record.installed ? 'Instalado' : 'Pendente'
+      };
+    
+    case 'project':
+      return {
+        'Nome': record.name || '—',
+        'Cliente': record.client || '—',
+        'Status': record.status || '—',
+        'Cidade': record.city || '—'
+      };
+    
+    case 'contact':
+      return {
+        'Nome': record.name || '—',
+        'Função': record.role || '—',
+        'Telefone': record.phone || '—',
+        'Email': record.email || '—'
+      };
+    
+    case 'budget':
+      return {
+        'Fornecedor': record.supplier || '—',
+        'Status': record.status || '—',
+        'Arquivo': record.fileName || '—'
+      };
+    
+    default:
+      return {};
+  }
+}
+
+/**
+ * Obtém nome descritivo do registro para exibição
+ */
+export function getRecordDisplayName(recordType: string, record: any): string {
+  switch (recordType) {
+    case 'installation':
+      return `Instalação ${record.codigo || 'sem código'}`;
+    
+    case 'project':
+      return record.name || 'Projeto sem nome';
+    
+    case 'contact':
+      return record.name || 'Contato sem nome';
+    
+    case 'budget':
+      return `Orçamento de ${record.supplier || 'fornecedor'}`;
+    
+    default:
+      return 'Registro';
+  }
+}
+
+/**
+ * Formata data para exibição amigável
+ */
+export function formatConflictDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return format(date, "dd 'de' MMMM 'às' HH:mm", { locale: ptBR });
+  } catch {
+    return 'Data inválida';
+  }
+}
+
+/**
+ * Marca registro para upload forçado
+ */
+export function markForForceUpload(record: any): any {
+  return {
+    ...record,
+    _forceUpload: 1,
+    _dirty: 1,
+    updated_at: new Date().toISOString()
+  };
+}
+
+/**
+ * Remove flags de sincronização do registro
+ */
+export function cleanSyncFlags(record: any): any {
+  const cleaned = { ...record };
+  delete cleaned._dirty;
+  delete cleaned._forceUpload;
+  return cleaned;
+}
+
+/**
+ * Log estruturado para conflitos
+ */
+export function logConflict(action: 'detected' | 'resolved', details: any): void {
+  if (action === 'detected') {
+    console.warn('[Conflict] Edit conflict detected', details);
+  } else {
+    console.log('[Conflict] Resolved', details);
+  }
+}
