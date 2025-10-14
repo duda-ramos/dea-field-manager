@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,6 +22,7 @@ export interface EditConflictAlertProps {
   isOpen: boolean;
   onClose: () => void;
   onResolve: (useLocal: boolean) => void;
+  isResolving?: boolean;
 }
 
 export function EditConflictAlert({
@@ -29,6 +30,7 @@ export function EditConflictAlert({
   isOpen,
   onClose,
   onResolve,
+  isResolving = false,
 }: EditConflictAlertProps) {
   const { recordType, recordName, localVersion, remoteVersion } = conflictInfo;
 
@@ -84,8 +86,16 @@ export function EditConflictAlert({
                   onClick={() => handleResolve(true)}
                   className="mt-4 w-full"
                   variant="default"
+                  disabled={isResolving}
                 >
-                  Manter Minha Versão
+                  {isResolving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    'Manter Minha Versão'
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -116,15 +126,23 @@ export function EditConflictAlert({
                   onClick={() => handleResolve(false)}
                   className="mt-4 w-full"
                   variant="secondary"
+                  disabled={isResolving}
                 >
-                  Usar Versão Remota
+                  {isResolving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    'Usar Versão Remota'
+                  )}
                 </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="flex justify-center pt-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={isResolving}>
               Decidir Mais Tarde
             </Button>
           </div>

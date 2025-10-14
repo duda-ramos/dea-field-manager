@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { conflictStore } from '@/stores/conflictStore';
 import { EditConflictAlert } from './EditConflictAlert';
 import { resolveEditConflict } from '@/lib/conflictResolution';
@@ -16,6 +16,8 @@ export function ConflictManager() {
     getPendingCount,
   } = conflictStore();
 
+  const [isResolving, setIsResolving] = useState(false);
+
   // Show notification when component mounts if there are pending conflicts
   useEffect(() => {
     const pendingCount = getPendingCount();
@@ -29,6 +31,7 @@ export function ConflictManager() {
 
     const { recordType, localVersion, remoteVersion } = currentConflict;
     
+    setIsResolving(true);
     try {
       await resolveEditConflict(
         localVersion.id,
@@ -42,6 +45,8 @@ export function ConflictManager() {
       resolveCurrentConflict();
     } catch (error) {
       console.error('Error resolving conflict:', error);
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -60,6 +65,7 @@ export function ConflictManager() {
         isOpen={showConflictAlert}
         onClose={handleClose}
         onResolve={handleResolve}
+        isResolving={isResolving}
       />
     </>
   );
