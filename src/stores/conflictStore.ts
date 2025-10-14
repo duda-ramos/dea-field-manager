@@ -24,7 +24,7 @@ type SetStateInput = SetStateValue | ((state: ConflictState) => SetStateValue);
 
 type ConflictStoreListener = () => void;
 
-const STORAGE_KEY = 'conflict-storage';
+const STORAGE_KEY = 'dea-conflict-store';
 const isBrowser = typeof window !== 'undefined';
 
 const defaultData: ConflictStoreData = {
@@ -39,6 +39,20 @@ const notifySubscribers = () => {
   listeners.forEach((listener) => listener());
 };
 
+const isSameConflict = (
+  a: ConflictDetails | null,
+  b: ConflictDetails | null
+): boolean => {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    a.recordType === b.recordType &&
+    a.localVersion.id === b.localVersion.id
+  );
+};
+
 const loadPersistedData = (): ConflictStoreData => {
   if (!isBrowser) {
     return { ...defaultData };
@@ -50,10 +64,21 @@ const loadPersistedData = (): ConflictStoreData => {
       return { ...defaultData };
     }
 
-    const parsed = JSON.parse(stored) as Partial<ConflictStoreData>;
+    const parsed = JSON.parse(stored) as { pendingConflicts?: ConflictDetails[] };
+    const pendingConflicts = parsed.pendingConflicts || [];
+    
+    // Se houver conflitos pendentes, o primeiro será o currentConflict
+    let currentConflict: ConflictDetails | null = null;
+    let remainingConflicts = pendingConflicts;
+    
+    if (pendingConflicts.length > 0) {
+      [currentConflict, ...remainingConflicts] = pendingConflicts;
+    }
+    
     return {
-      ...defaultData,
-      ...parsed,
+      currentConflict,
+      showConflictAlert: false, // Sempre inicia fechado
+      pendingConflicts: remainingConflicts,
     };
   } catch (error) {
     console.warn('Failed to load conflict store from storage', error);
@@ -69,9 +94,14 @@ const persistState = () => {
   }
 
   try {
-    const dataToPersist: Pick<ConflictStoreData, 'currentConflict' | 'pendingConflicts'> = {
-      currentConflict: currentState.currentConflict,
-      pendingConflicts: currentState.pendingConflicts,
+    // Persistir apenas pendingConflicts
+    // Se houver currentConflict, inclui-lo no array para não perder
+    const allPendingConflicts = currentState.currentConflict
+      ? [currentState.currentConflict, ...currentState.pendingConflicts]
+      : currentState.pendingConflicts;
+    
+    const dataToPersist = {
+      pendingConflicts: allPendingConflicts,
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToPersist));
@@ -119,13 +149,17 @@ const initializeState = (): ConflictState => {
     ...base,
     addConflict: (conflict) => {
       setState((state) => {
-        const exists = state.pendingConflicts.some(
-          (c) =>
-            c.recordType === conflict.recordType &&
-            c.localVersion.id === conflict.localVersion.id
+        const existsInPending = state.pendingConflicts.some((c) =>
+          isSameConflict(c, conflict)
         );
 
-        if (exists) {
+        const matchesCurrent = isSameConflict(state.currentConflict, conflict);
+
+        if (existsInPending || matchesCurrent) {
+          if (matchesCurrent && !state.showConflictAlert) {
+            return { showConflictAlert: true } satisfies Partial<ConflictState>;
+          }
+
           return state;
         }
 

@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   XCircle
 } from "lucide-react";
+import { TestConflictPersistence } from "@/components/test-conflict-persistence";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -849,6 +850,13 @@ export default function Debug() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Conflict Persistence Test Section */}
+      {isDevelopment && (
+        <div className="mt-8">
+          <TestConflictPersistence />
+        </div>
+      )}
 
       {/* Error Boundary Test Section */}
       {isDevelopment && (
