@@ -115,7 +115,6 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
 
         const allInstallations: Installation[] = [];
         const requiredColumns = ['Tipologia', 'Código', 'Descrição', 'Quantidade'];
-        const seenCodes = new Map<number, { pavimento: string; linha: number }>();
 
         for (const sheetName of sheetNames) {
           const worksheet = workbook.Sheets[sheetName];
@@ -204,19 +203,6 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
                 errors.push(`Aba "${sheetName}" - Linha ${lineNumber}: Quantidade inválida`);
               } else {
                 quantidade = parsedQtd;
-              }
-            }
-            
-            // 5. Detect duplicate codes
-            if (codigo > 0) {
-              const existing = seenCodes.get(codigo);
-              if (existing) {
-                // Only add error once per duplicate code
-                if (!errors.find(e => e.includes(`Código duplicado: ${codigo}`))) {
-                  errors.push(`Códigos duplicados encontrados: ${codigo}`);
-                }
-              } else {
-                seenCodes.set(codigo, { pavimento: sheetName, linha: lineNumber });
               }
             }
             
