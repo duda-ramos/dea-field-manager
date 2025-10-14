@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export function TestConflictIntegration() {
   const createTestConflict = (): ConflictDetails => ({
     recordType: 'installation',
+    recordName: 'Instalação Local',
     localVersion: {
       id: 'test-' + Date.now(),
       name: 'Instalação Local',
@@ -19,7 +20,6 @@ export function TestConflictIntegration() {
       updated_at: new Date(Date.now() - 60000).toISOString(), // 1 minuto atrás
       version: 3,
     },
-    differences: ['name'],
   });
 
   const addSingleConflict = () => {
