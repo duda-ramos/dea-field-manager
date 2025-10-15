@@ -26,6 +26,45 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Installation, PublicReportData } from '@/types';
 
+type SectionFilters = Record<string, boolean> | undefined;
+
+const calculateStats = (installations: Installation[]) => ({
+  total: installations.length,
+  completed: installations.filter(i => i.installed).length,
+  pending: installations.filter(i => !i.installed && i.status === 'pendente').length,
+  in_progress: installations.filter(i => !i.installed && i.status === 'ativo').length,
+  in_review: installations.filter(i => !i.installed && i.status === 'on hold').length,
+});
+
+const filterInstallationsBySections = (
+  installations: Installation[],
+  sections: SectionFilters
+) => {
+  if (!sections) {
+    return installations;
+  }
+
+  const hasSelectedSection = Object.values(sections).some(Boolean);
+
+  if (!hasSelectedSection) {
+    return [];
+  }
+
+  return installations.filter(installation => {
+    const isCompleted = installation.installed;
+    const isPending = !installation.installed && installation.status === 'pendente';
+    const isInProgress = !installation.installed && installation.status === 'ativo';
+    const isInReview = !installation.installed && installation.status === 'on hold';
+
+    return (
+      (sections.pendencias && isPending) ||
+      (sections.concluidas && isCompleted) ||
+      (sections.emAndamento && isInProgress) ||
+      (sections.emRevisao && isInReview)
+    );
+  });
+};
+
 type FilterType = 'all' | 'completed' | 'pending';
 
 export function PublicReportView() {
@@ -86,11 +125,11 @@ export function PublicReportView() {
 
       // Buscar instalações se incluídas no relatório
       let installations: Installation[] = [];
-      if (accessData.sections_included?.pendencias || 
+      if (accessData.sections_included?.pendencias ||
           accessData.sections_included?.concluidas ||
           accessData.sections_included?.emAndamento ||
           accessData.sections_included?.emRevisao) {
-        
+
         const { data: installData, error: installError } = await supabase
           .from('installations')
           .select('*')
@@ -104,6 +143,16 @@ export function PublicReportView() {
         }
       }
 
+      const filteredInstallations = filterInstallationsBySections(
+        installations,
+        accessData.sections_included
+      );
+      const computedStats = calculateStats(filteredInstallations);
+      const stats = {
+        ...(accessData.stats || {}),
+        ...computedStats,
+      };
+
       // Montar dados do relatório
       const reportData: PublicReportData = {
         id: accessData.report_id,
@@ -114,14 +163,8 @@ export function PublicReportView() {
         format: accessData.format,
         file_url: accessData.file_url,
         sections_included: accessData.sections_included,
-        stats: accessData.stats || {
-          total: installations.length,
-          completed: installations.filter(i => i.installed).length,
-          pending: installations.filter(i => !i.installed && i.status === 'pendente').length,
-          in_progress: installations.filter(i => !i.installed && i.status === 'ativo').length,
-          in_review: installations.filter(i => !i.installed && i.status === 'on hold').length,
-        },
-        installations,
+        stats,
+        installations: filteredInstallations,
         interlocutor: accessData.interlocutor
       };
 
@@ -135,7 +178,7 @@ export function PublicReportView() {
   };
 
   // Filtrar instalações
-  const filteredInstallations = reportData?.installations?.filter(installation => {
+  const visibleInstallations = reportData?.installations?.filter(installation => {
     // Aplicar filtro de status
     if (filter === 'completed' && !installation.installed) return false;
     if (filter === 'pending' && installation.installed) return false;
@@ -433,13 +476,13 @@ export function PublicReportView() {
               </div>
             </CardHeader>
             <CardContent>
-              {filteredInstallations.length === 0 ? (
+              {visibleInstallations.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhuma instalação encontrada
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredInstallations.map((installation) => (
+                  {visibleInstallations.map((installation) => (
                     <Card key={installation.id} className="overflow-hidden">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
