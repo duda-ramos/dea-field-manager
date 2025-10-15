@@ -157,3 +157,23 @@ export interface FileAttachment {
 }
 
 export type ProjectFile = FileAttachment;
+
+export interface PublicReportData {
+  id: string;
+  project_name: string;
+  client_name?: string;
+  generated_at: string;
+  expires_at: string;
+  format: 'pdf' | 'xlsx';
+  file_url?: string;
+  sections_included: Record<string, boolean>;
+  stats: {
+    total: number;
+    completed: number;
+    pending: number;
+    in_progress?: number;
+    in_review?: number;
+  };
+  installations?: Installation[];
+  interlocutor: 'cliente' | 'fornecedor';
+}

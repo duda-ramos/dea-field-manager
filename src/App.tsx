@@ -32,6 +32,7 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 import { TestConflictIntegration } from "./components/test-conflict-integration";
+import { PublicReportView } from "./components/reports/PublicReportView";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,9 @@ const App = () => {
                         <ForgotPasswordPage />
                       </PublicRoute>
                     } />
+                    
+                    {/* Public report view route */}
+                    <Route path="/public/report/:token" element={<PublicReportView />} />
                     
                     {/* Protected routes */}
                     <Route path="/" element={
