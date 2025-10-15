@@ -10,6 +10,7 @@ export function TestConflictPersistence() {
 
   const createTestConflict = (): ConflictDetails => ({
     recordType: 'assessment',
+    recordName: 'Avaliação de teste',
     localVersion: {
       id: `test-${Date.now()}`,
       data: { 

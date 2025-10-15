@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { createHash } from 'crypto';
+import type { Json, Tables } from '@/integrations/supabase/types';
 
 export interface PublicReportLink {
   id: string;
@@ -59,6 +59,53 @@ function generateSecureToken(): string {
   return crypto.randomUUID();
 }
 
+const mapMetadata = (metadata: Json | null | undefined): Record<string, any> => {
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    return metadata as Record<string, any>;
+  }
+  return {};
+};
+
+const toJsonMetadata = (metadata?: Record<string, any>): Json =>
+  JSON.parse(JSON.stringify(metadata ?? {}));
+
+const mapPublicReportLink = (link: Tables<'public_report_links'>): PublicReportLink => ({
+  id: link.id,
+  report_id: link.report_id,
+  token_hash: link.token_hash,
+  expires_at: link.expires_at,
+  is_active: link.is_active,
+  access_count: link.access_count,
+  last_accessed_at: link.last_accessed_at,
+  created_by: link.created_by,
+  created_at: link.created_at,
+  updated_at: link.updated_at,
+  metadata: mapMetadata(link.metadata),
+});
+
+const mapPublicReportAccess = (
+  access: Tables<'public_report_access'>
+): PublicReportAccess => ({
+  link_id: access.link_id,
+  token_hash: access.token_hash,
+  expires_at: access.expires_at,
+  access_count: access.access_count,
+  report_id: access.report_id,
+  project_id: access.project_id,
+  file_url: access.file_url,
+  file_name: access.file_name,
+  format: access.format as 'pdf' | 'xlsx',
+  interlocutor: access.interlocutor as 'cliente' | 'fornecedor',
+  generated_at: access.generated_at,
+  sections_included: Object.fromEntries(
+    Object.entries(mapMetadata(access.sections_included)).map(([key, value]) => [
+      key,
+      Boolean(value),
+    ])
+  ) as Record<string, boolean>,
+  stats: mapMetadata(access.stats),
+});
+
 export const reportSharingService = {
   /**
    * Generate a public link for a report
@@ -101,7 +148,7 @@ export const reportSharingService = {
         token_hash: tokenHash,
         expires_at: expiresAt.toISOString(),
         created_by: user.id,
-        metadata: options.metadata || {},
+        metadata: toJsonMetadata(options.metadata),
       })
       .select()
       .single();
@@ -116,7 +163,7 @@ export const reportSharingService = {
 
     return {
       url,
-      link: link as PublicReportLink,
+      link: mapPublicReportLink(link),
       token, // Return the token so it can be shared (only time it's visible)
     };
   },
@@ -143,14 +190,17 @@ export const reportSharingService = {
     }
 
     // Increment access count (fire and forget)
-    supabase.rpc('increment_public_link_access', {
-      link_id: accessRecord.link_id,
-      token_hash: tokenHash,
-    })
-      .then(() => console.log('Access count incremented'))
-      .catch(err => console.error('Failed to increment access count:', err));
+    void supabase
+      .rpc('increment_public_link_access', {
+        link_id: accessRecord.link_id,
+        token_hash: tokenHash,
+      })
+      .then(
+        () => console.log('Access count incremented'),
+        err => console.error('Failed to increment access count:', err)
+      );
 
-    return accessRecord as PublicReportAccess;
+    return mapPublicReportAccess(accessRecord as Tables<'public_report_access'>);
   },
 
   /**
@@ -198,9 +248,14 @@ export const reportSharingService = {
     const remainingTimeMs = Math.max(0, expiresAt.getTime() - now.getTime());
 
     return {
-      ...data,
+      id: data.id,
+      access_count: data.access_count,
+      last_accessed_at: data.last_accessed_at,
+      created_at: data.created_at,
+      expires_at: data.expires_at,
+      is_active: data.is_active,
       remaining_time_ms: remainingTimeMs,
-    } as PublicLinkStats;
+    };
   },
 
   /**
@@ -223,7 +278,7 @@ export const reportSharingService = {
       throw new Error(`Failed to fetch public links: ${error.message}`);
     }
 
-    return (data || []) as PublicReportLink[];
+    return (data || []).map(mapPublicReportLink);
   },
 
   /**
@@ -246,7 +301,7 @@ export const reportSharingService = {
       throw new Error(`Failed to fetch active links: ${error.message}`);
     }
 
-    return (data || []) as PublicReportLink[];
+    return (data || []).map(mapPublicReportLink);
   },
 
   /**
