@@ -371,22 +371,7 @@ export function ReportShareModal({
     try {
       console.log('[DEBUG] Tentando upload para Supabase...');
       console.log('[DEBUG] Storage path:', storagePath);
-      
-      // Verificar se bucket existe ANTES de tentar upload
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      if (bucketsError) {
-        console.error('[DEBUG] ❌ Erro ao listar buckets:', bucketsError);
-        throw new Error('Não foi possível acessar storage');
-      }
-      
-      const reportsBucket = buckets?.find(b => b.id === 'reports');
-      if (!reportsBucket) {
-        console.error('[DEBUG] ❌ Bucket "reports" não existe!');
-        throw new Error('Bucket de relatórios não configurado');
-      }
-      
-      console.log('[DEBUG] ✅ Bucket encontrado:', reportsBucket.name);
-      
+
       // Fazer upload com timeout de 60 segundos
       const uploadPromise = supabase.storage
         .from('reports')
@@ -394,11 +379,11 @@ export function ReportShareModal({
           contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
           upsert: true
         });
-      
-      const timeoutPromise = new Promise((_, reject) => 
+
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Upload timeout após 60s')), 60000)
       );
-      
+
       const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
       if (uploadError) {
@@ -413,7 +398,7 @@ export function ReportShareModal({
     } catch (error: any) {
       console.error('[DEBUG] ❌ Upload falhou:', error.message);
       uploadSuccess = false;
-      
+
       // Mostrar toast informativo
       toast({
         title: 'Modo offline',
