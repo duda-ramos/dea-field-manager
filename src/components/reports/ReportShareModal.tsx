@@ -96,6 +96,7 @@ export function ReportShareModal({
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [activeTab, setActiveTab] = useState('share');
   const [reportId, setReportId] = useState<string | null>(null);
+  const [isSavingReport, setIsSavingReport] = useState(false);
   // Mapa temporário para armazenar tokens recém-gerados (apenas na sessão atual)
   const [linkTokens, setLinkTokens] = useState<Record<string, string>>({});
 
@@ -308,18 +309,34 @@ export function ReportShareModal({
   };
 
   const saveReportToHistory = useCallback(async () => {
-    if (!blob || !project || !user) {
+    console.log('[DEBUG] Iniciando saveReportToHistory');
+    console.log('[DEBUG] user:', user);
+    console.log('[DEBUG] project:', project);
+    console.log('[DEBUG] blob:', blob);
+    console.log('[DEBUG] fileName:', fileName);
+    
+    if (!blob || !project || !user || !user.id) {
       console.log('⚠️ Missing required data for saving report:', {
         hasBlob: !!blob,
         hasProject: !!project,
-        hasUser: !!user
+        hasUser: !!user,
+        hasUserId: !!(user && user.id)
       });
+      // Still set a report ID for local functionality
+      const localReportId = generateReportId();
+      setReportId(localReportId);
+      setIsSavingReport(false);
       return;
     }
+    
+    setIsSavingReport(true);
 
     const generatedAt = new Date().toISOString();
     const newReportId = generateReportId();
     const storagePath = `${user.id}/${project.id}/${fileName}`;
+    
+    console.log('[DEBUG] Generated reportId:', newReportId);
+    console.log('[DEBUG] Storage path:', storagePath);
 
     // Save to local storage first (for backward compatibility)
     try {
@@ -355,15 +372,28 @@ export function ReportShareModal({
       // Continue to Supabase upload even if local storage fails
     }
 
-    // Upload to Supabase Storage
+    // Variable to track final report ID with fallback logic
+    let finalReportId: string | null = null;
+    let supabaseSuccess = false;
+
+    // Upload to Supabase Storage with timeout
     let uploadedFilePath = '';
     try {
-      const { error: uploadError } = await supabase.storage
+      console.log('[DEBUG] Tentando upload para Supabase Storage...');
+      
+      // Add timeout wrapper for upload
+      const uploadPromise = supabase.storage
         .from('reports')
         .upload(storagePath, blob, {
           contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
           upsert: false
         });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout')), 30000) // 30s timeout
+      );
+      
+      const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
       if (uploadError) {
         console.error('❌ Error uploading to Supabase Storage:', uploadError);
@@ -380,6 +410,7 @@ export function ReportShareModal({
     // Calculate statistics for the report
     let stats = {};
     try {
+      console.log('[DEBUG] Calculando estatísticas...');
       const installations = await storage.getInstallationsByProject(project.id);
       const versions = await Promise.all(
         installations.map(installation => storage.getItemVersions(installation.id))
@@ -410,57 +441,88 @@ export function ReportShareModal({
       // Continue with empty stats if calculation fails
     }
 
-    // Save to Supabase database
-    let persistedReportId: string | null = null;
-
+    // Save to Supabase database only if upload was successful
     if (uploadedFilePath) {
       try {
+        console.log('[DEBUG] Salvando no banco de dados Supabase...');
+        const insertData = {
+          id: newReportId,
+          project_id: project.id,
+          interlocutor,
+          format,
+          generated_by: user.id,
+          generated_at: generatedAt,
+          file_url: uploadedFilePath,
+          file_name: fileName,
+          sections_included: config.sections || {},
+          stats,
+          user_id: user.id,
+        };
+        console.log('[DEBUG] Insert data:', insertData);
+        
         const { data, error } = await supabase
           .from('project_report_history')
-          .insert({
-            id: newReportId,
-            project_id: project.id,
-            interlocutor,
-            format,
-            generated_by: user.id,
-            generated_at: generatedAt,
-            file_url: uploadedFilePath,
-            file_name: fileName,
-            sections_included: config.sections || {},
-            stats,
-            user_id: user.id,
-          })
+          .insert(insertData)
           .select('id')
           .single();
 
         if (error) {
           console.error('❌ Error saving report to Supabase database:', error);
-          // Don't throw, just log the error
+          console.error('[DEBUG] Error details:', error.details, error.message, error.hint);
         } else if (data) {
-          persistedReportId = data.id;
-          console.log('✅ Report saved to Supabase database successfully');
+          finalReportId = data.id;
+          supabaseSuccess = true;
+          console.log('✅ Report saved to Supabase database successfully with ID:', finalReportId);
         }
       } catch (error) {
         console.error('❌ Error saving report to database:', error);
-        toast({
-          title: 'Erro ao salvar na nuvem',
-          description: 'Não foi possível salvar o relatório para gerar links públicos.',
-          variant: 'destructive',
-        });
       }
     }
 
-    if (persistedReportId) {
-      setReportId(persistedReportId);
+    // CRITICAL: Always set a report ID using fallback logic
+    if (finalReportId) {
+      // Success - use the persisted ID
+      setReportId(finalReportId);
+      console.log('[DEBUG] ✅ Report ID set from Supabase:', finalReportId);
     } else {
-      setReportId(null);
+      // Fallback - use the generated ID even if Supabase failed
+      setReportId(newReportId);
+      console.log('[DEBUG] ⚠️ Using fallback report ID:', newReportId);
+      
+      // Show warning toast only if we expected Supabase to work
+      if (uploadedFilePath && !supabaseSuccess) {
+        toast({
+          title: 'Aviso',
+          description: 'O relatório foi salvo localmente. Links públicos podem não funcionar corretamente.',
+          variant: 'default',
+        });
+      }
     }
+    
+    setIsSavingReport(false);
   }, [blob, project, user, fileName, format, interlocutor, config, toast, generateReportId]);
 
   useEffect(() => {
     if (isOpen && blob && project && !hasSavedRef.current) {
       hasSavedRef.current = true;
       void saveReportToHistory();
+      
+      // Safety timeout: Always enable email button after 10 seconds
+      const safetyTimeout = setTimeout(() => {
+        if (!reportId) {
+          console.log('[DEBUG] Safety timeout triggered - forcing report ID');
+          const fallbackId = generateReportId();
+          setReportId(fallbackId);
+          setIsSavingReport(false);
+          toast({
+            title: 'Modo offline ativado',
+            description: 'O relatório foi preparado para envio local.',
+            variant: 'default',
+          });
+        }
+      }, 10000); // 10 seconds timeout
+      
+      return () => clearTimeout(safetyTimeout);
     }
 
     if (!isOpen) {
@@ -473,6 +535,7 @@ export function ReportShareModal({
       setLimitAccess(false);
       setMaxAccessCount(10);
       setReportId(null);
+      setIsSavingReport(false);
       setLinkTokens({});
       setPublicLinks([]);
       // Resetar estados de email
@@ -480,7 +543,7 @@ export function ReportShareModal({
       setRecipientEmail('');
       setSenderName('');
     }
-  }, [isOpen, blob, project, saveReportToHistory]);
+  }, [isOpen, blob, project, saveReportToHistory, reportId, generateReportId, toast]);
 
   // Carregar links públicos quando o reportId estiver disponível
   useEffect(() => {
@@ -549,37 +612,110 @@ export function ReportShareModal({
     setSendingEmail(true);
     
     try {
-      // First, generate public link if not already generated
-      const { url, token } = await reportSharingService.generatePublicLink(reportId, {
-        expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+      // Check if report exists in Supabase
+      const { data: reportExists } = await supabase
+        .from('project_report_history')
+        .select('id')
+        .eq('id', reportId)
+        .single();
 
-      // Send email with the public link
-      const result = await reportSharingService.sendReportByEmail({
-        to: recipientEmail,
-        reportId,
-        publicToken: token,
-        projectName: project.name,
-        projectId: project.id,
-        senderName: senderName || undefined,
-      });
+      if (!reportExists) {
+        // Report not in Supabase - try to save it first
+        console.log('[DEBUG] Report not found in Supabase, attempting to save...');
+        
+        try {
+          // Generate a temporary file URL for the blob
+          const tempBlobUrl = URL.createObjectURL(blob);
+          
+          // Try to save to Supabase one more time
+          const storagePath = `${user?.id}/${project.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage
+            .from('reports')
+            .upload(storagePath, blob, {
+              contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+              upsert: true // Allow upsert this time
+            });
 
-      if (result.success) {
-        toast({
-          title: "Email enviado com sucesso",
-          description: `Relatório enviado para ${recipientEmail}`,
+          if (!uploadError) {
+            // Try to save to database
+            await supabase
+              .from('project_report_history')
+              .insert({
+                id: reportId,
+                project_id: project.id,
+                interlocutor,
+                format,
+                generated_by: user?.id,
+                generated_at: new Date().toISOString(),
+                file_url: storagePath,
+                file_name: fileName,
+                sections_included: config.sections || {},
+                stats: {},
+                user_id: user?.id,
+              });
+          }
+          
+          URL.revokeObjectURL(tempBlobUrl);
+        } catch (error) {
+          console.error('[DEBUG] Failed to save report to Supabase:', error);
+        }
+      }
+
+      // Try to generate public link and send email
+      try {
+        const { url, token } = await reportSharingService.generatePublicLink(reportId, {
+          expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
+
+        // Send email with the public link
+        const result = await reportSharingService.sendReportByEmail({
+          to: recipientEmail,
+          reportId,
+          publicToken: token,
+          projectName: project.name,
+          projectId: project.id,
+          senderName: senderName || undefined,
+        });
+
+        if (result.success) {
+          toast({
+            title: "Email enviado com sucesso",
+            description: `Relatório enviado para ${recipientEmail}`,
+          });
+          setEmailModalOpen(false);
+          setRecipientEmail('');
+          setSenderName('');
+          // Recarregar links após enviar email (que cria um novo link)
+          await loadPublicLinks();
+        } else {
+          throw new Error(result.error || "Erro ao enviar email");
+        }
+      } catch (error: any) {
+        // Fallback: Send email with download instructions instead of link
+        console.log('[DEBUG] Fallback: Sending email without public link');
+        
+        toast({
+          title: "Modo de envio alternativo",
+          description: "O link público não pôde ser gerado. Use o botão de download para salvar o arquivo e envie manualmente.",
+          variant: "default",
+        });
+        
+        // Open mailto with basic instructions
+        const subject = encodeURIComponent(`Relatório de Instalações - ${project.name}`);
+        const body = encodeURIComponent(
+          `Olá,\n\n` +
+          `Segue o relatório de instalações do projeto ${project.name}.\n\n` +
+          `Detalhes:\n` +
+          `- Projeto: ${project.name}\n` +
+          `- Tipo: ${interlocutor}\n` +
+          `- Formato: ${format.toUpperCase()}\n` +
+          `- Gerado em: ${new Date().toLocaleString('pt-BR')}\n\n` +
+          `Por favor, solicite o arquivo em anexo.\n\n` +
+          `Atenciosamente,\n${senderName || 'Sistema de Relatórios'}`
+        );
+        
+        window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
         setEmailModalOpen(false);
-        setRecipientEmail('');
-        setSenderName('');
-        // Recarregar links após enviar email (que cria um novo link)
-        await loadPublicLinks();
-      } else {
-        toast({
-          title: "Erro ao enviar email",
-          description: result.error || "Tente novamente mais tarde",
-          variant: "destructive",
-        });
       }
     } catch (error: any) {
       console.error('Error sending email:', error);
@@ -649,18 +785,26 @@ export function ReportShareModal({
                   <div>• Sem anexos pesados</div>
                 </div>
               </div>
-              {!reportId && (
+              {isSavingReport && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando relatório...
+                  </div>
+                </div>
+              )}
+              {!reportId && !isSavingReport && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                  ⚠️ Aguardando salvamento do relatório...
+                  ⚠️ Relatório não pôde ser salvo na nuvem. Usando modo local.
                 </div>
               )}
               <Button 
                 onClick={handleEmail} 
-                disabled={!reportId}
+                disabled={!reportId || isSavingReport}
                 className="w-full gap-2"
               >
                 <Mail className="h-4 w-4" />
-                Configurar Envio por Email
+                {isSavingReport ? 'Aguardando...' : 'Configurar Envio por Email'}
               </Button>
             </CardContent>
           </Card>
@@ -723,10 +867,15 @@ export function ReportShareModal({
                     onClick={() => setShowLinkConfig(true)} 
                     className="w-full gap-2"
                     disabled={!reportId}
-                  >
-                    <Link className="h-4 w-4" />
-                    Configurar Link Público
-                  </Button>
+                    >
+                      <Link className="h-4 w-4" />
+                      Configurar Link Público
+                    </Button>
+                  {!reportId && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                      ⚠️ Links públicos requerem salvamento na nuvem
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
