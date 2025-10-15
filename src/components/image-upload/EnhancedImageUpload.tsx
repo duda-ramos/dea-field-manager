@@ -679,8 +679,12 @@ export function EnhancedImageUpload({
               variant="default"
               disabled={isUploading || isCompressing || isUploadDisabled}
             >
-              <Camera className="h-5 w-5 mr-2" />
-              Capturar Foto
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <Camera className="h-5 w-5 mr-2" />
+              )}
+              {isUploading ? 'Enviando...' : 'Capturar Foto'}
             </Button>
             <Button 
               onClick={handleGalleryUpload}
@@ -688,8 +692,12 @@ export function EnhancedImageUpload({
               className="flex-1 h-12"
               disabled={isUploading || isCompressing || isUploadDisabled}
             >
-              <Upload className="h-5 w-5 mr-2" />
-              Galeria/Arquivo
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-5 w-5 mr-2" />
+              )}
+              {isUploading ? 'Enviando...' : 'Galeria/Arquivo'}
             </Button>
             <div className="shrink-0 w-full sm:w-auto">
               <BulkDownloader 
@@ -708,6 +716,7 @@ export function EnhancedImageUpload({
             multiple
             onChange={handleFileInput}
             className="hidden"
+            disabled={isUploading || isCompressing}
           />
           <input
             ref={fileInputRef}
@@ -716,6 +725,7 @@ export function EnhancedImageUpload({
             multiple
             onChange={handleFileInput}
             className="hidden"
+            disabled={isUploading || isCompressing}
           />
         </CardContent>
       </Card>
