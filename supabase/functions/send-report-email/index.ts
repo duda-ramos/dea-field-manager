@@ -10,12 +10,6 @@ interface EmailRequest {
   senderName?: string;
 }
 
-interface ProjectInfo {
-  name: string;
-  client?: string;
-  address?: string;
-}
-
 interface ReportStats {
   total: number;
   completed: number;
@@ -94,6 +88,7 @@ serve(async (req) => {
       .from('projects')
       .select('name, client, address')
       .eq('id', requestData.projectId)
+      .eq('user_id', user.id)
       .single()
 
     if (projectError || !project) {
@@ -113,24 +108,27 @@ serve(async (req) => {
       .select(`
         id,
         created_at,
-        report_data
+        stats,
+        project_id
       `)
       .eq('id', requestData.reportId)
+      .eq('project_id', requestData.projectId)
+      .eq('user_id', user.id)
       .single()
 
     if (reportError || !reportData) {
       console.error('Erro ao buscar relatório:', reportError)
       return new Response(
         JSON.stringify({ error: 'Relatório não encontrado' }),
-        { 
+        {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
-    // Calculate statistics from report data
-    const stats = calculateReportStats(reportData.report_data)
+    // Calculate statistics from stored report stats
+    const stats = calculateReportStats(reportData.stats)
     
     // Calculate expiration date (30 days from now)
     const expirationDate = new Date()
@@ -148,9 +146,6 @@ serve(async (req) => {
       reportDate: new Date(reportData.created_at).toLocaleDateString('pt-BR')
     })
 
-    // Get domain from environment
-    const appDomain = Deno.env.get('APP_DOMAIN') || 'https://deamanager.com'
-    
     // Send email via Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {
@@ -233,37 +228,73 @@ function isValidEmail(email: string): boolean {
   return regex.test(email)
 }
 
-function calculateReportStats(reportData: any): ReportStats {
-  if (!reportData || !reportData.dados_relatorio) {
-    return { total: 0, completed: 0, pending: 0, percentage: 0 }
+function calculateReportStats(rawStats: unknown): ReportStats {
+  const defaultStats: ReportStats = { total: 0, completed: 0, pending: 0, percentage: 0 }
+
+  if (!rawStats || typeof rawStats !== 'object') {
+    return defaultStats
   }
 
-  let total = 0
-  let completed = 0
+  const statsRecord = rawStats as Record<string, unknown>
 
-  // Iterar por todas as seções do relatório
-  Object.values(reportData.dados_relatorio).forEach((section: any) => {
-    if (Array.isArray(section)) {
-      section.forEach((item: any) => {
-        if (item && typeof item === 'object') {
-          total++
-          // Verificar se o item está concluído baseado em diferentes critérios
-          if (item.status === 'concluido' || 
-              item.status === 'completed' ||
-              item.concluido === true ||
-              item.quantidade > 0 ||
-              item.instalado === true) {
-            completed++
-          }
-        }
-      })
+  const toNumber = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
     }
-  })
 
-  const pending = total - completed
-  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : null
+    }
 
-  return { total, completed, pending, percentage }
+    return null
+  }
+
+  const total = toNumber(statsRecord.total) ?? toNumber(statsRecord.total_items) ?? defaultStats.total
+  const completed =
+    toNumber(statsRecord.completed) ??
+    toNumber(statsRecord.concluidas) ??
+    toNumber(statsRecord.concluidos) ??
+    defaultStats.completed
+
+  const pendingDirect =
+    toNumber(statsRecord.pending) ??
+    toNumber(statsRecord.pendencias) ??
+    toNumber(statsRecord.pendentes)
+
+  const inProgress = toNumber(statsRecord.inProgress) ?? toNumber(statsRecord.emAndamento) ?? 0
+  const inReview = toNumber(statsRecord.inReview) ?? toNumber(statsRecord.emRevisao) ?? 0
+
+  let pending = pendingDirect ?? 0
+
+  if (pendingDirect == null) {
+    const derivedPending = (toNumber(statsRecord.pendencias) ?? 0) + inProgress + inReview
+    if (derivedPending > 0) {
+      pending = derivedPending
+    }
+  }
+
+  if (pending <= 0 && total > 0) {
+    const fallbackPending = total - completed - inReview
+    if (fallbackPending > 0) {
+      pending = fallbackPending
+    }
+  }
+
+  if (pending < 0) {
+    pending = 0
+  }
+
+  const percentage =
+    toNumber(statsRecord.percentage) ??
+    (total > 0 ? Math.round((completed / total) * 100) : defaultStats.percentage)
+
+  return {
+    total,
+    completed,
+    pending,
+    percentage
+  }
 }
 
 function generateEmailTemplate(params: {
