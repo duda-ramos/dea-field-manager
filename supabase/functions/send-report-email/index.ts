@@ -49,8 +49,18 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Get authorization header
-    const authHeader = req.headers.get('Authorization')!
-    
+    const authHeader = req.headers.get('Authorization')
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Verify user from JWT
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
@@ -107,6 +117,7 @@ serve(async (req) => {
       .from('project_report_history')
       .select(`
         id,
+        generated_at,
         created_at,
         stats,
         project_id
@@ -143,7 +154,7 @@ serve(async (req) => {
       stats,
       publicToken: requestData.publicToken,
       expirationDate: expirationDate.toLocaleDateString('pt-BR'),
-      reportDate: new Date(reportData.created_at).toLocaleDateString('pt-BR')
+      reportDate: getReportDate(reportData).toLocaleDateString('pt-BR')
     })
 
     // Send email via Resend
@@ -231,11 +242,29 @@ function isValidEmail(email: string): boolean {
 function calculateReportStats(rawStats: unknown): ReportStats {
   const defaultStats: ReportStats = { total: 0, completed: 0, pending: 0, percentage: 0 }
 
-  if (!rawStats || typeof rawStats !== 'object') {
+  if (!rawStats) {
     return defaultStats
   }
 
-  const statsRecord = rawStats as Record<string, unknown>
+  let statsRecord: Record<string, unknown> | null = null
+
+  if (typeof rawStats === 'string') {
+    try {
+      const parsed = JSON.parse(rawStats)
+      if (parsed && typeof parsed === 'object') {
+        statsRecord = parsed as Record<string, unknown>
+      }
+    } catch (error) {
+      console.warn('Failed to parse stats JSON string', error)
+      return defaultStats
+    }
+  } else if (typeof rawStats === 'object') {
+    statsRecord = rawStats as Record<string, unknown>
+  }
+
+  if (!statsRecord) {
+    return defaultStats
+  }
 
   const toNumber = (value: unknown): number | null => {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -295,6 +324,20 @@ function calculateReportStats(rawStats: unknown): ReportStats {
     pending,
     percentage
   }
+}
+
+function getReportDate(reportData: { generated_at?: string | null; created_at?: string | null }): Date {
+  const generatedAt = reportData.generated_at ? new Date(reportData.generated_at) : null
+  if (generatedAt && !Number.isNaN(generatedAt.getTime())) {
+    return generatedAt
+  }
+
+  const createdAt = reportData.created_at ? new Date(reportData.created_at) : null
+  if (createdAt && !Number.isNaN(createdAt.getTime())) {
+    return createdAt
+  }
+
+  return new Date()
 }
 
 function generateEmailTemplate(params: {
