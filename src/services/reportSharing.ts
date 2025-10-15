@@ -361,4 +361,93 @@ export const reportSharingService = {
       throw new Error(`Failed to extend link expiration: ${updateError.message}`);
     }
   },
+
+  /**
+   * Send report by email
+   * @param params - Email parameters including recipient, report details, etc.
+   * @returns Success status and error message if applicable
+   */
+  async sendReportByEmail(params: {
+    to: string;
+    reportId: string;
+    publicToken: string;
+    projectName: string;
+    projectId: string;
+    senderName?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate email format
+      if (!isValidEmail(params.to)) {
+        return { 
+          success: false, 
+          error: 'Formato de email inválido' 
+        };
+      }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { 
+          success: false, 
+          error: 'Usuário não autenticado' 
+        };
+      }
+
+      // Call edge function to send email
+      const { data, error } = await supabase.functions.invoke('send-report-email', {
+        body: params
+      });
+
+      if (error) {
+        console.error('Erro ao enviar email:', error);
+        
+        // Handle specific error types
+        if (error.message?.includes('429')) {
+          return { 
+            success: false, 
+            error: 'Limite de envios atingido. Tente mais tarde.' 
+          };
+        }
+        
+        if (error.message?.includes('401')) {
+          return { 
+            success: false, 
+            error: 'Não autorizado' 
+          };
+        }
+
+        return { 
+          success: false, 
+          error: error.message || 'Erro ao enviar email. Tente novamente.' 
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erro ao enviar email:', error);
+      
+      // Handle network errors
+      if (!navigator.onLine) {
+        return { 
+          success: false, 
+          error: 'Sem conexão. Verifique sua internet.' 
+        };
+      }
+
+      return { 
+        success: false, 
+        error: error.message || 'Erro ao enviar email' 
+      };
+    }
+  },
 };
+
+/**
+ * Helper function to validate email format
+ * @param email - The email address to validate
+ * @returns true if valid, false otherwise
+ */
+function isValidEmail(email: string): boolean {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}

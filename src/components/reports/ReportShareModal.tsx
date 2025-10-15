@@ -24,7 +24,9 @@ import {
   Eye,
   AlertCircle,
   Loader2,
-  Calendar
+  Calendar,
+  Send,
+  User
 } from 'lucide-react';
 import { Project, ReportHistoryEntry } from '@/types';
 import { storage } from '@/lib/storage';
@@ -33,6 +35,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { calculateReportSections } from '@/lib/reports-new';
 import { ReportConfig } from './ReportCustomizationModal';
 import { reportSharingService, PublicReportLink, GeneratePublicLinkOptions } from '@/services/reportSharing';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -67,6 +79,12 @@ export function ReportShareModal({
     message: `Segue anexo o relatório de instalações do projeto ${project.name}.\n\nGerado em: ${new Date().toLocaleString('pt-BR')}`,
   });
   
+  // Email modal states
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  
   // Estados para links públicos
   const [showLinkConfig, setShowLinkConfig] = useState(false);
   const [linkExpiration, setLinkExpiration] = useState('24h');
@@ -95,6 +113,7 @@ export function ReportShareModal({
       return v.toString(16);
     });
   }, []);
+  
   const fileIdentifier = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -416,11 +435,11 @@ export function ReportShareModal({
 
         if (error) {
           console.error('❌ Error saving report to Supabase database:', error);
-          throw error;
+          // Don't throw, just log the error
+        } else if (data) {
+          persistedReportId = data.id;
+          console.log('✅ Report saved to Supabase database successfully');
         }
-
-        persistedReportId = data?.id || newReportId;
-        console.log('✅ Report saved to Supabase database successfully');
       } catch (error) {
         console.error('❌ Error saving report to database:', error);
         toast({
@@ -456,6 +475,10 @@ export function ReportShareModal({
       setReportId(null);
       setLinkTokens({});
       setPublicLinks([]);
+      // Resetar estados de email
+      setEmailModalOpen(false);
+      setRecipientEmail('');
+      setSenderName('');
     }
   }, [isOpen, blob, project, saveReportToHistory]);
 
@@ -484,7 +507,6 @@ export function ReportShareModal({
     onClose();
   };
 
-
   const handleWhatsApp = () => {
     // Convert blob to base64 for WhatsApp sharing (simplified)
     const message = encodeURIComponent(
@@ -510,27 +532,64 @@ export function ReportShareModal({
   };
 
   const handleEmail = async () => {
-    setIsSharing(true);
+    // Open email modal instead of using mailto
+    setEmailModalOpen(true);
+  };
+  
+  const handleSendEmail = async () => {
+    if (!recipientEmail || !reportId) {
+      toast({
+        title: "Dados incompletos",
+        description: "Por favor, preencha o email do destinatário",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingEmail(true);
     
     try {
-      // In a real implementation, you would call an API to send the email
-      // with the attachment. For now, we'll simulate this.
-      
-      const mailtoLink = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
-      window.location.href = mailtoLink;
-      
-      toast({
-        title: "Cliente de email aberto",
-        description: "Complete o envio anexando o arquivo manualmente",
+      // First, generate public link if not already generated
+      const { url, token } = await reportSharingService.generatePublicLink(reportId, {
+        expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
-    } catch (error) {
+
+      // Send email with the public link
+      const result = await reportSharingService.sendReportByEmail({
+        to: recipientEmail,
+        reportId,
+        publicToken: token,
+        projectName: project.name,
+        projectId: project.id,
+        senderName: senderName || undefined,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Email enviado com sucesso",
+          description: `Relatório enviado para ${recipientEmail}`,
+        });
+        setEmailModalOpen(false);
+        setRecipientEmail('');
+        setSenderName('');
+        // Recarregar links após enviar email (que cria um novo link)
+        await loadPublicLinks();
+      } else {
+        toast({
+          title: "Erro ao enviar email",
+          description: result.error || "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error sending email:', error);
       toast({
-        title: "Erro no envio",
-        description: "Não foi possível abrir o cliente de email",
+        title: "Erro ao enviar email",
+        description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
     } finally {
-      setIsSharing(false);
+      setSendingEmail(false);
     }
   };
 
@@ -579,40 +638,29 @@ export function ReportShareModal({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="email-to">Para:</Label>
-                <Input
-                  id="email-to"
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  value={emailData.to}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
-                />
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground mb-2">
+                  📧 Envio profissional por email
+                </div>
+                <div className="text-sm space-y-2">
+                  <div>• Email HTML responsivo e profissional</div>
+                  <div>• Link seguro para visualização online</div>
+                  <div>• Expiração automática em 30 dias</div>
+                  <div>• Sem anexos pesados</div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="email-subject">Assunto:</Label>
-                <Input
-                  id="email-subject"
-                  value={emailData.subject}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="email-message">Mensagem:</Label>
-                <Textarea
-                  id="email-message"
-                  rows={4}
-                  value={emailData.message}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, message: e.target.value }))}
-                />
-              </div>
+              {!reportId && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  ⚠️ Aguardando salvamento do relatório...
+                </div>
+              )}
               <Button 
                 onClick={handleEmail} 
-                disabled={isSharing || !emailData.to}
+                disabled={!reportId}
                 className="w-full gap-2"
               >
                 <Mail className="h-4 w-4" />
-                {isSharing ? 'Enviando...' : 'Abrir Cliente de Email'}
+                Configurar Envio por Email
               </Button>
             </CardContent>
           </Card>
@@ -854,152 +902,238 @@ export function ReportShareModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-3xl overflow-hidden">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <Share2 className="h-5 w-5" />
-            Compartilhar Relatório
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-3xl overflow-hidden">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Share2 className="h-5 w-5" />
+              Compartilhar Relatório
+            </DialogTitle>
+          </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="share">Compartilhar</TabsTrigger>
-            <TabsTrigger value="links" className="relative">
-              Links Ativos
-              {publicLinks.filter(l => l.is_active && new Date(l.expires_at) > new Date()).length > 0 && (
-                <Badge 
-                  variant="secondary" 
-                  className="ml-2 h-5 px-1 text-xs"
-                >
-                  {publicLinks.filter(l => l.is_active && new Date(l.expires_at) > new Date()).length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="share">Compartilhar</TabsTrigger>
+              <TabsTrigger value="links" className="relative">
+                Links Ativos
+                {publicLinks.filter(l => l.is_active && new Date(l.expires_at) > new Date()).length > 0 && (
+                  <Badge 
+                    variant="secondary" 
+                    className="ml-2 h-5 px-1 text-xs"
+                  >
+                    {publicLinks.filter(l => l.is_active && new Date(l.expires_at) > new Date()).length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="share" className="space-y-4 mt-4">
-            {/* Report Summary */}
-            <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {format === 'pdf' ? (
-                      <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 shrink-0" />
-                    ) : (
-                      <Table className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm sm:text-base truncate">{fileName}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        Projeto: {project.name} • {interlocutor}
+            <TabsContent value="share" className="space-y-4 mt-4">
+              {/* Report Summary */}
+              <Card>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {format === 'pdf' ? (
+                        <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 shrink-0" />
+                      ) : (
+                        <Table className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm sm:text-base truncate">{fileName}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Projeto: {project.name} • {interlocutor}
+                        </div>
                       </div>
                     </div>
+                    <Badge variant="outline" className="shrink-0 text-xs">
+                      {format.toUpperCase()}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="shrink-0 text-xs">
-                    {format.toUpperCase()}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Share Method Selection */}
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { key: 'download', icon: Download, label: 'Baixar' },
-                { key: 'email', icon: Mail, label: 'Email' },
-                { key: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
-                { key: 'copy', icon: Link, label: 'Link' },
-              ].map(method => (
-                <Button
-                  key={method.key}
-                  variant={shareMethod === method.key ? 'default' : 'outline'}
-                  onClick={() => setShareMethod(method.key as any)}
-                  className="flex flex-col gap-1 h-auto py-2 text-xs"
-                >
-                  <method.icon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="text-xs">{method.label}</span>
-                </Button>
-              ))}
-            </div>
-
-            {/* Share Method Content */}
-            <div className="min-h-[180px] sm:min-h-[200px]">
-              {getShareMethodContent()}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="links" className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Links Públicos Gerados</h3>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setActiveTab('share');
-                    setShareMethod('copy');
-                  }}
-                  className="gap-1"
-                >
-                  <Link className="h-3 w-3" />
-                  Novo Link
-                </Button>
+              {/* Share Method Selection */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { key: 'download', icon: Download, label: 'Baixar' },
+                  { key: 'email', icon: Mail, label: 'Email' },
+                  { key: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+                  { key: 'copy', icon: Link, label: 'Link' },
+                ].map(method => (
+                  <Button
+                    key={method.key}
+                    variant={shareMethod === method.key ? 'default' : 'outline'}
+                    onClick={() => setShareMethod(method.key as any)}
+                    className="flex flex-col gap-1 h-auto py-2 text-xs"
+                  >
+                    <method.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="text-xs">{method.label}</span>
+                  </Button>
+                ))}
               </div>
 
-              {isLoadingLinks ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <Card key={i}>
-                      <CardContent className="pt-4">
-                        <div className="space-y-3">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-48" />
-                          <div className="flex gap-2">
-                            <Skeleton className="h-8 flex-1" />
-                            <Skeleton className="h-8 flex-1" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : publicLinks.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-6 pb-6 text-center">
-                    <Link className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum link público gerado ainda
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setActiveTab('share');
-                        setShareMethod('copy');
-                      }}
-                      className="mt-3 gap-1"
-                    >
-                      <Link className="h-3 w-3" />
-                      Gerar Primeiro Link
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {publicLinks.map(renderPublicLinkCard)}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+              {/* Share Method Content */}
+              <div className="min-h-[180px] sm:min-h-[200px]">
+                {getShareMethodContent()}
+              </div>
+            </TabsContent>
 
-        <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <TabsContent value="links" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Links Públicos Gerados</h3>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab('share');
+                      setShareMethod('copy');
+                    }}
+                    className="gap-1"
+                  >
+                    <Link className="h-3 w-3" />
+                    Novo Link
+                  </Button>
+                </div>
+
+                {isLoadingLinks ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <Card key={i}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-48" />
+                            <div className="flex gap-2">
+                              <Skeleton className="h-8 flex-1" />
+                              <Skeleton className="h-8 flex-1" />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : publicLinks.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 pb-6 text-center">
+                      <Link className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum link público gerado ainda
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveTab('share');
+                          setShareMethod('copy');
+                        }}
+                        className="mt-3 gap-1"
+                      >
+                        <Link className="h-3 w-3" />
+                        Gerar Primeiro Link
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    {publicLinks.map(renderPublicLinkCard)}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Configuration Modal */}
+      <AlertDialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Enviar Relatório por Email
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Configure o envio do relatório por email. O destinatário receberá um link seguro para visualização.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipient-email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email do destinatário <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="recipient-email"
+                type="email"
+                placeholder="exemplo@email.com"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                disabled={sendingEmail}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="sender-name" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Seu nome (opcional)
+              </Label>
+              <Input
+                id="sender-name"
+                type="text"
+                placeholder="João Silva"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                disabled={sendingEmail}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Se informado, será usado na saudação do email
+              </p>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <div className="font-medium text-blue-900 mb-1">ℹ️ O que será enviado:</div>
+              <ul className="text-blue-800 space-y-1 text-xs">
+                <li>• Email HTML profissional com as estatísticas do relatório</li>
+                <li>• Link seguro para visualização online (válido por 30 dias)</li>
+                <li>• Informações do projeto e progresso</li>
+              </ul>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sendingEmail}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendEmail}
+              disabled={!recipientEmail || sendingEmail}
+              className="gap-2"
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Enviar Email
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

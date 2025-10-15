@@ -240,3 +240,76 @@ Para mais detalhes sobre o sistema de resolução de conflitos, consulte o [Guia
 - Defina o secret de repositório **DEGRADED_CI=true** para que o pipeline **pule instalação/build/test** e marque os jobs como sucesso controlado.
 - Use somente quando houver bloqueio de rede (403 nos registries).
 - Para restaurar o fluxo normal, **remova** o secret ou defina `DEGRADED_CI=false`.
+
+## 📧 Configuração do Envio de Emails
+
+O DEA Manager oferece a funcionalidade de enviar relatórios por email usando o serviço Resend.
+
+### Pré-requisitos
+
+1. **Conta no Resend**
+   - Crie uma conta em [resend.com](https://resend.com)
+   - Obtenha sua API Key no dashboard
+
+2. **Supabase Edge Functions**
+   - As Edge Functions devem estar habilitadas no seu projeto Supabase
+
+### Configuração
+
+1. **Configurar a API Key do Resend no Supabase**:
+   ```bash
+   # No dashboard do Supabase:
+   # Settings → Edge Functions → Secrets
+   # Adicione:
+   # Nome: RESEND_API_KEY
+   # Valor: sua_api_key_aqui
+   ```
+
+2. **Configurar o domínio da aplicação** (opcional):
+   ```bash
+   # Adicione no Supabase Secrets:
+   # Nome: APP_DOMAIN
+   # Valor: https://seu-dominio.com
+   ```
+
+3. **Deploy da Edge Function**:
+   ```bash
+   # Com Supabase CLI instalado:
+   supabase functions deploy send-report-email
+   ```
+
+### Funcionalidades
+
+- **Email HTML Responsivo**: Template profissional com suporte a dark mode
+- **Link Seguro**: Links públicos com expiração de 30 dias
+- **Estatísticas**: Resumo visual do progresso do relatório
+- **Rate Limiting**: Limite de 50 emails por dia por usuário
+- **Tracking**: Logs de envio para auditoria
+
+### Uso
+
+1. Gere um relatório no sistema
+2. No modal de compartilhamento, clique em "Email"
+3. Insira o email do destinatário
+4. Opcionalmente, adicione seu nome para personalização
+5. Clique em "Enviar Email"
+
+### Personalização do Template
+
+O template do email pode ser personalizado editando a função `generateEmailTemplate` em:
+```
+supabase/functions/send-report-email/index.ts
+```
+
+### Troubleshooting
+
+- **Erro 429**: Limite de envios atingido. Aguarde 24h.
+- **Email não enviado**: Verifique se a API Key está configurada corretamente
+- **Link expirado**: Links são válidos por 30 dias. Gere um novo se necessário.
+
+### Segurança
+
+- Todos os links são hasheados e únicos
+- Expiração automática após 30 dias
+- Rate limiting para prevenir abuso
+- Logs de acesso para auditoria
