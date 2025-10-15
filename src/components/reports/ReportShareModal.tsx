@@ -82,6 +82,19 @@ export function ReportShareModal({
   const [linkTokens, setLinkTokens] = useState<Record<string, string>>({});
 
   const hasSavedRef = useRef(false);
+
+  const generateReportId = useCallback(() => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+
+    // Fallback para ambientes sem crypto.randomUUID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+      const r = Math.random() * 16 | 0;
+      const v = char === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }, []);
   const fileIdentifier = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -277,25 +290,25 @@ export function ReportShareModal({
 
   const saveReportToHistory = useCallback(async () => {
     if (!blob || !project || !user) {
-      console.log('⚠️ Missing required data for saving report:', { 
-        hasBlob: !!blob, 
-        hasProject: !!project, 
-        hasUser: !!user 
+      console.log('⚠️ Missing required data for saving report:', {
+        hasBlob: !!blob,
+        hasProject: !!project,
+        hasUser: !!user
       });
       return;
     }
 
     const generatedAt = new Date().toISOString();
-    const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const newReportId = generateReportId();
     const storagePath = `${user.id}/${project.id}/${fileName}`;
 
     // Save to local storage first (for backward compatibility)
     try {
       const reportRecord: ReportHistoryEntry = {
-        id: reportId,
+        id: newReportId,
         projectId: project.id,
         project_id: project.id,
-        payloadId: reportId,
+        payloadId: newReportId,
         fileName,
         format,
         interlocutor,
@@ -318,9 +331,6 @@ export function ReportShareModal({
 
       await storage.saveReport(reportRecord);
       console.log('✅ Report saved to local storage successfully');
-      
-      // Definir o reportId para uso nos links públicos
-      setReportId(reportId);
     } catch (error) {
       console.error('❌ Error saving report to local storage:', error);
       // Continue to Supabase upload even if local storage fails
@@ -382,12 +392,14 @@ export function ReportShareModal({
     }
 
     // Save to Supabase database
+    let persistedReportId: string | null = null;
+
     if (uploadedFilePath) {
-      /* Commented out - table doesn't exist yet
       try {
         const { data, error } = await supabase
           .from('project_report_history')
           .insert({
+            id: newReportId,
             project_id: project.id,
             interlocutor,
             format,
@@ -398,21 +410,33 @@ export function ReportShareModal({
             sections_included: config.sections || {},
             stats,
             user_id: user.id,
-          });
+          })
+          .select('id')
+          .single();
 
         if (error) {
           console.error('❌ Error saving report to Supabase database:', error);
           throw error;
         }
 
+        persistedReportId = data?.id || newReportId;
         console.log('✅ Report saved to Supabase database successfully');
       } catch (error) {
         console.error('❌ Error saving report to database:', error);
-        // Don't show error toast as local storage already has the report
+        toast({
+          title: 'Erro ao salvar na nuvem',
+          description: 'Não foi possível salvar o relatório para gerar links públicos.',
+          variant: 'destructive',
+        });
       }
-      */
     }
-  }, [blob, project, user, fileName, format, interlocutor, config]);
+
+    if (persistedReportId) {
+      setReportId(persistedReportId);
+    } else {
+      setReportId(null);
+    }
+  }, [blob, project, user, fileName, format, interlocutor, config, toast, generateReportId]);
 
   useEffect(() => {
     if (isOpen && blob && project && !hasSavedRef.current) {
@@ -429,6 +453,9 @@ export function ReportShareModal({
       setCustomExpiration('');
       setLimitAccess(false);
       setMaxAccessCount(10);
+      setReportId(null);
+      setLinkTokens({});
+      setPublicLinks([]);
     }
   }, [isOpen, blob, project, saveReportToHistory]);
 
