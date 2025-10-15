@@ -59,23 +59,29 @@ CREATE POLICY "Public can access link data via valid token"
   TO anon
   USING (
     is_active = true AND
-    expires_at > now()
+    expires_at > now() AND
+    token_hash = current_setting('request.jwt.claim.token_hash', true)
   );
 
--- Function to increment access count
-CREATE OR REPLACE FUNCTION increment_public_link_access(link_id UUID)
+DROP FUNCTION IF EXISTS increment_public_link_access(UUID);
+
+CREATE OR REPLACE FUNCTION increment_public_link_access(link_id UUID, token_hash TEXT)
 RETURNS void AS $$
 BEGIN
+  PERFORM set_config('request.jwt.claim.token_hash', token_hash, true);
+
   UPDATE public_report_links
-  SET 
+  SET
     access_count = access_count + 1,
     last_accessed_at = now()
-  WHERE 
+  WHERE
     id = link_id AND
+    token_hash = current_setting('request.jwt.claim.token_hash', true) AND
     is_active = true AND
     expires_at > now();
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
 
 -- Function to cleanup expired links (can be called periodically)
 CREATE OR REPLACE FUNCTION cleanup_expired_public_links()
@@ -95,8 +101,8 @@ CREATE TRIGGER update_public_report_links_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Grant access to increment function for authenticated users
-GRANT EXECUTE ON FUNCTION increment_public_link_access(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION increment_public_link_access(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION increment_public_link_access(UUID, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION cleanup_expired_public_links() TO authenticated;
 
 -- Create view for public report access (to be used by public API)
@@ -124,6 +130,55 @@ WHERE
 
 -- Grant select on view to anon for public access
 GRANT SELECT ON public_report_access TO anon;
+
+-- Secure function to fetch public report access by token hash
+CREATE OR REPLACE FUNCTION get_public_report_access(token_hash TEXT)
+RETURNS TABLE (
+  link_id UUID,
+  token_hash TEXT,
+  expires_at TIMESTAMP WITH TIME ZONE,
+  access_count INTEGER,
+  report_id UUID,
+  project_id UUID,
+  file_url TEXT,
+  file_name TEXT,
+  format TEXT,
+  interlocutor TEXT,
+  generated_at TIMESTAMP WITH TIME ZONE,
+  sections_included JSONB,
+  stats JSONB
+) AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.token_hash', token_hash, true);
+
+  RETURN QUERY
+  SELECT
+    pl.id,
+    pl.token_hash,
+    pl.expires_at,
+    pl.access_count,
+    prh.id,
+    prh.project_id,
+    prh.file_url,
+    prh.file_name,
+    prh.format,
+    prh.interlocutor,
+    prh.generated_at,
+    prh.sections_included,
+    prh.stats
+  FROM
+    public_report_links pl
+    INNER JOIN project_report_history prh ON pl.report_id = prh.id
+  WHERE
+    pl.token_hash = current_setting('request.jwt.claim.token_hash', true) AND
+    pl.is_active = true AND
+    pl.expires_at > now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+GRANT EXECUTE ON FUNCTION get_public_report_access(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION get_public_report_access(TEXT) TO authenticated;
 
 -- Add comments for documentation
 COMMENT ON TABLE public_report_links IS 'Stores public sharing links for project reports with expiration and access tracking';

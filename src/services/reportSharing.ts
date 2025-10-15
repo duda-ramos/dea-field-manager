@@ -129,23 +129,28 @@ export const reportSharingService = {
   async validatePublicToken(token: string): Promise<PublicReportAccess | null> {
     const tokenHash = hashToken(token);
 
-    // Query the public access view
+    // Query secured RPC that enforces token hash validation server-side
     const { data, error } = await supabase
-      .from('public_report_access')
-      .select('*')
-      .eq('token_hash', tokenHash)
-      .single();
+      .rpc('get_public_report_access', { token_hash: tokenHash });
 
     if (error || !data) {
       return null;
     }
 
+    const accessRecord = Array.isArray(data) ? data[0] : data;
+    if (!accessRecord) {
+      return null;
+    }
+
     // Increment access count (fire and forget)
-    supabase.rpc('increment_public_link_access', { link_id: data.link_id })
+    supabase.rpc('increment_public_link_access', {
+      link_id: accessRecord.link_id,
+      token_hash: tokenHash,
+    })
       .then(() => console.log('Access count incremented'))
       .catch(err => console.error('Failed to increment access count:', err));
 
-    return data as PublicReportAccess;
+    return accessRecord as PublicReportAccess;
   },
 
   /**
