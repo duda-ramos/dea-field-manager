@@ -146,7 +146,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 
   while (hasMore) {
     try {
-      const { data: records, error } = await withRetry(async () => {
+      const { data, error } = await withRetry(async () => {
         return await supabase
           .from(remote as any)
           .select('*')
@@ -164,11 +164,23 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
         throw error;
       }
 
-      if (records && records.length > 0) {
+      // Type guard: ensure data is an array
+      const records = Array.isArray(data) ? data : [];
+
+      if (records.length > 0) {
         logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
 
-        for (const remoteRecord of records) {
+        for (const rawRecord of records) {
+          // Type assertion: after filtering, we know these are valid records with properties
+          const remoteRecord = rawRecord as any;
+          
           try {
+            // Ensure remoteRecord has an id property
+            if (!remoteRecord || !remoteRecord.id) {
+              logger.warn('Skipping record without id');
+              continue;
+            }
+
             // Get local version
             const localRecord = await localTable.get(remoteRecord.id);
             
@@ -204,7 +216,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            errors.push(`${entityName}_${(remoteRecord as any).id || 'unknown'}: ${errorMsg}`);
+            errors.push(`${entityName}_${remoteRecord.id || 'unknown'}: ${errorMsg}`);
           }
         }
 
