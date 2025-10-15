@@ -258,13 +258,36 @@ export default function ProjectDetailNew() {
       const results = [];
       if (result.data && Array.isArray(result.data)) {
         for (const installation of result.data) {
+          const now = new Date();
+          const nowIso = now.toISOString();
+          const nowTimestamp = now.getTime();
+          
           const installationData = {
             ...installation,
             project_id: project.id,
-            updated_at: new Date().toISOString()
+            updated_at: nowIso,
+            revisao: 0 // Garantir que comece em 0
           };
           const installResult = await storage.upsertInstallation(installationData);
           results.push(installResult);
+          
+          // Criar versão inicial (Revisão 0) para instalações importadas
+          const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = installResult;
+
+          const initialVersion = {
+            id: crypto.randomUUID(),
+            installationId: installResult.id,
+            itemId: installResult.id,
+            snapshot,
+            revisao: 0,
+            motivo: 'created' as const,
+            type: 'created' as const,
+            descricao_motivo: 'Versão inicial (importada)',
+            criadoEm: nowIso,
+            createdAt: nowTimestamp,
+          };
+
+          await storage.upsertItemVersion(initialVersion);
         }
       }
       
