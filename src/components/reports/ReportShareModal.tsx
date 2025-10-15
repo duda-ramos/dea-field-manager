@@ -309,22 +309,21 @@ export function ReportShareModal({
   };
 
   const saveReportToHistory = useCallback(async () => {
-    console.log('[DEBUG] Iniciando saveReportToHistory');
-    console.log('[DEBUG] user:', user);
-    console.log('[DEBUG] project:', project);
-    console.log('[DEBUG] blob:', blob);
-    console.log('[DEBUG] fileName:', fileName);
+    console.log('[DEBUG] ═══ INICIANDO saveReportToHistory ═══');
+    console.log('[DEBUG] user:', user?.id);
+    console.log('[DEBUG] project:', project?.id);
+    console.log('[DEBUG] blob:', blob?.size, 'bytes');
     
-    if (!blob || !project || !user || !user.id) {
-      console.log('⚠️ Missing required data for saving report:', {
-        hasBlob: !!blob,
-        hasProject: !!project,
-        hasUser: !!user,
-        hasUserId: !!(user && user.id)
-      });
-      // Still set a report ID for local functionality
-      const localReportId = generateReportId();
-      setReportId(localReportId);
+    // SEMPRE gerar ID primeiro (antes de qualquer operação)
+    const newReportId = generateReportId();
+    console.log('[DEBUG] Report ID gerado:', newReportId);
+    
+    // DEFINIR reportId IMEDIATAMENTE
+    setReportId(newReportId);
+    console.log('[DEBUG] ✅ reportId definido imediatamente');
+    
+    if (!blob || !project || !user?.id) {
+      console.log('[DEBUG] ⚠️ Dados incompletos - modo local apenas');
       setIsSavingReport(false);
       return;
     }
@@ -332,14 +331,11 @@ export function ReportShareModal({
     setIsSavingReport(true);
 
     const generatedAt = new Date().toISOString();
-    const newReportId = generateReportId();
     const storagePath = `${user.id}/${project.id}/${fileName}`;
     
-    console.log('[DEBUG] Generated reportId:', newReportId);
-    console.log('[DEBUG] Storage path:', storagePath);
-
-    // Save to local storage first (for backward compatibility)
+    // ═══ ETAPA 1: SALVAR LOCALMENTE (SEMPRE) ═══
     try {
+      console.log('[DEBUG] Salvando localmente...');
       const reportRecord: ReportHistoryEntry = {
         id: newReportId,
         projectId: project.id,
@@ -351,11 +347,7 @@ export function ReportShareModal({
         config,
         blob,
         size: blob.size,
-        mimeType:
-          blob.type ||
-          (format === 'pdf'
-            ? 'application/pdf'
-            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        mimeType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
         generatedAt,
         generated_at: generatedAt,
         generatedBy: project.owner || 'Sistema',
@@ -366,85 +358,108 @@ export function ReportShareModal({
       };
 
       await storage.saveReport(reportRecord);
-      console.log('✅ Report saved to local storage successfully');
+      console.log('[DEBUG] ✅ Salvo localmente com sucesso');
     } catch (error) {
-      console.error('❌ Error saving report to local storage:', error);
-      // Continue to Supabase upload even if local storage fails
+      console.error('[DEBUG] ❌ Erro ao salvar localmente:', error);
+      // Continuar mesmo se local storage falhar
     }
 
-    // Variable to track final report ID with fallback logic
-    let finalReportId: string | null = null;
-    let supabaseSuccess = false;
-
-    // Upload to Supabase Storage with timeout
+    // ═══ ETAPA 2: TENTAR UPLOAD PARA SUPABASE ═══
+    let uploadSuccess = false;
     let uploadedFilePath = '';
+    
     try {
-      console.log('[DEBUG] Tentando upload para Supabase Storage...');
+      console.log('[DEBUG] Tentando upload para Supabase...');
+      console.log('[DEBUG] Storage path:', storagePath);
       
-      // Add timeout wrapper for upload
+      // Verificar se bucket existe ANTES de tentar upload
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      if (bucketsError) {
+        console.error('[DEBUG] ❌ Erro ao listar buckets:', bucketsError);
+        throw new Error('Não foi possível acessar storage');
+      }
+      
+      const reportsBucket = buckets?.find(b => b.id === 'reports');
+      if (!reportsBucket) {
+        console.error('[DEBUG] ❌ Bucket "reports" não existe!');
+        throw new Error('Bucket de relatórios não configurado');
+      }
+      
+      console.log('[DEBUG] ✅ Bucket encontrado:', reportsBucket.name);
+      
+      // Fazer upload com timeout de 60 segundos
       const uploadPromise = supabase.storage
         .from('reports')
         .upload(storagePath, blob, {
           contentType: blob.type || (format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-          upsert: false
+          upsert: true
         });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Upload timeout')), 30000) // 30s timeout
+        setTimeout(() => reject(new Error('Upload timeout após 60s')), 60000)
       );
       
       const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
       if (uploadError) {
-        console.error('❌ Error uploading to Supabase Storage:', uploadError);
+        console.error('[DEBUG] ❌ Erro no upload:', uploadError.message);
         throw uploadError;
       }
 
       uploadedFilePath = storagePath;
-      console.log('✅ Report uploaded to Supabase Storage:', uploadedFilePath);
-    } catch (error) {
-      console.error('❌ Error uploading report to Supabase Storage:', error);
-      // Don't block the process if storage upload fails
+      uploadSuccess = true;
+      console.log('[DEBUG] ✅ Upload concluído:', uploadedFilePath);
+
+    } catch (error: any) {
+      console.error('[DEBUG] ❌ Upload falhou:', error.message);
+      uploadSuccess = false;
+      
+      // Mostrar toast informativo
+      toast({
+        title: 'Modo offline',
+        description: 'Relatório salvo localmente. Compartilhamento online não disponível.',
+        variant: 'default',
+      });
     }
 
-    // Calculate statistics for the report
-    let stats = {};
-    try {
-      console.log('[DEBUG] Calculando estatísticas...');
-      const installations = await storage.getInstallationsByProject(project.id);
-      const versions = await Promise.all(
-        installations.map(installation => storage.getItemVersions(installation.id))
-      ).then(results => results.flat());
-
-      const reportData = {
-        project,
-        installations,
-        versions,
-        generatedBy: project.owner || 'Sistema',
-        generatedAt,
-        interlocutor,
-      };
-
-      const sections = calculateReportSections(reportData as any);
-      
-      stats = {
-        pendencias: sections.pendencias.length,
-        concluidas: sections.concluidas.length,
-        emRevisao: sections.emRevisao.length,
-        emAndamento: sections.emAndamento.length,
-        total: installations.length,
-      };
-      
-      console.log('✅ Report statistics calculated:', stats);
-    } catch (error) {
-      console.error('❌ Error calculating report statistics:', error);
-      // Continue with empty stats if calculation fails
-    }
-
-    // Save to Supabase database only if upload was successful
-    if (uploadedFilePath) {
+    // ═══ ETAPA 3: SALVAR METADADOS NO BANCO (SE UPLOAD DEU CERTO) ═══
+    if (uploadSuccess && uploadedFilePath) {
       try {
-        console.log('[DEBUG] Salvando no banco de dados Supabase...');
+        console.log('[DEBUG] Salvando metadados no banco...');
+        
+        // Calcular estatísticas
+        let stats = {};
+        try {
+          const installations = await storage.getInstallationsByProject(project.id);
+          const versions = await Promise.all(
+            installations.map(installation => storage.getItemVersions(installation.id))
+          ).then(results => results.flat());
+
+          const reportData = {
+            project,
+            installations,
+            versions,
+            generatedBy: project.owner || 'Sistema',
+            generatedAt,
+            interlocutor,
+          };
+
+          const sections = calculateReportSections(reportData as any);
+          
+          stats = {
+            pendencias: sections.pendencias.length,
+            concluidas: sections.concluidas.length,
+            emRevisao: sections.emRevisao.length,
+            emAndamento: sections.emAndamento.length,
+            total: installations.length,
+          };
+          
+          console.log('[DEBUG] Estatísticas calculadas:', stats);
+        } catch (error) {
+          console.error('[DEBUG] ⚠️ Erro ao calcular stats:', error);
+          // Continuar com stats vazio
+        }
+
         const insertData = {
           id: newReportId,
           project_id: project.id,
@@ -458,7 +473,8 @@ export function ReportShareModal({
           stats,
           user_id: user.id,
         };
-        console.log('[DEBUG] Insert data:', insertData);
+        
+        console.log('[DEBUG] Dados para insert:', insertData);
         
         const { data, error } = await supabase
           .from('project_report_history')
@@ -467,62 +483,26 @@ export function ReportShareModal({
           .single();
 
         if (error) {
-          console.error('❌ Error saving report to Supabase database:', error);
+          console.error('[DEBUG] ❌ Erro ao salvar no banco:', error);
           console.error('[DEBUG] Error details:', error.details, error.message, error.hint);
         } else if (data) {
-          finalReportId = data.id;
-          supabaseSuccess = true;
-          console.log('✅ Report saved to Supabase database successfully with ID:', finalReportId);
+          console.log('[DEBUG] ✅ Salvo no banco com sucesso:', data.id);
         }
       } catch (error) {
-        console.error('❌ Error saving report to database:', error);
+        console.error('[DEBUG] ❌ Erro no processo de banco:', error);
       }
     }
 
-    // CRITICAL: Always set a report ID using fallback logic
-    if (finalReportId) {
-      // Success - use the persisted ID
-      setReportId(finalReportId);
-      console.log('[DEBUG] ✅ Report ID set from Supabase:', finalReportId);
-    } else {
-      // Fallback - use the generated ID even if Supabase failed
-      setReportId(newReportId);
-      console.log('[DEBUG] ⚠️ Using fallback report ID:', newReportId);
-      
-      // Show warning toast only if we expected Supabase to work
-      if (uploadedFilePath && !supabaseSuccess) {
-        toast({
-          title: 'Aviso',
-          description: 'O relatório foi salvo localmente. Links públicos podem não funcionar corretamente.',
-          variant: 'default',
-        });
-      }
-    }
-    
     setIsSavingReport(false);
+    console.log('[DEBUG] ═══ PROCESSO CONCLUÍDO ═══');
+    console.log('[DEBUG] reportId final:', newReportId);
+    
   }, [blob, project, user, fileName, format, interlocutor, config, toast, generateReportId]);
 
   useEffect(() => {
     if (isOpen && blob && project && !hasSavedRef.current) {
       hasSavedRef.current = true;
       void saveReportToHistory();
-      
-      // Safety timeout: Always enable email button after 10 seconds
-      const safetyTimeout = setTimeout(() => {
-        if (!reportId) {
-          console.log('[DEBUG] Safety timeout triggered - forcing report ID');
-          const fallbackId = generateReportId();
-          setReportId(fallbackId);
-          setIsSavingReport(false);
-          toast({
-            title: 'Modo offline ativado',
-            description: 'O relatório foi preparado para envio local.',
-            variant: 'default',
-          });
-        }
-      }, 10000); // 10 seconds timeout
-      
-      return () => clearTimeout(safetyTimeout);
     }
 
     if (!isOpen) {
@@ -543,7 +523,7 @@ export function ReportShareModal({
       setRecipientEmail('');
       setSenderName('');
     }
-  }, [isOpen, blob, project, saveReportToHistory, reportId, generateReportId, toast]);
+  }, [isOpen, blob, project, saveReportToHistory]);
 
   // Carregar links públicos quando o reportId estiver disponível
   useEffect(() => {
@@ -785,27 +765,35 @@ export function ReportShareModal({
                   <div>• Sem anexos pesados</div>
                 </div>
               </div>
-              {isSavingReport && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Salvando relatório...
-                  </div>
+              {isSavingReport ? (
+                <div className="flex items-center gap-2 text-yellow-600 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Preparando relatório...
+                </div>
+              ) : reportId ? (
+                <Button
+                  onClick={handleEmail}
+                  disabled={sendingEmail}
+                  className="w-full gap-2"
+                >
+                  {sendingEmail ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4" />
+                      Configurar Envio por Email
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Erro ao preparar relatório
                 </div>
               )}
-              {!reportId && !isSavingReport && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                  ⚠️ Relatório não pôde ser salvo na nuvem. Usando modo local.
-                </div>
-              )}
-              <Button 
-                onClick={handleEmail} 
-                disabled={!reportId || isSavingReport}
-                className="w-full gap-2"
-              >
-                <Mail className="h-4 w-4" />
-                {isSavingReport ? 'Aguardando...' : 'Configurar Envio por Email'}
-              </Button>
             </CardContent>
           </Card>
         );
