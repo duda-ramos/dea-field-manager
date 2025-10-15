@@ -196,43 +196,15 @@ export function InstallationDetailModalNew({
   };
 
   const handleRevisionUpdate = async () => {
-    // Apply the overwrite with motive
-    if (revisionMotivo && installation) {
-      const currentData = {
-        tipologia: installation.tipologia,
-        codigo: installation.codigo,
-        descricao: installation.descricao,
-        quantidade: installation.quantidade,
-        pavimento: installation.pavimento,
-        diretriz_altura_cm: installation.diretriz_altura_cm,
-        diretriz_dist_batente_cm: installation.diretriz_dist_batente_cm,
-        observacoes: installation.observacoes,
-        comentarios_fornecedor: installation.comentarios_fornecedor
-      };
-
-      // Create a new revision - this is simplified, you may need to implement proper revision logic
-      const newRevision = { ...installation, ...currentData, revisao: (installation.revisao || 0) + 1 };
-      const updatedInstallation = await storage.upsertInstallation(newRevision);
-
-      const updatedVersions = await storage.getItemVersions(installation.id);
-      setVersions(updatedVersions);
-      onUpdate();
-      
-      toast({
-        title: "Revisão criada",
-        description: `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`,
-      });
-      showToast.success(
-        "Revisão criada",
-        `${updatedInstallation.codigo} ${updatedInstallation.descricao} - Revisão ${updatedInstallation.revisao} criada`
-      );
-
-      // Reset revision state
-      setRevisionMotivo("");
-      setRevisionDescricao("");
-    }
-    
+    // Fecha o modal após o salvamento (que é feito pelo AddInstallationModal)
     setShowAddRevisionModal(false);
+    
+    // Atualiza a lista de instalações
+    await onUpdate();
+    
+    // Reset dos estados de revisão
+    setRevisionMotivo("");
+    setRevisionDescricao("");
   };
 
   const handleRestoreVersion = async (version: ItemVersion) => {
