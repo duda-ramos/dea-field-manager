@@ -416,47 +416,6 @@ export const StorageManagerDexie: any = {
       _deleted: 0
     };
 
-    // Check if installation exists to determine if it's a creation or update
-    const existingInstallation = await db.installations.get(installation.id);
-    const isNewInstallation = !existingInstallation;
-    
-    // Handle revision creation
-    if (isNewInstallation || existingInstallation) {
-      try {
-        // Extract revision-specific fields
-        const {
-          id: _id,
-          revisado: _revisado,
-          revisao: _revisao,
-          revisions: _revisions,
-          _dirty: _dirty,
-          _deleted: _deleted,
-          ...snapshot
-        } = withDates;
-
-        // Create ItemVersion record
-        const itemVersion: ItemVersion = {
-          id: crypto.randomUUID(),
-          installationId: installation.id,
-          itemId: installation.id,
-          snapshot,
-          revisao: withDates.revisao || 0,
-          motivo: isNewInstallation ? 'created' : 'edited',
-          type: isNewInstallation ? 'created' : 'edited',
-          descricao_motivo: isNewInstallation 
-            ? 'Criação inicial da instalação' 
-            : 'Alteração nos dados da instalação',
-          criadoEm: new Date().toISOString(),
-          createdAt: now(),
-        };
-
-        // Save the version record
-        await this.upsertItemVersion(itemVersion);
-      } catch (error) {
-        // Silently fail - revision creation is not critical
-      }
-    }
-
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('installation', withDates);
     await db.installations.put(withDates);

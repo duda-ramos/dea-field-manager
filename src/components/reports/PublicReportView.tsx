@@ -25,6 +25,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Installation, PublicReportData } from '@/types';
+import type { Tables } from '@/integrations/supabase/types';
+
+const toInstallation = (installation: Tables<'installations'>): Installation => ({
+  ...installation,
+  installed: Boolean(installation.installed),
+  photos: installation.photos ?? [],
+  revisado: Boolean(installation.revisado),
+  revisao: installation.revisao ?? 0,
+  pendencia_tipo: installation.pendencia_tipo as Installation['pendencia_tipo'],
+});
 
 type SectionFilters = Record<string, boolean> | undefined;
 
@@ -139,7 +149,7 @@ export function PublicReportView() {
         if (installError) {
           console.error('Erro ao buscar instalações:', installError);
         } else {
-          installations = installData || [];
+          installations = (installData || []).map(toInstallation);
         }
       }
 

@@ -180,8 +180,9 @@ export function AddInstallationModal({
         // Save previous state before updating
         const previousState = { ...editingInstallation };
         
-        // Se for uma revisão, incrementar o número de revisão
-        const newRevisionNumber = isRevision ? currentRevision + 1 : editingInstallation.revisao || 1;
+        // Se for uma revisão, incrementar o número de revisão (começando do 1)
+        const currentRevisionNum = editingInstallation.revisao ?? 0;
+        const newRevisionNumber = isRevision ? currentRevisionNum + 1 : currentRevisionNum;
         
         // Update existing installation
         savedInstallation = await storage.upsertInstallation({ 
@@ -253,6 +254,10 @@ export function AddInstallationModal({
         );
       } else {
         // Create new installation
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const nowTimestamp = now.getTime();
+        
         savedInstallation = await storage.upsertInstallation({
           ...installationData,
           id: `installation_${Date.now()}`,
@@ -260,9 +265,27 @@ export function AddInstallationModal({
           installed: false,
           photos: [],
           revisado: false,
-          revisao: 1,
-          updated_at: new Date().toISOString()
+          revisao: 0,
+          updated_at: nowIso
         });
+
+        // Criar versão inicial (Revisão 0)
+        const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
+
+        const initialVersion = {
+          id: crypto.randomUUID(),
+          installationId: savedInstallation.id,
+          itemId: savedInstallation.id,
+          snapshot,
+          revisao: 0,
+          motivo: 'created',
+          type: 'created' as const,
+          descricao_motivo: 'Versão inicial',
+          criadoEm: nowIso,
+          createdAt: nowTimestamp,
+        };
+
+        await storage.upsertItemVersion(initialVersion);
 
         // Add undo action for creation
         addAction({

@@ -771,6 +771,62 @@ export type Database = {
         }
         Relationships: []
       }
+      project_report_history: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_url: string
+          format: 'pdf' | 'xlsx'
+          generated_at: string
+          generated_by: string | null
+          id: string
+          interlocutor: 'cliente' | 'fornecedor'
+          project_id: string
+          sections_included: Json | null
+          stats: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_url: string
+          format: 'pdf' | 'xlsx'
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor: 'cliente' | 'fornecedor'
+          project_id: string
+          sections_included?: Json | null
+          stats?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          format?: 'pdf' | 'xlsx'
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor?: 'cliente' | 'fornecedor'
+          project_id?: string
+          sections_included?: Json | null
+          stats?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_report_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           access_notes: string | null
@@ -839,6 +895,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      public_report_links: {
+        Row: {
+          access_count: number
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          last_accessed_at: string | null
+          metadata: Json
+          report_id: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json
+          report_id: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json
+          report_id?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_report_links_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "project_report_history"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       storage_integration_audit: {
         Row: {
@@ -966,10 +1072,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_report_access: {
+        Row: {
+          access_count: number
+          expires_at: string
+          file_name: string
+          file_url: string
+          format: string
+          generated_at: string
+          interlocutor: string
+          link_id: string
+          project_id: string
+          report_id: string
+          sections_included: Json | null
+          stats: Json | null
+          token_hash: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_old_audit_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_public_links: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -999,8 +1126,30 @@ export type Database = {
         Args: { user_email: string }
         Returns: string
       }
+      get_public_report_access: {
+        Args: { token_hash: string }
+        Returns: {
+          access_count: number
+          expires_at: string
+          file_name: string
+          file_url: string
+          format: string
+          generated_at: string
+          interlocutor: string
+          link_id: string
+          project_id: string
+          report_id: string
+          sections_included: Json | null
+          stats: Json | null
+          token_hash: string
+        }[]
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
+        Returns: undefined
+      }
+      increment_public_link_access: {
+        Args: { link_id: string; token_hash: string }
         Returns: undefined
       }
       mask_contact_data: {

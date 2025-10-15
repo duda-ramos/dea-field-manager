@@ -180,7 +180,7 @@ export function RevisionHistoryModal({
                                 <div className="flex-1 space-y-2">
                                   <div className="flex items-center gap-2">
                                     <span className="font-semibold text-lg">
-                                      Revisão {revision.revisao}
+                                      {revision.revisao === 0 ? 'Versão Inicial (Revisão 0)' : `Revisão ${revision.revisao}`}
                                     </span>
                                     {getChangeTypeBadge(revision)}
                                   </div>
