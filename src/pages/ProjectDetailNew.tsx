@@ -165,7 +165,7 @@ export default function ProjectDetailNew() {
   const filteredInstallations = installations.filter(installation => {
     const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          String(installation.codigo).includes(searchTerm.toLowerCase());
+                          String(installation.codigo).toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || 
                           (statusFilter === "installed" && installation.installed) ||
