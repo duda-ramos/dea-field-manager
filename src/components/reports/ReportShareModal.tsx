@@ -372,6 +372,11 @@ export function ReportShareModal({
       console.log('[DEBUG] Tentando upload para Supabase...');
       console.log('[DEBUG] Storage path:', storagePath);
 
+      // Nota: evitar chamadas como `supabase.storage.listBuckets()` aqui.
+      // Esse endpoint exige a chave service-role e falha no cliente web,
+      // o que causaria fallback para o modo offline mesmo quando o bucket
+      // já está configurado corretamente no servidor.
+
       // Fazer upload com timeout de 60 segundos
       const uploadPromise = supabase.storage
         .from('reports')
