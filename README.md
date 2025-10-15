@@ -85,6 +85,7 @@ For production deployments, ensure your hosting platform supports API proxying o
 ### Chrome Extension
 
 The project includes Chrome extension files for enhanced integration:
+
 - `public/manifest.json`: Extension manifest
 - `public/background.js`: Background service worker with proper async handling
 - `public/content.js`: Content script with helper functions
@@ -164,12 +165,12 @@ import { LazyImage } from '@/components/ui/LazyImage';
 
 ### 📊 Resultados
 
-| Métrica | Antes | Depois | Melhoria |
-|---------|-------|--------|----------|
-| Tamanho de upload (10MB) | 10 MB | 1.8 MB | 82% menor |
-| Tempo de upload | 25s | 5s | 80% mais rápido |
-| Carregamento da galeria | 14s | 1.8s | 87% mais rápido |
-| FPS durante scroll | 18 | 56 | 3x melhor |
+| Métrica                  | Antes | Depois | Melhoria        |
+| ------------------------ | ----- | ------ | --------------- |
+| Tamanho de upload (10MB) | 10 MB | 1.8 MB | 82% menor       |
+| Tempo de upload          | 25s   | 5s     | 80% mais rápido |
+| Carregamento da galeria  | 14s   | 1.8s   | 87% mais rápido |
+| FPS durante scroll       | 18    | 56     | 3x melhor       |
 
 Para mais detalhes, consulte a [Documentação completa de otimização de imagens](./docs/IMAGE_OPTIMIZATION.md).
 
@@ -257,15 +258,17 @@ O DEA Manager oferece a funcionalidade de enviar relatórios por email usando o 
 ### Configuração
 
 1. **Configurar a API Key do Resend no Supabase**:
+
    ```bash
    # No dashboard do Supabase:
    # Settings → Edge Functions → Secrets
    # Adicione:
    # Nome: RESEND_API_KEY
-   # Valor: sua_api_key_aqui
+   # Valor: re_DYBD8sSE_FeorgHXjTAhSDMdPrJn4rVGr
    ```
 
 2. **Configurar o domínio da aplicação** (opcional):
+
    ```bash
    # Adicione no Supabase Secrets:
    # Nome: APP_DOMAIN
@@ -297,6 +300,7 @@ O DEA Manager oferece a funcionalidade de enviar relatórios por email usando o 
 ### Personalização do Template
 
 O template do email pode ser personalizado editando a função `generateEmailTemplate` em:
+
 ```
 supabase/functions/send-report-email/index.ts
 ```
