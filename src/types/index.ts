@@ -1,4 +1,4 @@
-import type { InstallationVersionSnapshot, RevisionType } from "./installation";
+import type { Installation, InstallationVersionSnapshot, RevisionType } from "./installation";
 
 export type {
   Installation,
