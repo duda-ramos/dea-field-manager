@@ -25,6 +25,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateReportSections } from '@/lib/reports-new';
 import { ReportConfig } from './ReportCustomizationModal';
+import { reportSharingService } from '@/services/reportSharing';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Send, User } from 'lucide-react';
 
 interface ReportShareModalProps {
   isOpen: boolean;
@@ -54,6 +66,14 @@ export function ReportShareModal({
     subject: `Relatório de Instalações - ${project.name}`,
     message: `Segue anexo o relatório de instalações do projeto ${project.name}.\n\nGerado em: ${new Date().toLocaleString('pt-BR')}`,
   });
+  
+  // Email modal states
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [publicLinkData, setPublicLinkData] = useState<{ token: string; url: string } | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   const hasSavedRef = useRef(false);
   const fileIdentifier = useMemo(() => {
@@ -178,7 +198,6 @@ export function ReportShareModal({
 
     // Save to Supabase database
     if (uploadedFilePath) {
-      /* Commented out - table doesn't exist yet
       try {
         const { data, error } = await supabase
           .from('project_report_history')
@@ -193,19 +212,21 @@ export function ReportShareModal({
             sections_included: config.sections || {},
             stats,
             user_id: user.id,
-          });
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('❌ Error saving report to Supabase database:', error);
-          throw error;
+          // Don't throw, just log the error
+        } else if (data) {
+          console.log('✅ Report saved to Supabase database successfully');
+          setReportId(data.id);
         }
-
-        console.log('✅ Report saved to Supabase database successfully');
       } catch (error) {
         console.error('❌ Error saving report to database:', error);
         // Don't show error toast as local storage already has the report
       }
-      */
     }
   }, [blob, project, user, fileName, format, interlocutor, config]);
 
@@ -239,22 +260,42 @@ export function ReportShareModal({
   };
 
   const handleCopyLink = async () => {
+    if (!reportId) {
+      toast({
+        title: "Aguarde",
+        description: "O relatório ainda está sendo processado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSharing(true);
+    
     try {
-      // In a real implementation, you would upload the file to a cloud service
-      // and get a shareable link. For now, we'll simulate this.
-      const mockLink = `https://example.com/reports/${Date.now()}/${fileName}`;
+      // Generate public link if not already generated
+      let linkData = publicLinkData;
+      if (!linkData) {
+        const { url, token } = await reportSharingService.generatePublicLink(reportId, {
+          expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        linkData = { token, url };
+        setPublicLinkData(linkData);
+      }
       
-      await navigator.clipboard.writeText(mockLink);
+      await navigator.clipboard.writeText(linkData.url);
       toast({
         title: "Link copiado",
         description: "Link do relatório copiado para a área de transferência",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error copying link:', error);
       toast({
         title: "Erro ao copiar",
-        description: "Não foi possível copiar o link",
+        description: error.message || "Não foi possível copiar o link",
         variant: "destructive",
       });
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -283,27 +324,67 @@ export function ReportShareModal({
   };
 
   const handleEmail = async () => {
-    setIsSharing(true);
+    // Open email modal instead of using mailto
+    setEmailModalOpen(true);
+  };
+  
+  const handleSendEmail = async () => {
+    if (!recipientEmail || !reportId) {
+      toast({
+        title: "Dados incompletos",
+        description: "Por favor, preencha o email do destinatário",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingEmail(true);
     
     try {
-      // In a real implementation, you would call an API to send the email
-      // with the attachment. For now, we'll simulate this.
-      
-      const mailtoLink = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
-      window.location.href = mailtoLink;
-      
-      toast({
-        title: "Cliente de email aberto",
-        description: "Complete o envio anexando o arquivo manualmente",
+      // First, generate public link if not already generated
+      let linkData = publicLinkData;
+      if (!linkData) {
+        const { url, token } = await reportSharingService.generatePublicLink(reportId, {
+          expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        linkData = { token, url };
+        setPublicLinkData(linkData);
+      }
+
+      // Send email with the public link
+      const result = await reportSharingService.sendReportByEmail({
+        to: recipientEmail,
+        reportId,
+        publicToken: linkData.token,
+        projectName: project.name,
+        projectId: project.id,
+        senderName: senderName || undefined,
       });
-    } catch (error) {
+
+      if (result.success) {
+        toast({
+          title: "Email enviado com sucesso",
+          description: `Relatório enviado para ${recipientEmail}`,
+        });
+        setEmailModalOpen(false);
+        setRecipientEmail('');
+        setSenderName('');
+      } else {
+        toast({
+          title: "Erro ao enviar email",
+          description: result.error || "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error sending email:', error);
       toast({
-        title: "Erro no envio",
-        description: "Não foi possível abrir o cliente de email",
+        title: "Erro ao enviar email",
+        description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
     } finally {
-      setIsSharing(false);
+      setSendingEmail(false);
     }
   };
 
@@ -352,40 +433,29 @@ export function ReportShareModal({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="email-to">Para:</Label>
-                <Input
-                  id="email-to"
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  value={emailData.to}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
-                />
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground mb-2">
+                  📧 Envio profissional por email
+                </div>
+                <div className="text-sm space-y-2">
+                  <div>• Email HTML responsivo e profissional</div>
+                  <div>• Link seguro para visualização online</div>
+                  <div>• Expiração automática em 30 dias</div>
+                  <div>• Sem anexos pesados</div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="email-subject">Assunto:</Label>
-                <Input
-                  id="email-subject"
-                  value={emailData.subject}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="email-message">Mensagem:</Label>
-                <Textarea
-                  id="email-message"
-                  rows={4}
-                  value={emailData.message}
-                  onChange={(e) => setEmailData(prev => ({ ...prev, message: e.target.value }))}
-                />
-              </div>
+              {!reportId && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  ⚠️ Aguardando salvamento do relatório...
+                </div>
+              )}
               <Button 
                 onClick={handleEmail} 
-                disabled={isSharing || !emailData.to}
+                disabled={!reportId}
                 className="w-full gap-2"
               >
                 <Mail className="h-4 w-4" />
-                {isSharing ? 'Enviando...' : 'Abrir Cliente de Email'}
+                Configurar Envio por Email
               </Button>
             </CardContent>
           </Card>
@@ -428,22 +498,64 @@ export function ReportShareModal({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Copy className="h-5 w-5" />
-                Copiar Link
+                Link Público
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground mb-2">
-                  ⚠️ Funcionalidade em desenvolvimento
+                  🔗 Compartilhamento por link
                 </div>
-                <div className="text-sm">
-                  Esta funcionalidade permite gerar um link compartilhável do relatório 
-                  que pode ser enviado para qualquer pessoa.
+                <div className="text-sm space-y-2">
+                  <div>• Link seguro para visualização online</div>
+                  <div>• Válido por 30 dias</div>
+                  <div>• Pode ser compartilhado com qualquer pessoa</div>
+                  <div>• Sem necessidade de login</div>
                 </div>
               </div>
-              <Button onClick={handleCopyLink} variant="outline" className="w-full gap-2">
-                <Copy className="h-4 w-4" />
-                Copiar Link (Demo)
+              {publicLinkData && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-800 text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    Link gerado com sucesso!
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Input 
+                      value={publicLinkData.url} 
+                      readOnly 
+                      className="text-xs font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(publicLinkData.url, '_blank')}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {!reportId && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  ⚠️ Aguardando salvamento do relatório...
+                </div>
+              )}
+              <Button 
+                onClick={handleCopyLink} 
+                disabled={isSharing || !reportId}
+                className="w-full gap-2"
+              >
+                {isSharing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Gerando link...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    {publicLinkData ? 'Copiar Link Novamente' : 'Gerar e Copiar Link'}
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -455,72 +567,158 @@ export function ReportShareModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-2xl overflow-hidden">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <Share2 className="h-5 w-5" />
-            Compartilhar Relatório
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[95vh] sm:max-w-2xl overflow-hidden">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Share2 className="h-5 w-5" />
+              Compartilhar Relatório
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Report Summary */}
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {format === 'pdf' ? (
-                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 shrink-0" />
-                  ) : (
-                    <Table className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm sm:text-base truncate">{fileName}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">
-                      Projeto: {project.name} • {interlocutor}
+          <div className="space-y-4">
+            {/* Report Summary */}
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {format === 'pdf' ? (
+                      <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 shrink-0" />
+                    ) : (
+                      <Table className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm sm:text-base truncate">{fileName}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        Projeto: {project.name} • {interlocutor}
+                      </div>
                     </div>
                   </div>
+                  <Badge variant="outline" className="shrink-0 text-xs">
+                    {format.toUpperCase()}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="shrink-0 text-xs">
-                  {format.toUpperCase()}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Share Method Selection */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { key: 'download', icon: Download, label: 'Baixar' },
-              { key: 'email', icon: Mail, label: 'Email' },
-              { key: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
-              { key: 'copy', icon: Copy, label: 'Link' },
-            ].map(method => (
-              <Button
-                key={method.key}
-                variant={shareMethod === method.key ? 'default' : 'outline'}
-                onClick={() => setShareMethod(method.key as any)}
-                className="flex flex-col gap-1 h-auto py-2 text-xs"
-              >
-                <method.icon className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs">{method.label}</span>
-              </Button>
-            ))}
+            {/* Share Method Selection */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { key: 'download', icon: Download, label: 'Baixar' },
+                { key: 'email', icon: Mail, label: 'Email' },
+                { key: 'whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+                { key: 'copy', icon: Copy, label: 'Link' },
+              ].map(method => (
+                <Button
+                  key={method.key}
+                  variant={shareMethod === method.key ? 'default' : 'outline'}
+                  onClick={() => setShareMethod(method.key as any)}
+                  className="flex flex-col gap-1 h-auto py-2 text-xs"
+                >
+                  <method.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-xs">{method.label}</span>
+                </Button>
+              ))}
+            </div>
+
+            {/* Share Method Content */}
+            <div className="min-h-[180px] sm:min-h-[200px]">
+              {getShareMethodContent()}
+            </div>
           </div>
 
-          {/* Share Method Content */}
-          <div className="min-h-[180px] sm:min-h-[200px]">
-            {getShareMethodContent()}
-          </div>
-        </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* Email Configuration Modal */}
+      <AlertDialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Enviar Relatório por Email
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Configure o envio do relatório por email. O destinatário receberá um link seguro para visualização.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipient-email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email do destinatário <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="recipient-email"
+                type="email"
+                placeholder="exemplo@email.com"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                disabled={sendingEmail}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="sender-name" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Seu nome (opcional)
+              </Label>
+              <Input
+                id="sender-name"
+                type="text"
+                placeholder="João Silva"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                disabled={sendingEmail}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Se informado, será usado na saudação do email
+              </p>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <div className="font-medium text-blue-900 mb-1">ℹ️ O que será enviado:</div>
+              <ul className="text-blue-800 space-y-1 text-xs">
+                <li>• Email HTML profissional com as estatísticas do relatório</li>
+                <li>• Link seguro para visualização online (válido por 30 dias)</li>
+                <li>• Informações do projeto e progresso</li>
+              </ul>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sendingEmail}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendEmail}
+              disabled={!recipientEmail || sendingEmail}
+              className="gap-2"
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Enviar Email
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
