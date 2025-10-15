@@ -281,7 +281,6 @@ export default function ProjectDetailNew() {
             snapshot,
             revisao: 0,
             motivo: 'created' as const,
-            type: 'created' as const,
             descricao_motivo: 'Versão inicial (importada)',
             criadoEm: nowIso,
             createdAt: nowTimestamp,
