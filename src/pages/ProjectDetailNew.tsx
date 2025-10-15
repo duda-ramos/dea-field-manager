@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -154,30 +154,44 @@ export default function ProjectDetailNew() {
                         location.pathname.includes('/colaboracao') ? 'colaboracao' :
                         'info';
 
-  // Calculate stats for info section
-  const completedInstallations = installations.filter(i => i.installed).length;
-  const pendingInstallations = installations.length - completedInstallations;
-  const installationsWithObservations = installations.filter(i => i.observacoes && i.observacoes.trim() !== "").length;
-  const progressPercentage = installations.length > 0 ? (completedInstallations / installations.length) * 100 : 0;
+  // Calculate stats for info section - memoized to ensure updates when installations change
+  const { completedInstallations, pendingInstallations, installationsWithObservations, progressPercentage } = useMemo(() => {
+    const completed = installations.filter(i => i.installed).length;
+    const pending = installations.length - completed;
+    const withObservations = installations.filter(i => i.observacoes && i.observacoes.trim() !== "").length;
+    const progress = installations.length > 0 ? (completed / installations.length) * 100 : 0;
+    
+    return {
+      completedInstallations: completed,
+      pendingInstallations: pending,
+      installationsWithObservations: withObservations,
+      progressPercentage: progress
+    };
+  }, [installations]);
 
-  const pavimentos = Array.from(new Set(installations.map(i => i.pavimento))).sort();
+  const pavimentos = useMemo(() => 
+    Array.from(new Set(installations.map(i => i.pavimento))).sort(),
+    [installations]
+  );
 
-  const filteredInstallations = installations.filter(installation => {
-    const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          String(installation.codigo).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || 
-                          (statusFilter === "installed" && installation.installed) ||
-                          (statusFilter === "pending" && !installation.installed);
-    
-    const matchesItemStatus = itemStatusFilter === "all" || 
-                             installation.status === itemStatusFilter;
-                          
-    const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
-    
-    return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
-  });
+  const filteredInstallations = useMemo(() => {
+    return installations.filter(installation => {
+      const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            String(installation.codigo).toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || 
+                            (statusFilter === "installed" && installation.installed) ||
+                            (statusFilter === "pending" && !installation.installed);
+      
+      const matchesItemStatus = itemStatusFilter === "all" || 
+                               installation.status === itemStatusFilter;
+                            
+      const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
+      
+      return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
+    });
+  }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
 
 
   const toggleInstallation = async (installationId: string) => {
