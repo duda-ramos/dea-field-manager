@@ -536,26 +536,31 @@ export function ReportShareModal({
   };
 
   const handleWhatsApp = () => {
-    // Convert blob to base64 for WhatsApp sharing (simplified)
-    const message = encodeURIComponent(
-      `🏗️ *Relatório de Instalações*\n\n` +
-      `📋 Projeto: ${project.name}\n` +
-      `👤 Para: ${interlocutor}\n` +
-      `📅 Gerado em: ${new Date().toLocaleString('pt-BR')}\n\n` +
-      `📊 Resumo:\n` +
-      `${config.sections.pendencias ? '🔴 Pendências\n' : ''}` +
-      `${config.sections.concluidas ? '✅ Concluídas\n' : ''}` +
-      `${config.sections.emRevisao ? '🔍 Em Revisão\n' : ''}` +
-      `${config.sections.emAndamento ? '⏳ Em Andamento\n' : ''}\n` +
-      `*Arquivo será enviado separadamente*`
-    );
+    // Construir mensagem simples
+    const message = 
+      `📊 Relatório de Instalações - ${project.name}\n\n` +
+      `Gerado em: ${new Date().toLocaleString('pt-BR')}\n\n` +
+      `Para: ${interlocutor === 'cliente' ? 'Cliente' : 'Fornecedor'}\n` +
+      `Formato: ${format.toUpperCase()}`;
 
-    const whatsappUrl = `https://wa.me/?text=${message}`;
+    // Encode para URL
+    const encodedMessage = encodeURIComponent(message);
+
+    // Detectar se é mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // Construir URL do WhatsApp
+    const whatsappUrl = isMobile 
+      ? `whatsapp://send?text=${encodedMessage}`
+      : `https://wa.me/?text=${encodedMessage}`;
+
+    // Abrir WhatsApp
     window.open(whatsappUrl, '_blank');
 
+    // Toast de feedback
     toast({
       title: "WhatsApp aberto",
-      description: "Complete o envio compartilhando o arquivo manualmente",
+      description: "Complete o compartilhamento no WhatsApp",
     });
   };
 
