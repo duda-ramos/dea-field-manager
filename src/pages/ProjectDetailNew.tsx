@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -23,19 +23,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuthContext';
 import { PhotoGallery } from "@/components/photo-gallery";
 import { EnhancedImageUpload } from "@/components/image-upload";
-import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
-import { AddInstallationModal } from "@/components/add-installation-modal";
-import { EditProjectModal } from "@/components/edit-project-modal";
-import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
 import { importExcelFile, syncImportedPhotosToGallery } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
 import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
-import { FileManager } from "@/components/file-manager/FileManager";
-import { CollaborationPanel } from "@/components/collaboration/CollaborationPanel";
-import { ProjectVersioning } from "@/components/versioning/ProjectVersioning";
-import { AutomaticBackup } from "@/components/backup/AutomaticBackup";
-import { BudgetTab } from "@/components/project/BudgetTab";
 import { logger } from '@/services/logger';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,9 +37,18 @@ import {
   ReportErrorFallback,
   GalleryErrorFallback 
 } from '@/components/error-fallbacks';
-import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
-import { ReportShareModal } from "@/components/reports/ReportShareModal";
-import { ReportHistoryPanel } from "@/components/reports/ReportHistoryPanel";
+import { ReportConfig } from "@/components/reports/ReportCustomizationModal";
+import { CardLoadingState } from "@/components/ui/loading-spinner";
+
+// Lazy load heavy components - Modals and Panels (loaded on demand when user interacts)
+const InstallationDetailModalNew = lazy(() => import("@/components/installation-detail-modal-new").then(mod => ({ default: mod.InstallationDetailModalNew })));
+const AddInstallationModal = lazy(() => import("@/components/add-installation-modal").then(mod => ({ default: mod.AddInstallationModal })));
+const EditProjectModal = lazy(() => import("@/components/edit-project-modal").then(mod => ({ default: mod.EditProjectModal })));
+const CollaborationPanel = lazy(() => import("@/components/collaboration/CollaborationPanel").then(mod => ({ default: mod.CollaborationPanel })));
+const BudgetTab = lazy(() => import("@/components/project/BudgetTab").then(mod => ({ default: mod.BudgetTab })));
+const ReportCustomizationModal = lazy(() => import("@/components/reports/ReportCustomizationModal").then(mod => ({ default: mod.ReportCustomizationModal })));
+const ReportShareModal = lazy(() => import("@/components/reports/ReportShareModal").then(mod => ({ default: mod.ReportShareModal })));
+const ReportHistoryPanel = lazy(() => import("@/components/reports/ReportHistoryPanel").then(mod => ({ default: mod.ReportHistoryPanel })));
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -770,7 +770,9 @@ export default function ProjectDetailNew() {
           </CardContent>
         </Card>
 
-          <ReportHistoryPanel projectId={project.id} />
+          <Suspense fallback={<CardLoadingState message="Carregando histórico..." />}>
+            <ReportHistoryPanel projectId={project.id} />
+          </Suspense>
         </div>
       </LoadingBoundary>
     );
@@ -797,7 +799,9 @@ export default function ProjectDetailNew() {
           </CardHeader>
           <CardContent className="overflow-x-hidden">
             <div className="max-w-full">
-              <BudgetTab projectId={project.id} projectName={project.name} />
+              <Suspense fallback={<CardLoadingState message="Carregando orçamentos..." />}>
+                <BudgetTab projectId={project.id} projectName={project.name} />
+              </Suspense>
             </div>
           </CardContent>
         </Card>
@@ -921,11 +925,13 @@ export default function ProjectDetailNew() {
   const renderColaboracaoSection = () => {
     return (
       <div className="space-y-6">
-        <CollaborationPanel
-          projectId={project.id}
-          isOwner={isOwner}
-          onCollaboratorAdded={loadProjectData}
-        />
+        <Suspense fallback={<CardLoadingState message="Carregando painel de colaboração..." />}>
+          <CollaborationPanel
+            projectId={project.id}
+            isOwner={isOwner}
+            onCollaboratorAdded={loadProjectData}
+          />
+        </Suspense>
       </div>
     );
   };
@@ -1393,93 +1399,103 @@ export default function ProjectDetailNew() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals - Lazy loaded with Suspense */}
       {selectedInstallation && (
-        <InstallationDetailModalNew
-          installation={selectedInstallation}
-          isOpen={!!selectedInstallation}
-          onClose={() => setSelectedInstallation(null)}
-          onUpdate={loadProjectData}
-        />
+        <Suspense fallback={null}>
+          <InstallationDetailModalNew
+            installation={selectedInstallation}
+            isOpen={!!selectedInstallation}
+            onClose={() => setSelectedInstallation(null)}
+            onUpdate={loadProjectData}
+          />
+        </Suspense>
       )}
 
       {showAddModal && (
-        <AddInstallationModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onUpdate={loadProjectData}
-          projectId={project.id}
-        />
+        <Suspense fallback={null}>
+          <AddInstallationModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onUpdate={loadProjectData}
+            projectId={project.id}
+          />
+        </Suspense>
       )}
 
       {isEditModalOpen && (
-        <EditProjectModal
-          project={project}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onProjectUpdated={handleProjectUpdated}
-        />
+        <Suspense fallback={null}>
+          <EditProjectModal
+            project={project}
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onProjectUpdated={handleProjectUpdated}
+          />
+        </Suspense>
       )}
 
       {showReportCustomization && (
-        <ReportCustomizationModal
-          isOpen={showReportCustomization}
-          onClose={() => setShowReportCustomization(false)}
-          onGenerate={async (config, format) => {
-            setIsGenerating(true);
-            try {
-              const { generatePDFReport, generateXLSXReport } = await import('@/lib/reports-new');
-              
-              const versions = await Promise.all(
-                installations.map(installation => storage.getItemVersions(installation.id))
-              ).then(results => results.flat());
+        <Suspense fallback={null}>
+          <ReportCustomizationModal
+            isOpen={showReportCustomization}
+            onClose={() => setShowReportCustomization(false)}
+            onGenerate={async (config, format) => {
+              setIsGenerating(true);
+              try {
+                const { generatePDFReport, generateXLSXReport } = await import('@/lib/reports-new');
+                
+                const versions = await Promise.all(
+                  installations.map(installation => storage.getItemVersions(installation.id))
+                ).then(results => results.flat());
 
-              let filteredInstallations = installations;
+                let filteredInstallations = installations;
 
-              const reportData = {
-                project,
-                installations: filteredInstallations,
-                versions,
-                generatedBy: project.owner || 'Sistema',
-                generatedAt: new Date().toISOString(),
-                interlocutor: config.interlocutor,
-                customConfig: config
-              };
+                const reportData = {
+                  project,
+                  installations: filteredInstallations,
+                  versions,
+                  generatedBy: project.owner || 'Sistema',
+                  generatedAt: new Date().toISOString(),
+                  interlocutor: config.interlocutor,
+                  customConfig: config
+                };
 
-              if (format === 'pdf') {
-                return await generatePDFReport(reportData);
-              } else {
-                return await generateXLSXReport(reportData);
+                if (format === 'pdf') {
+                  return await generatePDFReport(reportData);
+                } else {
+                  return await generateXLSXReport(reportData);
+                }
+              } finally {
+                setIsGenerating(false);
               }
-            } finally {
-              setIsGenerating(false);
-            }
-          }}
-          onShare={(blob, format, config) => {
-            setGeneratedReport({ blob, format, config });
-            setShowReportCustomization(false);
-            setShowReportShare(true);
-          }}
-          project={project}
-          installations={installations}
-        />
+            }}
+            onShare={(blob, format, config) => {
+              setGeneratedReport({ blob, format, config });
+              setShowReportCustomization(false);
+              setShowReportShare(true);
+            }}
+            project={project}
+            installations={installations}
+          />
+        </Suspense>
       )}
 
       {showReportShare && generatedReport && (
-        <ReportShareModal
-          isOpen={showReportShare}
-          onClose={() => {
-            setShowReportShare(false);
-            setGeneratedReport(null);
-            // Reload last report date after saving
-            loadLastReportDate();
-          }}
-          blob={generatedReport.blob}
-          format={generatedReport.format}
-          config={generatedReport.config}
-          project={project}
-          interlocutor={generatedReport.config.interlocutor}
-        />
+        <Suspense fallback={null}>
+          <ReportShareModal
+            isOpen={showReportShare}
+            onClose={() => {
+              setShowReportShare(false);
+              setGeneratedReport(null);
+              // Reload last report date after saving
+              loadLastReportDate();
+            }}
+            blob={generatedReport.blob}
+            format={generatedReport.format}
+            config={generatedReport.config}
+            project={project}
+            interlocutor={generatedReport.config.interlocutor}
+          />
+        </Suspense>
       )}
     </div>
   );

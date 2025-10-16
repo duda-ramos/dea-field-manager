@@ -11,28 +11,31 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicRoute } from "@/components/auth/PublicRoute";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { onlineMonitor } from "@/services/sync/onlineMonitor";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useUndoShortcut } from "@/hooks/useUndoShortcut";
 import { ConflictManager } from "@/components/ConflictManager";
+import { PageLoadingState } from "@/components/ui/loading-spinner";
 
-// Pages
-import Dashboard from "./pages/Dashboard";
-import ProjectDetailNew from "./pages/ProjectDetailNew";
-import ProjectsPage from "./pages/ProjectsPage";
-import ReportsPage from "./pages/ReportsPage";
-import CalendarPage from "./pages/CalendarPage";
-import { ContatosPage } from "./features/contatos";
-import GlobalContactsPage from "./pages/GlobalContactsPage";
-import ConfiguracoesPage from "./pages/ConfiguracoesPage";
+// Lazy loaded pages - Heavy components loaded on demand
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ProjectDetailNew = lazy(() => import("./pages/ProjectDetailNew"));
+const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const ContatosPage = lazy(() => import("./features/contatos").then(mod => ({ default: mod.ContatosPage })));
+const GlobalContactsPage = lazy(() => import("./pages/GlobalContactsPage"));
+const ConfiguracoesPage = lazy(() => import("./pages/ConfiguracoesPage"));
+const Debug = lazy(() => import("./pages/Debug"));
+const TestConflictIntegration = lazy(() => import("./components/test-conflict-integration").then(mod => ({ default: mod.TestConflictIntegration })));
+const PublicReportView = lazy(() => import("./components/reports/PublicReportView").then(mod => ({ default: mod.PublicReportView })));
+
+// Auth pages - Keep these as regular imports for better UX on login
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
-import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
-import { TestConflictIntegration } from "./components/test-conflict-integration";
-import { PublicReportView } from "./components/reports/PublicReportView";
 
 const queryClient = new QueryClient();
 
@@ -99,7 +102,8 @@ const App = () => {
               <ConflictManager />
               <BrowserRouter>
                 <ErrorBoundary>
-                  <Routes>
+                  <Suspense fallback={<PageLoadingState />}>
+                    <Routes>
                     {/* Public routes */}
                     <Route path="/auth/login" element={
                       <PublicRoute>
@@ -245,7 +249,8 @@ const App = () => {
                     
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
+                    </Routes>
+                  </Suspense>
                 </ErrorBoundary>
               </BrowserRouter>
             </TooltipProvider>

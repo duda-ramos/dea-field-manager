@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . || echo 'eslint skipped'",
-    "build:dev": "vite build --mode development"
+    "build:dev": "vite build --mode development",
+    "analyze": "vite build && open dist/stats.html || xdg-open dist/stats.html || start dist/stats.html"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -90,6 +91,7 @@
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.9",
     "postcss": "^8.5.6",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.0.0",
