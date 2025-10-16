@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { logError } from '@/utils/error-logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -26,9 +27,16 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log do erro para serviços de monitoramento
-    console.error('ErrorBoundary caught an error:', error);
-    console.error('Error info:', errorInfo);
-    
+    logError(error, {
+      source: 'ErrorBoundary',
+      componentStack: errorInfo.componentStack,
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('ErrorBoundary caught an error:', error);
+      console.error('Error info:', errorInfo);
+    }
+
     // Aqui poderia enviar o erro para um serviço de monitoramento como Sentry
     // if (window.Sentry) {
     //   window.Sentry.captureException(error, { extra: errorInfo });
