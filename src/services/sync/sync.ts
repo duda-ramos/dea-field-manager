@@ -43,7 +43,9 @@ const ENTITY_TO_RECORD_TYPE: Record<EntityName, RecordType | null> = {
   files: null
 };
 
-const getLocalTable = (table: LocalTableName) => (db as Record<string, unknown>)[table];
+type LocalTables = Pick<typeof db, LocalTableName>;
+
+const getLocalTable = <K extends keyof LocalTables>(table: K): LocalTables[K] => db[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;

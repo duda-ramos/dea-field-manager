@@ -1,4 +1,52 @@
 import { logger } from '@/services/logger';
+
+type RetryableErrorLike = {
+  status?: number;
+  message?: string;
+};
+
+const getErrorDetails = (error: unknown): RetryableErrorLike => {
+  if (error instanceof Error) {
+    return {
+      status: (error as unknown as { status?: number }).status,
+      message: error.message
+    };
+  }
+
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { status?: unknown; message?: unknown };
+    return {
+      status: typeof candidate.status === 'number' ? candidate.status : undefined,
+      message: typeof candidate.message === 'string' ? candidate.message : undefined
+    };
+  }
+
+  return {};
+};
+
+const isRetryableNetworkError = (error: unknown): boolean => {
+  const { status, message } = getErrorDetails(error);
+
+  if (typeof status === 'number') {
+    return status === 429 || (status >= 500 && status < 600);
+  }
+
+  if (typeof message === 'string') {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('fetch') ||
+      normalized.includes('network') ||
+      normalized.includes('timeout')
+    );
+  }
+
+  return false;
+};
+
 export function isOnline(): boolean {
   return navigator.onLine;
 }
@@ -21,23 +69,14 @@ export interface RetryOptions {
   maxAttempts?: number;
   baseDelay?: number;
   maxDelay?: number;
-  retryCondition?: (error: Error | unknown) => boolean;
+  retryCondition?: (error: unknown) => boolean;
 }
 
 const defaultRetryOptions: Required<RetryOptions> = {
   maxAttempts: 5,
   baseDelay: 500,
   maxDelay: 8000,
-  retryCondition: (error: Error | unknown) => {
-    // Retry on network errors, 429 (rate limit), 5xx server errors
-    if (error?.status) {
-      return error.status === 429 || (error.status >= 500 && error.status < 600);
-    }
-    // Retry on network/connection errors
-    return error?.message?.includes('fetch') || 
-           error?.message?.includes('network') ||
-           error?.message?.includes('timeout');
-  }
+  retryCondition: (error: unknown) => isRetryableNetworkError(error)
 };
 
 export async function withRetry<T>(
@@ -151,3 +190,5 @@ export function logSyncMetrics(operation: string, metrics: LegacySyncMetrics): v
     logger.info(`📁 Pre-push files: ${m.sucesso}/${m.tentados} uploaded, ${m.falhas} failed`);
   }
 }
+
+export { getErrorDetails, isRetryableNetworkError };

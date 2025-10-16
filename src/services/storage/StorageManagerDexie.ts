@@ -12,7 +12,7 @@ import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
-import { withRetry } from '@/services/sync/utils';
+import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 
 const now = () => Date.now();
 
@@ -59,13 +59,7 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
       {
         maxAttempts: 5,
         baseDelay: 500,
-        retryCondition: (error) => {
-          // Retry em erros de rede, rate limit ou 5xx
-          return error?.message?.includes('fetch') || 
-                 error?.message?.includes('network') ||
-                 error?.status === 429 ||
-                 (error?.status >= 500 && error?.status < 600);
-        }
+        retryCondition: isRetryableNetworkError
       },
       `Sincronização de ${entityType}`
     );
@@ -174,7 +168,7 @@ export async function processSyncQueue() {
   }
 }
 
-export const StorageManagerDexie: Record<string, unknown> = {
+export const StorageManagerDexie = {
   // -------- PROJECTS ----------
   async getProjects() {
     const projects = await db.projects.where('_deleted').notEqual(1).toArray();
@@ -214,12 +208,7 @@ export const StorageManagerDexie: Record<string, unknown> = {
             {
               maxAttempts: 5,
               baseDelay: 500,
-              retryCondition: (error) => {
-                return error?.message?.includes('fetch') || 
-                       error?.message?.includes('network') ||
-                       error?.status === 429 ||
-                       (error?.status >= 500 && error?.status < 600);
-              }
+              retryCondition: isRetryableNetworkError
             },
             'Criação de novo projeto'
           );
@@ -239,16 +228,11 @@ export const StorageManagerDexie: Record<string, unknown> = {
 
             if (error) throw error;
           },
-          {
-            maxAttempts: 5,
-            baseDelay: 500,
-            retryCondition: (error) => {
-              return error?.message?.includes('fetch') || 
-                     error?.message?.includes('network') ||
-                     error?.status === 429 ||
-                     (error?.status >= 500 && error?.status < 600);
-            }
-          },
+            {
+              maxAttempts: 5,
+              baseDelay: 500,
+              retryCondition: isRetryableNetworkError
+            },
           `Atualização de projeto: ${withDates.name}`
         );
 
