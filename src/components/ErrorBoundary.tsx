@@ -1,128 +1,100 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { logError } from "@/utils/error-logger";
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { logError } from '@/utils/error-logger';
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-    errorInfo: null,
-  };
-
-  public static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI.
-    return {
-      hasError: true,
-      error,
-      errorInfo: null,
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
     };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error using our error logger
-    logError(error, {
-      type: 'ErrorBoundary',
-      componentStack: errorInfo.componentStack,
-      errorInfo: errorInfo,
-    });
-    
-    // Update state with error details
-    this.setState({
-      error,
-      errorInfo,
-    });
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    // Atualiza o state para que a próxima renderização mostre a UI de fallback
+    return { hasError: true, error };
   }
 
-  private handleReload = () => {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Log do erro para serviços de monitoramento
+    logError(error, {
+      source: 'ErrorBoundary',
+      componentStack: errorInfo.componentStack,
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('ErrorBoundary caught an error:', error);
+      console.error('Error info:', errorInfo);
+    }
+
+    // Aqui poderia enviar o erro para um serviço de monitoramento como Sentry
+    // if (window.Sentry) {
+    //   window.Sentry.captureException(error, { extra: errorInfo });
+    // }
+  }
+
+  handleReload = () => {
+    // Recarrega a página
     window.location.reload();
   };
 
-  private handleSendError = () => {
-    const { error, errorInfo } = this.state;
-    if (error) {
-      // Log error again when user clicks report button
-      logError(error, {
-        type: 'UserReported',
-        componentStack: errorInfo?.componentStack,
-        userAction: 'manual_report',
-      });
-    }
-    
-    // Show confirmation to user
-    alert('Erro reportado e salvo nos logs. Obrigado!');
+  handleReset = () => {
+    // Reseta o estado do boundary para tentar novamente
+    this.setState({ hasError: false, error: null });
   };
 
-  public render() {
+  render() {
     if (this.state.hasError) {
-      // Custom fallback UI if provided
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      // Default error UI
       return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-background">
-          <Card className="max-w-md w-full">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+            <div className="flex justify-center mb-4">
+              <AlertCircle className="h-16 w-16 text-red-500" />
+            </div>
+            
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Algo deu errado
+            </h1>
+            
+            <p className="text-gray-600 mb-6">
+              Ocorreu um erro inesperado. Tente recarregar a página.
+            </p>
+            
+            {process.env.NODE_ENV === 'development' && this.state.error && (
+              <div className="mb-6 p-4 bg-red-50 rounded-md text-left">
+                <p className="text-sm font-mono text-red-800">
+                  {this.state.error.message}
+                </p>
               </div>
-              <CardTitle className="text-2xl">Algo deu errado</CardTitle>
-              <CardDescription>
-                Por favor, recarregue a página
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                Ocorreu um erro inesperado. Tente recarregar a página para continuar.
-              </p>
+            )}
+            
+            <div className="space-y-3">
+              <button
+                onClick={this.handleReload}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Recarregar página
+              </button>
               
-              {process.env.NODE_ENV === "development" && this.state.error && (
-                <div className="rounded-md bg-muted p-4 text-xs font-mono overflow-auto max-h-40">
-                  <p className="font-bold text-destructive mb-2">
-                    {this.state.error.toString()}
-                  </p>
-                  {this.state.errorInfo && (
-                    <pre className="text-muted-foreground whitespace-pre-wrap">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <Button 
-                  onClick={this.handleReload} 
-                  className="w-full"
-                  size="lg"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Recarregar Página
-                </Button>
-                
-                <Button
-                  onClick={this.handleSendError}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Reportar Erro
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <button
+                onClick={this.handleReset}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
