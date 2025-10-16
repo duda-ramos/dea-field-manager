@@ -24,22 +24,49 @@ import { storage } from '@/lib/storage';
 import { LoadingState } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/logger';
+import type { Installation, Project, ProjectBudget, ProjectContact } from '@/types';
+
+type BulkItem = Project | Installation | ProjectContact | ProjectBudget;
+
+const getItemDisplayName = (item: BulkItem): string => {
+  if ('name' in item && typeof item.name === 'string' && item.name.trim().length > 0) {
+    return item.name;
+  }
+
+  if ('descricao' in item && typeof item.descricao === 'string') {
+    return item.descricao;
+  }
+
+  if ('supplier' in item && typeof item.supplier === 'string') {
+    return item.supplier;
+  }
+
+  if ('nome' in item && typeof item.nome === 'string' && item.nome.trim().length > 0) {
+    return item.nome;
+  }
+
+  if ('role' in item && typeof item.role === 'string') {
+    return item.role;
+  }
+
+  return 'Item';
+};
 
 export interface BulkOperation {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-  action: (items: any[]) => Promise<void>;
+  action: (items: BulkItem[]) => Promise<void>;
   requiresConfirmation?: boolean;
   destructive?: boolean;
   category: 'data' | 'sync' | 'export' | 'organize';
 }
 
 interface BulkOperationPanelProps {
-  items: any[];
+  items: BulkItem[];
   itemType: 'projects' | 'contacts' | 'budgets' | 'installations';
-  onItemsChange?: (items: any[]) => void;
+  onItemsChange?: (items: BulkItem[]) => void;
   className?: string;
 }
 
@@ -50,9 +77,9 @@ interface BulkProgress {
   errors: string[];
 }
 
-export function BulkOperationPanel({ 
-  items, 
-  itemType, 
+export function BulkOperationPanel({
+  items,
+  itemType,
   onItemsChange,
   className 
 }: BulkOperationPanelProps) {
@@ -70,10 +97,10 @@ export function BulkOperationPanel({
       {
         id: 'export-selected',
         label: 'Exportar Selecionados',
-        icon: FileDown, 
+        icon: FileDown,
         description: 'Exportar itens selecionados para Excel',
         category: 'export',
-        action: async (_items) => {
+        action: async (_items: BulkItem[]) => {
           // Mock export functionality
           await new Promise(resolve => setTimeout(resolve, 2000));
           const blob = new Blob(['Mock CSV data'], { type: 'text/csv' });
@@ -87,40 +114,55 @@ export function BulkOperationPanel({
       },
       {
         id: 'duplicate-selected',
-        label: 'Duplicar Selecionados', 
+        label: 'Duplicar Selecionados',
         icon: Copy,
         description: 'Criar cópias dos itens selecionados',
         category: 'organize',
-        action: async (items) => {
+        action: async (items: BulkItem[]) => {
           const duplicatedIds: string[] = [];
-          
-          for (const item of items) {
-            const duplicateId = `${item.id}_copy_${Date.now()}`;
-            const duplicate = {
-              ...item,
-              id: duplicateId,
-              name: `${item.name} - Cópia`,
-              created_at: new Date().toISOString()
-            };
-            
-            if (itemType === 'projects') {
+
+          if (itemType === 'projects') {
+            const projectItems = items as Project[];
+
+            for (const item of projectItems) {
+              const duplicateId = `${item.id}_copy_${Date.now()}`;
+              const duplicate: Project = {
+                ...item,
+                id: duplicateId,
+                name: `${item.name} - Cópia`,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+
               await storage.upsertProject(duplicate);
               duplicatedIds.push(duplicateId);
-            } else if (itemType === 'installations') {
+            }
+          } else if (itemType === 'installations') {
+            const installationItems = items as Installation[];
+
+            for (const item of installationItems) {
+              const duplicateId = `${item.id}_copy_${Date.now()}`;
+              const duplicate: Installation = {
+                ...item,
+                id: duplicateId,
+                descricao: `${item.descricao} - Cópia`,
+                updated_at: new Date().toISOString()
+              };
+
               await storage.upsertInstallation(duplicate);
               duplicatedIds.push(duplicateId);
             }
           }
-          
+
           // Add undo action for duplication
           addAction({
             type: 'BULK_UPDATE',
-            description: `Duplicou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
-            data: { 
+            description: `Duplicou ${duplicatedIds.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+            data: {
               itemType,
-              newItemIds: duplicatedIds
+              newItemIds: duplicatedIds as string[]
             },
-            undo: async () => {
+              undo: async () => {
               // Delete duplicated items
               for (const id of duplicatedIds) {
                 if (itemType === 'projects') {
@@ -129,13 +171,13 @@ export function BulkOperationPanel({
                   await storage.deleteInstallation(id);
                 }
               }
-              
+
               // Refresh the list
               if (itemType === 'projects') {
                 onItemsChange?.(await storage.getProjects());
               } else if (itemType === 'installations') {
                 // Get projectId from first original item
-                const projectId = items[0]?.project_id;
+                const projectId = (items as Installation[])[0]?.project_id;
                 if (projectId && onItemsChange) {
                   const updatedInstallations = await storage.getInstallationsByProject(projectId);
                   onItemsChange(updatedInstallations);
@@ -146,7 +188,7 @@ export function BulkOperationPanel({
           
           // Show undo toast
           showUndoToast(
-            `Duplicou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
+            `Duplicou ${duplicatedIds.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
             async () => {
               await undo();
             }
@@ -156,7 +198,7 @@ export function BulkOperationPanel({
             onItemsChange?.(await storage.getProjects());
           } else if (itemType === 'installations') {
             // Get projectId from first item
-            const projectId = items[0]?.project_id;
+            const projectId = (items as Installation[])[0]?.project_id;
             if (projectId && onItemsChange) {
               const updatedInstallations = await storage.getInstallationsByProject(projectId);
               onItemsChange(updatedInstallations);
@@ -176,15 +218,16 @@ export function BulkOperationPanel({
           description: 'Marcar instalações selecionadas como instaladas',
           category: 'organize',
           action: async (items) => {
+            const installationItems = items as Installation[];
             // Save previous states before update
-            const previousStates = items.map(item => ({
+            const previousStates = installationItems.map(item => ({
               id: item.id,
               installed: item.installed,
               installed_at: item.installed_at
             }));
-            
+
             // Update all items to installed
-            for (const item of items) {
+            for (const item of installationItems) {
               await storage.upsertInstallation({
                 ...item,
                 installed: true,
@@ -196,15 +239,15 @@ export function BulkOperationPanel({
             // Add undo action
             addAction({
               type: 'BULK_UPDATE',
-              description: `Marcou ${items.length} instalação(ões) como instaladas`,
-              data: { 
-                installationIds: items.map((item: any) => item.id),
+              description: `Marcou ${installationItems.length} instalação(ões) como instaladas`,
+              data: {
+                installationIds: installationItems.map((item) => item.id),
                 previousStates
               },
               undo: async () => {
                 // Restore previous state of each item
                 for (const prevState of previousStates) {
-                  const item = items.find((i: any) => i.id === prevState.id);
+                  const item = installationItems.find((i) => i.id === prevState.id);
                   if (item) {
                     await storage.upsertInstallation({
                       ...item,
@@ -214,26 +257,26 @@ export function BulkOperationPanel({
                     });
                   }
                 }
-                
+
                 // Refresh the list
-                const projectId = items[0]?.project_id;
+                const projectId = installationItems[0]?.project_id;
                 if (projectId && onItemsChange) {
                   const updatedInstallations = await storage.getInstallationsByProject(projectId);
                   onItemsChange(updatedInstallations);
                 }
               }
             });
-            
+
             // Show undo toast
             showUndoToast(
-              `Marcou ${items.length} instalação(ões) como instaladas`,
+              `Marcou ${installationItems.length} instalação(ões) como instaladas`,
               async () => {
                 await undo();
               }
             );
-            
+
             // Refresh the list
-            const projectId = items[0]?.project_id;
+            const projectId = installationItems[0]?.project_id;
             if (projectId && onItemsChange) {
               const updatedInstallations = await storage.getInstallationsByProject(projectId);
               onItemsChange(updatedInstallations);
@@ -253,11 +296,13 @@ export function BulkOperationPanel({
           category: 'sync',
           action: async (items) => {
             // Mock sync functionality
-            for (let i = 0; i < items.length; i++) {
+            const projectItems = items as Project[];
+
+            for (let i = 0; i < projectItems.length; i++) {
               setProgress(prev => prev ? {
                 ...prev,
                 completed: i + 1,
-                current: items[i].name
+                current: getItemDisplayName(projectItems[i])
               } : null);
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -272,12 +317,13 @@ export function BulkOperationPanel({
           requiresConfirmation: true,
           action: async (items) => {
             // Save previous states before archiving
-            const previousStates = items.map(item => ({
+            const projectItems = items as Project[];
+            const previousStates = projectItems.map(item => ({
               id: item.id,
               status: item.status
             }));
-            
-            for (const item of items) {
+
+            for (const item of projectItems) {
               await storage.upsertProject({
                 ...item,
                 status: 'archived',
@@ -288,15 +334,15 @@ export function BulkOperationPanel({
             // Add undo action
             addAction({
               type: 'BULK_UPDATE',
-              description: `Arquivou ${items.length} projeto(s)`,
-              data: { 
-                projectIds: items.map((item: any) => item.id),
+            description: `Arquivou ${projectItems.length} projeto(s)`,
+              data: {
+                projectIds: projectItems.map((item) => item.id),
                 previousStates
               },
               undo: async () => {
                 // Restore previous status of each project
                 for (const prevState of previousStates) {
-                  const item = items.find((i: any) => i.id === prevState.id);
+                  const item = projectItems.find((i) => i.id === prevState.id);
                   if (item) {
                     await storage.upsertProject({
                       ...item,
@@ -313,12 +359,12 @@ export function BulkOperationPanel({
             
             // Show undo toast
             showUndoToast(
-              `Arquivou ${items.length} projeto(s)`,
+              `Arquivou ${projectItems.length} projeto(s)`,
               async () => {
                 await undo();
               }
             );
-            
+
             onItemsChange?.(await storage.getProjects());
           }
         },
@@ -349,62 +395,77 @@ export function BulkOperationPanel({
       destructive: true,
       requiresConfirmation: true,
       action: async (items) => {
-        // Save copies of items before deletion for undo
-        const deletedItems = [...items];
-        
-        for (const item of items) {
-          if (itemType === 'projects') {
+        if (itemType === 'projects') {
+          const projectItems = items as Project[];
+          const deletedItems = [...projectItems];
+
+          for (const item of projectItems) {
             await storage.deleteProject(item.id);
-          } else if (itemType === 'installations') {
-            await storage.deleteInstallation(item.id);
           }
-        }
-        
-        // Add undo action for bulk deletion
-        addAction({
-          type: 'BULK_DELETE',
-          description: `Deletou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
-          data: { 
-            itemType,
-            deletedItems: deletedItems 
-          },
-          undo: async () => {
-            // Restore all deleted items
-            for (const item of deletedItems) {
-              if (itemType === 'installations') {
-                await storage.upsertInstallation(item);
-              } else if (itemType === 'projects') {
+
+          addAction({
+            type: 'BULK_DELETE',
+            description: `Deletou ${projectItems.length} projeto(s)`,
+            data: {
+              itemType,
+              deletedItems
+            },
+            undo: async () => {
+              for (const item of deletedItems) {
                 await storage.upsertProject(item);
               }
-            }
-            
-            // Refresh the list
-            if (itemType === 'projects') {
+
               onItemsChange?.(await storage.getProjects());
-            } else if (itemType === 'installations') {
+            }
+          });
+
+          showUndoToast(
+            `Deletou ${projectItems.length} projeto(s)`,
+            async () => {
+              await undo();
+            }
+          );
+
+          onItemsChange?.(await storage.getProjects());
+        } else if (itemType === 'installations') {
+          const installationItems = items as Installation[];
+          const deletedItems = [...installationItems];
+
+          for (const item of installationItems) {
+            await storage.deleteInstallation(item.id);
+          }
+
+          addAction({
+            type: 'BULK_DELETE',
+            description: `Deletou ${installationItems.length} instalação(ões)`,
+            data: {
+              itemType,
+              deletedItems
+            },
+            undo: async () => {
+              for (const item of deletedItems) {
+                await storage.upsertInstallation(item);
+              }
+
               const projectId = deletedItems[0]?.project_id;
               if (projectId && onItemsChange) {
                 const updatedInstallations = await storage.getInstallationsByProject(projectId);
                 onItemsChange(updatedInstallations);
               }
             }
-          }
-        });
-        
-        // Show undo toast
-        showUndoToast(
-          `Deletou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
-          async () => {
-            await undo();
-          }
-        );
-        
-        if (itemType === 'projects') {
-          onItemsChange?.(await storage.getProjects());
-        } else if (itemType === 'installations') {
-          // Refresh will be handled by parent component
-          onItemsChange?.(items.filter(i => !selectedItems.includes(i.id)));
+          });
+
+          showUndoToast(
+            `Deletou ${installationItems.length} instalação(ões)`,
+            async () => {
+              await undo();
+            }
+          );
+
+          const remainingInstallations = installationItems.filter(i => !selectedItems.includes(i.id));
+          onItemsChange?.(remainingInstallations);
         }
+
         setSelectedItems([]);
       }
     });
@@ -590,7 +651,7 @@ export function BulkOperationPanel({
                         onCheckedChange={() => handleSelectItem(item.id)}
                         disabled={isProcessing}
                       />
-                      <span className="truncate">{item.name}</span>
+                      <span className="truncate">{getItemDisplayName(item)}</span>
                     </div>
                   ))}
                 </div>

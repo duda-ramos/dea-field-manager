@@ -7,7 +7,7 @@ interface LogEntry {
   timestamp: string;
   level: LogType;
   message: string;
-  data?: any;
+  data?: unknown;
   duration?: number;
 }
 
@@ -33,22 +33,51 @@ class Logger {
     }
   }
 
-  private formatMessage(message: string, data?: any): string {
+  private formatMessage(message: string, data?: unknown): string {
     if (this.logLevel === 'minimal') {
-      // Single line format for production
-      return data ? `${message} ${JSON.stringify(data)}` : message;
+      if (data instanceof Error) {
+        return `${message} ${data.message}`;
+      }
+
+      if (typeof data === 'object' && data !== null) {
+        try {
+          return `${message} ${JSON.stringify(data)}`;
+        } catch (error) {
+          console.warn('Failed to stringify log data', error);
+        }
+      }
+
+      if (typeof data !== 'undefined') {
+        return `${message} ${String(data)}`;
+      }
+
+      return message;
     }
     return message;
   }
 
-  private log(type: LogType, message: string, data?: any, duration?: number) {
+  private sanitizeData(data?: unknown): unknown {
+    if (data instanceof Error) {
+      return {
+        name: data.name,
+        message: data.message,
+        stack: getFeatureFlag('VERBOSE_LOGS') ? data.stack : undefined
+      };
+    }
+
+    return data;
+  }
+
+  private log(type: LogType, message: string, data?: unknown, duration?: number) {
     if (!this.shouldLog(type)) return;
+
+    const sanitizedData = this.sanitizeData(data);
 
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: type,
       message: this.formatMessage(message, data),
-      data: this.logLevel === 'verbose' ? data : undefined,
+      data: this.logLevel === 'verbose' ? sanitizedData : undefined,
       duration
     };
 
@@ -66,22 +95,22 @@ class Logger {
       switch (type) {
         case 'error':
           // Keep error console logging for critical issues
-          console.error(`${emoji} ${message}${durationStr}`, data || '');
+          console.error(`${emoji} ${message}${durationStr}`, data ?? '');
           break;
         case 'warn':
           // Keep warning console logging for important issues
-          console.warn(`${emoji} ${message}${durationStr}`, data || '');
+          console.warn(`${emoji} ${message}${durationStr}`, data ?? '');
           break;
         case 'debug':
           // Debug logging only in development
           if (import.meta.env.DEV) {
-            console.debug(`${emoji} ${message}${durationStr}`, data || '');
+            console.debug(`${emoji} ${message}${durationStr}`, data ?? '');
           }
           break;
         default:
           // Info logging only in development
           if (import.meta.env.DEV) {
-            console.log(`${emoji} ${message}${durationStr}`, data || '');
+            console.log(`${emoji} ${message}${durationStr}`, data ?? '');
           }
       }
     }
@@ -98,23 +127,23 @@ class Logger {
     return emojis[type] || '📋';
   }
 
-  info(message: string, data?: any) {
+  info(message: string, data?: unknown) {
     this.log('info', message, data);
   }
 
-  warn(message: string, data?: any) {
+  warn(message: string, data?: unknown) {
     this.log('warn', message, data);
   }
 
-  error(message: string, data?: any) {
+  error(message: string, data?: unknown) {
     this.log('error', message, data);
   }
 
-  debug(message: string, data?: any) {
+  debug(message: string, data?: unknown) {
     this.log('debug', message, data);
   }
 
-  performance(message: string, startTime: number, data?: any) {
+  performance(message: string, startTime: number, data?: unknown) {
     const duration = Date.now() - startTime;
     this.log('performance', message, data, duration);
   }
@@ -125,7 +154,7 @@ class Logger {
     return Date.now();
   }
 
-  syncComplete(operation: 'push' | 'pull' | 'full', startTime: number, metrics: any) {
+  syncComplete(operation: 'push' | 'pull' | 'full', startTime: number, metrics: Record<string, unknown>) {
     const duration = Date.now() - startTime;
     
     if (this.logLevel === 'minimal') {
@@ -142,7 +171,7 @@ class Logger {
     }
   }
 
-  syncError(operation: string, error: Error, context?: any) {
+  syncError(operation: string, error: Error, context?: Record<string, unknown>) {
     const errorData = {
       operation,
       message: error.message,

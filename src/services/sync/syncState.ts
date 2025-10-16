@@ -38,7 +38,7 @@ export interface SyncLogEntry {
   timestamp: number;
   type: 'info' | 'success' | 'error' | 'warning';
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface SyncState {
@@ -200,7 +200,7 @@ class SyncStateManager {
     });
   }
 
-  public setIdle(syncMetrics?: any) {
+  public setIdle(syncMetrics?: Record<string, unknown>) {
     if (syncMetrics) {
       const duration = Date.now() - (this.currentState.metrics.lastSyncAt || Date.now());
       
@@ -225,7 +225,7 @@ class SyncStateManager {
     this.loadMetrics();
   }
 
-  public addLog(type: SyncLogEntry['type'], message: string, details?: any) {
+  public addLog(type: SyncLogEntry['type'], message: string, details?: Record<string, unknown>) {
     const entry: SyncLogEntry = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),

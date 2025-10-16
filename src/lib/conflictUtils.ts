@@ -21,8 +21,8 @@ export interface EditConflictInfo {
 export interface ConflictDetails {
   recordType: string;
   recordName: string;
-  localVersion: any;
-  remoteVersion: any;
+  localVersion: Record<string, unknown>;
+  remoteVersion: Record<string, unknown>;
 }
 
 /**
@@ -78,7 +78,7 @@ export function checkForRemoteEdits(
  * @param record - Objeto do registro com os dados
  * @returns Objeto com pares chave-valor formatados para exibição
  */
-export function getRecordPreview(recordType: string, record: any): Record<string, string> {
+export function getRecordPreview(recordType: string, record: Record<string, unknown>): Record<string, string> {
   switch (recordType) {
     case 'installation':
       return {
@@ -126,7 +126,7 @@ export function getRecordPreview(recordType: string, record: any): Record<string
  * @param record - Objeto do registro
  * @returns String descritiva do registro
  */
-export function getRecordDisplayName(recordType: string, record: any): string {
+export function getRecordDisplayName(recordType: string, record: Record<string, unknown>): string {
   switch (recordType) {
     case 'installation':
       return `Instalação ${record.codigo || 'sem código'}`;
@@ -174,7 +174,7 @@ export function formatConflictDate(dateString: string): string {
  * @param record - Registro a ser marcado
  * @returns Novo objeto com flags de força aplicadas
  */
-export function markForForceUpload(record: any): any {
+export function markForForceUpload(record: Record<string, unknown>): Record<string, unknown> {
   return {
     ...record,
     _forceUpload: 1,
@@ -192,7 +192,7 @@ export function markForForceUpload(record: any): any {
  * @param record - Registro com possíveis flags de sync
  * @returns Registro limpo sem metadados internos
  */
-export function cleanSyncFlags(record: any): any {
+export function cleanSyncFlags(record: Record<string, unknown>): Record<string, unknown> {
   const cleaned = { ...record };
   delete cleaned._dirty;
   delete cleaned._forceUpload;
@@ -208,7 +208,7 @@ export function cleanSyncFlags(record: any): any {
  * @param action - Tipo de ação: 'detected' ou 'resolved'
  * @param details - Objeto com detalhes do conflito/resolução
  */
-export function logConflict(action: 'detected' | 'resolved', details: any): void {
+export function logConflict(action: 'detected' | 'resolved', details: Record<string, unknown>): void {
   if (action === 'detected') {
     logger.warn('[Conflict] Edit conflict detected', details);
   } else {

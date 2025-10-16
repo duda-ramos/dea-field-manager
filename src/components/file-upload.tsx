@@ -12,7 +12,7 @@ import { StorageManagerDexie as Storage } from '@/services/StorageManager';
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from '@/services/storage/filesStorage';
 import type { ProjectFile } from '@/types';
 import { logger } from '@/services/logger';
-import { withRetry } from '@/services/sync/utils';
+import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 
 interface UploadedFile extends Omit<ProjectFile, 'uploadedAt'> {
   uploadedAt: Date;
@@ -83,12 +83,7 @@ export function FileUpload({
         {
           maxAttempts: 5,
           baseDelay: 500,
-          retryCondition: (error) => {
-            // Retry em erros de rede ou 5xx
-            return error?.message?.includes('fetch') || 
-                   error?.message?.includes('network') ||
-                   error?.status >= 500;
-          }
+          retryCondition: isRetryableNetworkError
         },
         `Upload de arquivo: ${file.name}`
       );
@@ -225,11 +220,7 @@ export function FileUpload({
           {
             maxAttempts: 3,
             baseDelay: 500,
-            retryCondition: (error) => {
-              return error?.message?.includes('fetch') || 
-                     error?.message?.includes('network') ||
-                     error?.status >= 500;
-            }
+            retryCondition: isRetryableNetworkError
           },
           `Remoção de arquivo: ${file.name}`
         );
@@ -291,11 +282,7 @@ export function FileUpload({
           {
             maxAttempts: 5,
             baseDelay: 500,
-            retryCondition: (error) => {
-              return error?.message?.includes('fetch') || 
-                     error?.message?.includes('network') ||
-                     error?.status >= 500;
-            }
+            retryCondition: isRetryableNetworkError
           },
           `Migração de arquivo: ${file.name}`
         );

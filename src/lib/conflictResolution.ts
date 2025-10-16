@@ -29,8 +29,8 @@ export async function resolveEditConflict(
   recordId: string,
   recordType: 'project' | 'installation' | 'contact' | 'budget',
   useLocal: boolean,
-  localVersion: any,
-  remoteVersion: any
+  localVersion: Record<string, unknown>,
+  remoteVersion: Record<string, unknown>
 ): Promise<void> {
   try {
     if (useLocal) {
@@ -74,7 +74,7 @@ export async function resolveEditConflict(
 async function keepLocalVersion(
   recordId: string,
   recordType: string,
-  localVersion: any
+  localVersion: Record<string, unknown>
 ): Promise<void> {
   // Mark record for force upload
   const markedRecord = markForForceUpload(localVersion);
@@ -116,7 +116,7 @@ async function keepLocalVersion(
 async function useRemoteVersion(
   recordId: string,
   recordType: string,
-  remoteVersion: any
+  remoteVersion: Record<string, unknown>
 ): Promise<void> {
   // Clean sync flags from remote version
   const cleanedRecord = cleanSyncFlags(remoteVersion);
@@ -149,7 +149,7 @@ async function useRemoteVersion(
  * @param record - Registro a verificar
  * @returns true se registro tem flag de forçar upload
  */
-export function shouldForceUpload(record: any): boolean {
+export function shouldForceUpload(record: Record<string, unknown>): boolean {
   return record._forceUpload === 1;
 }
 

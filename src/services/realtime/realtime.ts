@@ -234,7 +234,7 @@ class RealtimeManager {
       });
   }
 
-  public async handleEvent(table: string, payload: any): Promise<void> {
+  public async handleEvent(table: string, payload: Record<string, unknown>): Promise<void> {
     this.metrics.eventsReceived++;
     this.metrics.lastEventAt = Date.now();
     this.updateMetricsInSyncState();
@@ -397,7 +397,7 @@ class RealtimeManager {
     await localTable.put(localRecord);
   }
 
-  private getLocalTable(tableName: string): any {
+  private getLocalTable(tableName: string): unknown {
     switch (tableName) {
       case 'projects':
         return db.projects;
@@ -417,7 +417,7 @@ class RealtimeManager {
     }
   }
 
-  private transformRecordForLocal(record: any, tableName: string): any {
+  private transformRecordForLocal(record: Record<string, unknown>, tableName: string): Record<string, unknown> {
     // Transform from Supabase format to IndexedDB format
     const base = {
       ...record,

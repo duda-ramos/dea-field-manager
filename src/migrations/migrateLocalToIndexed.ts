@@ -5,7 +5,7 @@ const MIGRATION_FLAG = 'dfm:indexeddb:migrated:v1';
 /**
  * Utilitários
  */
-function safeParse<T = any>(raw: string | null): T | null {
+function safeParse<T = unknown>(raw: string | null): T | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as T;
@@ -14,20 +14,20 @@ function safeParse<T = any>(raw: string | null): T | null {
   }
 }
 
-function asArray(v: any): any[] {
+function asArray(v: unknown): unknown[] {
   if (!v) return [];
   if (Array.isArray(v)) return v;
-  if (v && Array.isArray(v.items)) return v.items; // alguns saves legados usam { items: [...] }
+  if (v && typeof v === 'object' && 'items' in v && Array.isArray(v.items)) return v.items; // alguns saves legados usam { items: [...] }
   return [];
 }
 
 type LegacyPayload = {
-  projects: any[];
-  installations: any[];
-  contacts: any[];
-  budgets: any[];
-  itemVersions: any[]; // enriched com installationId quando vier de versions_<installationId>
-  files: any[]; // enriched com projectId quando vier de project_files_<projectId>
+  projects: unknown[];
+  installations: unknown[];
+  contacts: unknown[];
+  budgets: unknown[];
+  itemVersions: unknown[]; // enriched com installationId quando vier de versions_<installationId>
+  files: unknown[]; // enriched com projectId quando vier de project_files_<projectId>
 };
 
 /**
@@ -79,10 +79,10 @@ function collectLegacyDataFromLocalStorage(): LegacyPayload {
     if (key === 'project_contacts') {
       // alguns apps salvam como objeto { [projectId]: Contact[] }
       // ou array simples de contatos. Suportamos os dois.
-      const parsed = safeParse<any>(raw);
+      const parsed = safeParse<Record<string, unknown>>(raw);
       if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
         for (const [projectId, contacts] of Object.entries(parsed)) {
-          asArray(contacts).forEach((c) => {
+          asArray(contacts).forEach((c: Record<string, unknown>) => {
             if (projectId && !c.projectId) c.projectId = projectId;
             out.contacts.push(c);
           });
@@ -98,7 +98,7 @@ function collectLegacyDataFromLocalStorage(): LegacyPayload {
     if (mV) {
       const installationId = mV[1];
       const versions = asArray(safeParse(raw));
-      versions.forEach((v) => {
+      versions.forEach((v: Record<string, unknown>) => {
         if (installationId && !v.installationId) v.installationId = installationId;
         out.itemVersions.push(v);
       });
@@ -110,7 +110,7 @@ function collectLegacyDataFromLocalStorage(): LegacyPayload {
     if (mF) {
       const projectId = mF[1];
       const files = asArray(safeParse(raw));
-      files.forEach((f) => {
+      files.forEach((f: Record<string, unknown>) => {
         if (projectId && !f.projectId) f.projectId = projectId;
         out.files.push(f);
       });

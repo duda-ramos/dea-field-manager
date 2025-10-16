@@ -19,7 +19,7 @@ import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/logger';
-import { withRetry } from '@/services/sync/utils';
+import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 import { compressImage, shouldCompress } from '@/utils/imageCompression';
 
 // Validation constants
@@ -235,12 +235,7 @@ export function EnhancedImageUpload({
         {
           maxAttempts: 5,
           baseDelay: 500,
-          retryCondition: (error) => {
-            // Retry em erros de rede ou 5xx
-            return error?.message?.includes('fetch') || 
-                   error?.message?.includes('network') ||
-                   error?.status >= 500;
-          }
+          retryCondition: isRetryableNetworkError
         },
         `Upload de imagem: ${newFileName}`
       );

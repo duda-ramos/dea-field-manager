@@ -229,7 +229,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
           description: `Proposta de ${newProposal.supplier} foi criada com sucesso.`,
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Erro ao criar proposta de fornecedor', {
         error,
         supplier: newProposal.supplier,
@@ -240,7 +241,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
       });
       toast({
         title: "Erro",
-        description: error.message || "Erro no upload do arquivo",
+        description: err.message || "Erro no upload do arquivo",
         variant: "destructive"
       });
     } finally {
@@ -487,7 +488,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={newProposal.status} onValueChange={(value: any) => setNewProposal(prev => ({ ...prev, status: value }))}>
+                <Select value={newProposal.status} onValueChange={(value: 'pending' | 'approved' | 'rejected') => setNewProposal(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -684,7 +685,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
               </div>
               <div>
                 <Label htmlFor="edit-status">Status</Label>
-                <Select value={editingProposal.status} onValueChange={(value: any) => setEditingProposal({...editingProposal, status: value})}>
+                <Select value={editingProposal.status} onValueChange={(value: 'pending' | 'approved' | 'rejected') => setEditingProposal({...editingProposal, status: value})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

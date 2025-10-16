@@ -31,19 +31,19 @@ const ENTITY_ORDER: EntityName[] = [
   'files'
 ];
 
-const getLocalTable = (table: LocalTableName) => (db as any)[table];
+const getLocalTable = (table: LocalTableName) => (db as Record<string, unknown>)[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
 
 // Timestamp normalization helpers
-const normalizeTimestamps = (obj: any) => ({
+const normalizeTimestamps = (obj: Record<string, unknown>) => ({
   ...obj,
   created_at: obj.createdAt || obj.created_at,
   updated_at: obj.updatedAt || obj.updated_at
 });
 
-const denormalizeTimestamps = (obj: any) => ({
+const denormalizeTimestamps = (obj: Record<string, unknown>) => ({
   ...obj,
   createdAt: obj.created_at,
   updatedAt: obj.updated_at ? new Date(obj.updated_at).getTime() : Date.now()
@@ -71,7 +71,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
     const batch = batches[i];
     
     await withRetry(async () => {
-      const operations = batch.map(async (record: any) => {
+      const operations = batch.map(async (record: Record<string, unknown>) => {
         try {
           if (record._deleted) {
             await supabase.from(remote as any).delete().eq('id', record.id);
@@ -161,7 +161,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   return { pulled, errors };
 }
 
-function transformRecordForSupabase(record: any, entityName: string, userId: string): any {
+function transformRecordForSupabase(record: Record<string, unknown>, entityName: string, userId: string): Record<string, unknown> {
   const base = normalizeTimestamps({
     ...record,
     user_id: userId
@@ -239,7 +239,7 @@ function transformRecordForSupabase(record: any, entityName: string, userId: str
   }
 }
 
-function transformRecordForLocal(record: any, entityName: string): any {
+function transformRecordForLocal(record: Record<string, unknown>, entityName: string): Record<string, unknown> {
   const base = denormalizeTimestamps({
     ...record,
     _dirty: 0,
