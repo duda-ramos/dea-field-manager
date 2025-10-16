@@ -320,6 +320,8 @@ export function EnhancedImageUpload({
 
   // Handle file uploads - validate and create previews
   const handleFiles = async (files: FileList) => {
+    if (isUploading) return; // Prevent handling new files during upload
+    
     const fileArray = Array.from(files);
     const errors: string[] = [];
     const validFiles: FilePreview[] = [];
@@ -511,6 +513,7 @@ export function EnhancedImageUpload({
 
   // Handle file input change
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isUploading) return; // Prevent multiple uploads
     const files = event.target.files;
     if (files) {
       handleFiles(files);
@@ -519,6 +522,7 @@ export function EnhancedImageUpload({
 
   // Handle camera capture
   const handleCameraCapture = () => {
+    if (isUploading) return; // Prevent multiple uploads
     if (cameraInputRef.current) {
       cameraInputRef.current.click();
     }
@@ -526,6 +530,7 @@ export function EnhancedImageUpload({
 
   // Handle gallery upload
   const handleGalleryUpload = () => {
+    if (isUploading) return; // Prevent multiple uploads
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -585,6 +590,7 @@ export function EnhancedImageUpload({
     const newFileName = generateFileName(originalImage.name, sequential);
     const editedFile = new File([editedImageBlob], newFileName, { type: 'image/png' });
     
+    setIsUploading(true);
     try {
       const newImage = await uploadImage(editedFile);
       const newImages = [...images, newImage];
@@ -617,6 +623,8 @@ export function EnhancedImageUpload({
         'Erro ao salvar imagem editada',
         'Não foi possível completar a operação após várias tentativas. Verifique sua conexão e tente novamente.'
       );
+    } finally {
+      setIsUploading(false);
     }
   };
 
