@@ -38,7 +38,6 @@ export interface Project {
 export interface ItemVersion {
   id: string;
   installationId: string;
-  itemId: string;
   snapshot: InstallationVersionSnapshot;
   revisao: number;
   motivo:

@@ -267,15 +267,9 @@ export function InstallationDetailModalNew({
           ...snapshot
         } = updated;
 
-        const itemId =
-          (installation as any)?.itemId ??
-          (installation as any)?.item_id ??
-          installation.id;
-
         const restoredVersion: ItemVersion = {
           id: crypto.randomUUID(),
           installationId: installation.id,
-          itemId,
           snapshot,
           revisao: newRevisionNumber,
           motivo: "restored",

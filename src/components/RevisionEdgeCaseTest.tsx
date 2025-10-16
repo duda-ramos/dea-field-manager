@@ -111,7 +111,6 @@ export function RevisionEdgeCaseTest() {
       const revision: ItemVersion = {
         id: `revision-${scenario}-${i}`,
         installationId: `test-installation-${scenario}`,
-        itemId: `test-installation-${scenario}`,
         revisao: i,
         type: i === 1 ? "created" : "edited",
         motivo: (i === 1 ? "created" : isEmptyFields ? "outros" : "revisao-conteudo") as ItemVersion['motivo'],

@@ -136,14 +136,14 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
         return null
       }
 
-      // Update last used timestamp (async, don't await)
+      // Update last used timestamp (fire and forget)
       const keyId = (keyData as any).id;
       supabase
         .from('api_keys')
-        .update({ last_used_at: new Date().toISOString() } as any)
+        .update({ last_used_at: new Date().toISOString() })
         .eq('id', keyId)
         .then(() => console.log('API key last_used_at updated'))
-        .catch(err => console.error('Error updating last_used_at:', err))
+        .catch((err: Error) => console.error('Error updating last_used_at:', err))
 
       return {
         user_id: (keyData as any).user_id,
@@ -269,14 +269,14 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert({
+        .insert([{
           name,
           client,
           city,
           code: code || '',
           status: status || 'planning',
           user_id: auth.user_id
-        })
+        }])
         .select()
         .maybeSingle()
 

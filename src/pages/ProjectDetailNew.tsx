@@ -17,7 +17,7 @@ import {
   Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
   ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2
 } from "lucide-react";
-import { Project, Installation } from "@/types";
+import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -288,13 +288,13 @@ export default function ProjectDetailNew() {
           // Criar versão inicial (Revisão 0) para instalações importadas
           const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = installResult;
 
-          const initialVersion = {
+          const initialVersion: ItemVersion = {
             id: crypto.randomUUID(),
             installationId: installResult.id,
-            itemId: installResult.id,
             snapshot,
             revisao: 0,
             motivo: 'created' as const,
+            type: 'created' as const,
             descricao_motivo: 'Versão inicial (importada)',
             criadoEm: nowIso,
             createdAt: nowTimestamp,

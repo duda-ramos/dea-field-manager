@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Installation } from "@/types";
+import { Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { showToast, showUndoToast } from "@/lib/toast";
@@ -200,13 +200,13 @@ export function AddInstallationModal({
 
           const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
 
-          const newVersion = {
+          const newVersion: ItemVersion = {
             id: crypto.randomUUID(),
             installationId: editingInstallation.id,
-            itemId: editingInstallation.id,
             snapshot,
             revisao: newRevisionNumber,
             motivo: (revisionMotivo || 'edited') as any,
+            type: 'edited' as const,
             descricao_motivo: revisionDescricao || `Revisão ${newRevisionNumber}`,
             criadoEm: nowIso,
             createdAt: nowTimestamp,
@@ -271,13 +271,13 @@ export function AddInstallationModal({
         // Criar versão inicial (Revisão 0)
         const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
 
-        const initialVersion = {
+        const initialVersion: ItemVersion = {
           id: crypto.randomUUID(),
           installationId: savedInstallation.id,
-          itemId: savedInstallation.id,
           snapshot,
           revisao: 0,
           motivo: 'created' as const,
+          type: 'created' as const,
           descricao_motivo: 'Versão inicial',
           criadoEm: nowIso,
           createdAt: nowTimestamp,
