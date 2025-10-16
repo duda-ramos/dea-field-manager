@@ -26,7 +26,6 @@ import { syncStateManager, type SyncState, type SyncLogEntry } from '@/services/
 import { fullSync, syncPush, syncPull } from '@/services/sync/sync';
 import { useToast } from '@/hooks/use-toast';
 import { getSyncPreferences } from '@/lib/preferences';
-import { realtimeManager } from '@/services/realtime/realtime';
 
 export function SyncStatusPanel() {
   const [syncState, setSyncState] = useState<SyncState>(syncStateManager.getState());

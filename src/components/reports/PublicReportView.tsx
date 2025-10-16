@@ -16,7 +16,6 @@ import {
   Clock,
   Search,
   Filter,
-  Image as ImageIcon,
   Building,
   FileText
 } from 'lucide-react';

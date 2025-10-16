@@ -66,7 +66,7 @@ export async function syncImportedPhotosToGallery(
       );
       
       successCount++;
-    } catch (error) {
+    } catch (_error) {
       // Error syncing photos - continue with next
       errorCount++;
       // Continuar mesmo se uma falhar
@@ -114,7 +114,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
         }
 
         const allInstallations: Installation[] = [];
-        const requiredColumns = ['Tipologia', 'Código', 'Descrição', 'Quantidade'];
+        const _requiredColumns = ['Tipologia', 'Código', 'Descrição', 'Quantidade']; // eslint-disable-line @typescript-eslint/no-unused-vars
 
         for (const sheetName of sheetNames) {
           const worksheet = workbook.Sheets[sheetName];

@@ -1,8 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
 import { calendarService } from './calendar';
 import { storage } from '@/lib/storage';
-import { Project } from '@/types';
-import { format, parseISO, addBusinessDays, subBusinessDays } from 'date-fns';
+import { parseISO, subBusinessDays } from 'date-fns';
 
 export const calendarIntegration = {
   /**

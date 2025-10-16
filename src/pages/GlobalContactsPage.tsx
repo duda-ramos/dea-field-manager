@@ -27,7 +27,7 @@ interface GlobalContact {
 
 export default function GlobalContactsPage() {
   const [contacts, setContacts] = useState<GlobalContact[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [_projects, setProjects] = useState<any[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -260,7 +260,7 @@ export default function GlobalContactsPage() {
             <BulkOperationPanel
               items={contacts.filter(c => selectedContacts.includes(c.id))}
               itemType="contacts"
-              onItemsChange={(updatedItems) => {
+              onItemsChange={(_updatedItems) => {
                 loadContacts();
                 setSelectedContacts([]);
               }}
