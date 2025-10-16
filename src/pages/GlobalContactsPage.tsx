@@ -27,7 +27,7 @@ interface GlobalContact {
 
 export default function GlobalContactsPage() {
   const [contacts, setContacts] = useState<GlobalContact[]>([]);
-  const [_projects, _setProjects] = useState<any[]>([]);
+  const [_projects, setProjects] = useState<any[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

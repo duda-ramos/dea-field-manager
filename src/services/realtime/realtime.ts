@@ -3,7 +3,7 @@ import { syncStateManager } from '@/services/sync/syncState';
 import { logger } from '@/services/logger';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/db/indexedDb';
-import type { RealtimeEvent, RealtimeMetrics } from './types';
+import type { RealtimeEvent, RealtimeMetrics, RealtimeChannel } from './types';
 
 class RealtimeManager {
   private clientId: string;

@@ -192,7 +192,7 @@ export default function ProjectDetailNew() {
       
       return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
     });
-  }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
+  }, [installations, searchTerm, statusFilter, _itemStatusFilter, pavimentoFilter]);
 
   const isOwner = project?.user_id ? project.user_id === user?.id : true;
 

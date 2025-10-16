@@ -16,7 +16,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'deleted' | 'archived'>('active');
-  const [_selectedProjects, _setSelectedProjects] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

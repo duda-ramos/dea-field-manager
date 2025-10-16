@@ -19,7 +19,7 @@ interface ReportHistoryProps {
 export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const { _user } = useAuth();
+  const { user: _user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
