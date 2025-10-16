@@ -142,18 +142,6 @@ export default function ProjectDetailNew() {
     setProject(updatedProject);
   };
 
-  const isOwner = project?.user_id ? project.user_id === user?.id : true;
-
-  if (!project) return null;
-
-  const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
-                        location.pathname.includes('/relatorios') ? 'relatorios' :
-                        location.pathname.includes('/orcamentos') ? 'orcamentos' :
-                        location.pathname.includes('/arquivos') ? 'arquivos' :
-                        location.pathname.includes('/contatos') ? 'contatos' :
-                        location.pathname.includes('/colaboracao') ? 'colaboracao' :
-                        'info';
-
   // Calculate stats for info section - memoized to ensure updates when installations change
   const { completedInstallations, pendingInstallations, installationsWithObservations, progressPercentage } = useMemo(() => {
     const completed = installations.filter(i => i.installed).length;
@@ -192,6 +180,18 @@ export default function ProjectDetailNew() {
       return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
     });
   }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
+
+  const isOwner = project?.user_id ? project.user_id === user?.id : true;
+
+  if (!project) return null;
+
+  const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
+                        location.pathname.includes('/relatorios') ? 'relatorios' :
+                        location.pathname.includes('/orcamentos') ? 'orcamentos' :
+                        location.pathname.includes('/arquivos') ? 'arquivos' :
+                        location.pathname.includes('/contatos') ? 'contatos' :
+                        location.pathname.includes('/colaboracao') ? 'colaboracao' :
+                        'info';
 
 
   const toggleInstallation = async (installationId: string) => {
