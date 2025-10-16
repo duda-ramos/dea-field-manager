@@ -1,6 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { logError } from '@/utils/error-logger';
+import React, { Component, ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -22,77 +21,106 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Atualiza o state para que a próxima renderização mostre a UI de fallback
-    return { hasError: true, error };
+    return {
+      hasError: true,
+      error,
+    };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log do erro para serviços de monitoramento
-    logError(error, {
-      source: 'ErrorBoundary',
-      componentStack: errorInfo.componentStack,
-    });
-
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error);
-      console.error('Error info:', errorInfo);
-    }
-
-    // Aqui poderia enviar o erro para um serviço de monitoramento como Sentry
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // Registra o erro no console para debugging
+    console.error('Error caught by ErrorBoundary:', error);
+    console.error('Error info:', errorInfo);
+    
+    // Aqui você pode enviar o erro para um serviço de monitoramento
+    // como Sentry, Bugsnag, etc.
+    // Exemplo (comentado):
     // if (window.Sentry) {
-    //   window.Sentry.captureException(error, { extra: errorInfo });
+    //   window.Sentry.captureException(error, {
+    //     contexts: {
+    //       react: {
+    //         componentStack: errorInfo.componentStack,
+    //       },
+    //     },
+    //   });
     // }
   }
 
-  handleReload = () => {
+  handleReload = (): void => {
     // Recarrega a página
     window.location.reload();
   };
 
-  handleReset = () => {
-    // Reseta o estado do boundary para tentar novamente
-    this.setState({ hasError: false, error: null });
+  handleReset = (): void => {
+    // Reseta o estado do boundary para tentar renderizar novamente
+    this.setState({
+      hasError: false,
+      error: null,
+    });
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-            <div className="flex justify-center mb-4">
-              <AlertCircle className="h-16 w-16 text-red-500" />
-            </div>
-            
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Algo deu errado
-            </h1>
-            
-            <p className="text-gray-600 mb-6">
-              Ocorreu um erro inesperado. Tente recarregar a página.
-            </p>
-            
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <div className="mb-6 p-4 bg-red-50 rounded-md text-left">
-                <p className="text-sm font-mono text-red-800">
-                  {this.state.error.message}
-                </p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full px-6 py-8 bg-white shadow-lg rounded-lg">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
-            )}
-            
-            <div className="space-y-3">
-              <button
-                onClick={this.handleReload}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Recarregar página
-              </button>
               
-              <button
-                onClick={this.handleReset}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                Algo deu errado
+              </h1>
+              
+              <p className="text-gray-600 mb-6">
+                Ocorreu um erro inesperado. Tente recarregar a página.
+              </p>
+              
+              <div className="flex flex-col gap-3 w-full">
+                <button
+                  onClick={this.handleReload}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
+                >
+                  Recarregar página
+                </button>
+                
+                <button
+                  onClick={this.handleReset}
+                  className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 font-medium"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+              
+              {/* Botão opcional para reportar erro */}
+              {/* <button
+                onClick={() => {
+                  // Implementar lógica de report
+                  console.log('Report error:', this.state.error);
+                }}
+                className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
               >
-                Tentar novamente
-              </button>
+                Reportar erro
+              </button> */}
+              
+              {/* Mostra detalhes do erro apenas em desenvolvimento */}
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-6 w-full text-left">
+                  <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                    Detalhes do erro (desenvolvimento)
+                  </summary>
+                  <pre className="mt-2 p-3 bg-gray-100 rounded text-xs text-gray-800 overflow-auto">
+                    {this.state.error.toString()}
+                    {this.state.error.stack && (
+                      <>
+                        {'\n\n'}
+                        {this.state.error.stack}
+                      </>
+                    )}
+                  </pre>
+                </details>
+              )}
             </div>
           </div>
         </div>
