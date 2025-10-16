@@ -13,7 +13,7 @@ export async function refreshDatabase() {
     await db.open();
     
     return true;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }

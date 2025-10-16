@@ -11,8 +11,7 @@ import {
   Undo2,
   History,
   PlayCircle,
-  CheckCircle2,
-  XCircle
+  CheckCircle2
 } from "lucide-react";
 import { TestConflictPersistence } from "@/components/test-conflict-persistence";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Settings, User, Bell, Shield, Palette } from "lucide-react";
 
 export default function ConfiguracoesPage() {
   return (
@@ -18,7 +17,6 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
               Perfil do Usuário
             </CardTitle>
             <CardDescription>
@@ -35,7 +33,6 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
               Notificações
             </CardTitle>
             <CardDescription>
@@ -52,7 +49,6 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5" />
               Aparência
             </CardTitle>
             <CardDescription>
@@ -69,7 +65,6 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
               Segurança
             </CardTitle>
             <CardDescription>

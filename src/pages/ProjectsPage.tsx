@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
 import { ProjectCard } from "@/components/project-card";
-import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'deleted' | 'archived'>('active');
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [_selectedProjects, _setSelectedProjects] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

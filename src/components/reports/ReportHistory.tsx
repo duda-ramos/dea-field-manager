@@ -19,7 +19,7 @@ interface ReportHistoryProps {
 export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { _user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const localReports = await storage.getReports(projectId);
       
       // Load from Supabase - commented out as table doesn't exist yet
-      let supabaseReports: any[] = [];
+      let supabaseReports: any[] = []; // eslint-disable-line prefer-const
       /* 
       if (user) {
         try {
@@ -208,11 +208,11 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
     try {
-      const report = reports.find(r => r.id === reportId);
+      const _report = reports.find(r => r.id === reportId);
       
       // Delete from Supabase if it's a Supabase report
       /* Commented out - table doesn't exist yet
-      if (report && (report as any).source === 'supabase') {
+      if (_report && (_report as any).source === 'supabase') {
         // Delete from database
         const { error: dbError } = await supabase
           .from('project_report_history')
@@ -259,7 +259,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
-  const formatFileSize = (bytes?: number) => {
+  const _formatFileSize = (bytes?: number) => {
     if (!bytes) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -361,7 +361,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                         )}
 
                         <span className="text-xs">
-                          {formatFileSize(report.size ?? report.blob?.size)}
+                          {_formatFileSize(report.size ?? report.blob?.size)}
                         </span>
                       </div>
                     </div>
