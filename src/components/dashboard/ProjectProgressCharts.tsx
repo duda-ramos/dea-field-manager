@@ -113,6 +113,10 @@ export function ProjectProgressCharts({ projects, className }: ProjectProgressCh
 
       setStatusData(currentStatusData);
     } catch (error) {
+      console.error('[ProjectProgressCharts] Falha ao gerar dados dos gráficos:', error, {
+        projectCount: projects?.length || 0,
+        timeframe
+      });
       logger.error('Error generating chart data', {
         error,
         projectCount: projects?.length || 0,

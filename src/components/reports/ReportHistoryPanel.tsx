@@ -189,6 +189,10 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
         minute: '2-digit'
       });
     } catch (error) {
+      console.error('[ReportHistoryPanel] Falha ao formatar data do relatório:', error, {
+        reportId: report.id,
+        dateValue: dateValue
+      });
       return '';
     }
   };

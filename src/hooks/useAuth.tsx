@@ -73,6 +73,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
+      console.error('[useAuth] Falha ao buscar perfil:', error, { userId });
       logger.error('Unexpected error fetching profile:', err);
       errorMonitoring.captureError(err, {
         action: 'fetch_profile',
@@ -105,6 +106,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               autoSyncManager.initialize().then(() => {
                 autoSyncManager.initializeWithAuth();
               }).catch(error => {
+                console.error('[useAuth] Falha ao inicializar auto-sync:', error);
                 // Auto-sync initialization failed - logged via logger service
               });
             }, 100);
@@ -134,6 +136,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             autoSyncManager.initialize().then(() => {
               autoSyncManager.initializeWithAuth();
             }).catch(error => {
+              console.error('[useAuth] Falha ao inicializar auto-sync após mudança de sessão:', error);
               // Auto-sync initialization failed - logged via logger service
             });
           }, 100);
@@ -260,6 +263,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await fetchProfile(user.id);
       return { error: null };
     } catch (error) {
+      console.error('[useAuth] Falha ao atualizar perfil:', error, {
+        userId: user?.id,
+        updates: JSON.stringify(updates)
+      });
       logger.error('Profile update exception:', error);
       return { error };
     }

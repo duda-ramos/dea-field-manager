@@ -41,6 +41,12 @@ export function RevisionHistoryModal({
       setVersionToRestore(null);
       onClose();
     } catch (_error) {
+      console.error('[RevisionHistoryModal] Falha ao restaurar versão:', _error, {
+        versionId: versionToRestore.id,
+        versionRevisao: versionToRestore.revisao,
+        installationId: installation.id,
+        installationCode: installation.codigo
+      });
       // Erro já é tratado pelo componente pai
     } finally {
       setIsRestoring(false);

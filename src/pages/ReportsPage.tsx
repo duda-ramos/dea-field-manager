@@ -45,6 +45,10 @@ export default function ReportsPage() {
       }
       setInstallations(allInstallations);
     } catch (error) {
+      console.error('[ReportsPage] Falha ao carregar dados:', error, {
+        projectCount: projectsData?.length,
+        userId: user?.id
+      });
       errorMonitoring.captureError(
         error instanceof Error ? error : new Error(String(error)),
         { component: 'ReportsPage', action: 'loadData' },
@@ -134,6 +138,11 @@ export default function ReportsPage() {
         description: "O relatório foi baixado com sucesso em formato CSV."
       });
     } catch (error) {
+      console.error('[ReportsPage] Falha ao gerar relatório CSV:', error, {
+        projectCount: projects.length,
+        installationCount: installations.length,
+        filterType
+      });
       errorMonitoring.captureError(
         error instanceof Error ? error : new Error(String(error)),
         { component: 'ReportsPage', action: 'generateCSVReport' },

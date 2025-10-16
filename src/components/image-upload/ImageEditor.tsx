@@ -94,6 +94,11 @@ export function ImageEditor({ isOpen, onClose, image, onSave }: ImageEditorProps
         setIsLoading(false);
       });
     } catch (error) {
+      console.error('[ImageEditor] Falha ao carregar imagem para edição:', error, {
+        imageId: image.id,
+        imageName: image.name,
+        storagePath: image.storagePath || image.storage_path
+      });
       logger.error('Error loading image for editing', {
         error,
         imageId: image.id,
