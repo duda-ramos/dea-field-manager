@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -80,6 +80,24 @@ export default function ProjectDetailNew() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
   const [lastReportDate, setLastReportDate] = useState<string | null>(null);
+  const installationToggleQueue = useRef<Map<string, Promise<void>>>(new Map());
+
+  const enqueueInstallationUpdate = (
+    installationId: string,
+    operation: () => Promise<void>
+  ) => {
+    const queue = installationToggleQueue.current;
+    const previous = queue.get(installationId) ?? Promise.resolve();
+    const next = previous.catch(() => {}).then(operation);
+    let cleanupPromise: Promise<void>;
+    cleanupPromise = next.finally(() => {
+      if (queue.get(installationId) === cleanupPromise) {
+        queue.delete(installationId);
+      }
+    });
+    queue.set(installationId, cleanupPromise);
+    return cleanupPromise;
+  };
 
   useEffect(() => {
     loadProjectData();
@@ -200,57 +218,117 @@ export default function ProjectDetailNew() {
 
 
   const toggleInstallation = async (installationId: string) => {
-    const installation = installations.find(i => i.id === installationId);
-    if (!installation) return;
+    let targetInstallation: Installation | undefined;
+    let previousInstalled = false;
+    let newInstalledState = false;
 
-    // Save previous state
-    const previousInstalled = installation.installed;
+    setInstallations(prevInstallations => {
+      const updatedInstallations = prevInstallations.map(inst => {
+        if (inst.id === installationId) {
+          targetInstallation = inst;
+          previousInstalled = inst.installed;
+          newInstalledState = !inst.installed;
+          return { ...inst, installed: !inst.installed };
+        }
+        return inst;
+      });
 
-    const updated = await storage.upsertInstallation({
-      ...installation,
-      installed: !installation.installed
+      return targetInstallation ? updatedInstallations : prevInstallations;
     });
 
-    if (updated) {
-      const updatedInstallations = await storage.getInstallationsByProject(project.id);
-      setInstallations(updatedInstallations);
-      
-      // Add undo action
-      addAction({
-        type: 'UPDATE_INSTALLATION',
-        description: updated.installed 
-          ? `Marcou "${installation.descricao}" como instalado`
-          : `Marcou "${installation.descricao}" como pendente`,
-        data: { 
-          installationId: installation.id,
-          previousInstalled: previousInstalled 
-        },
-        undo: async () => {
-          // Restaurar status anterior
-          await storage.upsertInstallation({
-            ...installation,
-            installed: previousInstalled
-          });
-          // Atualizar UI
-          const refreshedInstallations = await storage.getInstallationsByProject(project.id);
-          setInstallations(refreshedInstallations);
-        }
-      });
-      
-      // Show undo toast
-      showUndoToast(
-        updated.installed 
-          ? `Marcou "${installation.descricao}" como instalado`
-          : `Marcou "${installation.descricao}" como pendente`,
-        async () => {
-          await undo();
-        }
-      );
-      
-      toast({
-        title: updated.installed ? "Item instalado" : "Item desmarcado",
-        description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
-      });
+    if (!targetInstallation) {
+      return;
+    }
+
+    const installationSnapshot = targetInstallation;
+
+    const persistToggle = async () => {
+      try {
+        const updated = await storage.upsertInstallation({
+          ...installationSnapshot,
+          installed: newInstalledState
+        });
+
+        // Add undo action only after persistence succeeds to avoid stale state
+        addAction({
+          type: 'UPDATE_INSTALLATION',
+          description: updated.installed
+            ? `Marcou "${installationSnapshot.descricao}" como instalado`
+            : `Marcou "${installationSnapshot.descricao}" como pendente`,
+          data: {
+            installationId: installationSnapshot.id,
+            previousInstalled
+          },
+          undo: async () => {
+            setInstallations(prevInstallations =>
+              prevInstallations.map(inst =>
+                inst.id === installationSnapshot.id
+                  ? { ...inst, installed: previousInstalled }
+                  : inst
+              )
+            );
+
+            try {
+              await enqueueInstallationUpdate(installationSnapshot.id, async () => {
+                await storage.upsertInstallation({
+                  ...installationSnapshot,
+                  installed: previousInstalled
+                });
+              });
+            } catch (_error) {
+              setInstallations(prevInstallations =>
+                prevInstallations.map(inst =>
+                  inst.id === installationSnapshot.id
+                    ? { ...inst, installed: newInstalledState }
+                    : inst
+                )
+              );
+
+              toast({
+                title: "Erro ao desfazer",
+                description: "Não foi possível desfazer a alteração. Tente novamente.",
+                variant: "destructive"
+              });
+            }
+          }
+        });
+
+        showUndoToast(
+          updated.installed
+            ? `Marcou "${installationSnapshot.descricao}" como instalado`
+            : `Marcou "${installationSnapshot.descricao}" como pendente`,
+          async () => {
+            await undo();
+          }
+        );
+
+        toast({
+          title: updated.installed ? "Item instalado" : "Item desmarcado",
+          description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
+        });
+      } catch (error) {
+        setInstallations(prevInstallations =>
+          prevInstallations.map(inst =>
+            inst.id === installationSnapshot.id
+              ? { ...inst, installed: previousInstalled }
+              : inst
+          )
+        );
+
+        toast({
+          title: "Erro ao atualizar status",
+          description: "Não foi possível atualizar o status do item. Tente novamente.",
+          variant: "destructive"
+        });
+
+        throw error;
+      }
+    };
+
+    try {
+      await enqueueInstallationUpdate(installationSnapshot.id, persistToggle);
+    } catch {
+      // Errors are handled inside persistToggle
     }
   };
 
