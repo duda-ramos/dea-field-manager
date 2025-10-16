@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, ArrowRight, Building, Code, RefreshCw, Clock } from "lucide-react";
+import { CalendarDays, MapPin, User, ArrowRight, Building, Code, RefreshCw, Clock } from "lucide-react";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";

@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Table as TableIcon, Download, Trash2, Calendar, User, Search } from 'lucide-react';
+import { FileText, Table as TableIcon, Download, Trash2, Calendar, User, Search, Filter } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -152,7 +152,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
     }
   };
 
-  const _formatFileSize = (bytes?: number) => {
+  const formatFileSize = (bytes?: number) => {
     if (!bytes) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -199,11 +199,11 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
 
   const extractStats = (report: ReportHistoryEntry): ReportStats => {
     // Try to extract stats from config or fallback to zeros
-    const _config = report.config || {};
+    const config = report.config || {};
     return {
-      pendentes: _config.stats?.pendentes || 0,
-      concluidos: _config.stats?.concluidos || 0,
-      revisao: _config.stats?.revisao || 0
+      pendentes: config.stats?.pendentes || 0,
+      concluidos: config.stats?.concluidos || 0,
+      revisao: config.stats?.revisao || 0
     };
   };
 

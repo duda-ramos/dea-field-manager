@@ -62,7 +62,7 @@ export const reportTheme = {
 
 // Calculate report sections based on interlocutor
 export function calculateReportSections(data: ReportData): ReportSections {
-  const { installations, interlocutor } = data;
+  const { installations, versions, interlocutor } = data;
   
   const pendencias: Installation[] = [];
   const concluidas: Installation[] = [];
@@ -551,7 +551,7 @@ async function addPavimentoSummaryToPDF(
   doc: jsPDF, 
   summary: PavimentoSummary[], 
   yPosition: number, 
-  _interlocutor: 'cliente' | 'fornecedor'
+  interlocutor: 'cliente' | 'fornecedor'
 ): Promise<number> {
   // Check if new page needed
   if (yPosition > 200) {
@@ -637,7 +637,7 @@ async function addEnhancedSectionToPDF(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectName?: string,
-  _projectId?: string
+  projectId?: string
 ): Promise<number> {
   if (items.length === 0) return yPosition;
 
@@ -666,7 +666,7 @@ async function addEnhancedSectionToPDF(
 
     // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
     const galleryUrlsMap = new Map<string, { url: string, count: number }>();
-    if ((sectionType === 'pendencias' || sectionType === 'revisao') && _projectId) {
+    if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
           const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
@@ -678,7 +678,7 @@ async function addEnhancedSectionToPDF(
     }
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, _projectId);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
     // Generate single flat table
     autoTable(doc, {
@@ -839,7 +839,7 @@ async function uploadSinglePhotoWithRetry(
   timestamp: number,
   maxRetries = 3
 ): Promise<string | null> {
-  let _lastError: any = null; // eslint-disable-line @typescript-eslint/no-unused-vars
+  let lastError: any = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -858,7 +858,7 @@ async function uploadSinglePhotoWithRetry(
       const filename = `reports/temp_${itemId}_${index}_${timestamp}.jpg`;
       
       // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filename, blob, {
           contentType: 'image/jpeg',
@@ -869,7 +869,7 @@ async function uploadSinglePhotoWithRetry(
       URL.revokeObjectURL(objectUrl);
       
       if (uploadError) {
-        _lastError = uploadError;
+        lastError = uploadError;
         if (attempt < maxRetries - 1) {
           // Wait before retrying (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
@@ -883,7 +883,7 @@ async function uploadSinglePhotoWithRetry(
       return urlData?.publicUrl || null;
       
     } catch (error) {
-      _lastError = error;
+      lastError = error;
       if (attempt === maxRetries - 1) {
         console.error('[uploadSinglePhotoWithRetry] Failed to upload photo after attempts:', {
           error,
@@ -1112,7 +1112,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     const htmlFilename = `reports/gallery_${itemId}_${timestamp}.html`;
     
-    const { error: htmlUploadError } = await supabase.storage
+    const { data: htmlUploadData, error: htmlUploadError } = await supabase.storage
       .from(bucket)
       .upload(htmlFilename, htmlBlob, {
         contentType: 'text/html',
@@ -1155,7 +1155,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
  * - Returns empty array on critical errors (doesn't break report)
  * - Logs detailed context for debugging
  */
-async function _getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
+async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
   try {
     // Input validation
     if (!bucket) {
@@ -1280,7 +1280,7 @@ async function prepareDynamicTableData(
     includePavimento: boolean;
     includeTipologia: boolean;
   } = { includePavimento: true, includeTipologia: true },
-  _projectId?: string
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
   let columns: string[] = [];
   let rows: any[][] = [];
@@ -1368,12 +1368,12 @@ async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
-  _projectId?: string
+  projectId?: string
 ): Promise<{ columns: string[], rows: any[][] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: true,
     includeTipologia: true
-  }, _projectId);
+  }, projectId);
 }
 
 // Aggregate items by Pavimento and Tipologia for summary sections
@@ -1442,7 +1442,7 @@ function getAggregatedColumnStyles(): any {
 
 // Prepare table data based on section type and interlocutor
 // PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
-async function _prepareTableData(
+async function prepareTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
@@ -1456,7 +1456,7 @@ async function _prepareTableData(
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
 // PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
-async function _prepareCompactTableData(
+async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
@@ -1469,7 +1469,7 @@ async function _prepareCompactTableData(
 }
 
 // Get column styles based on section type
-function _getColumnStyles(
+function getColumnStyles(
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   interlocutor: 'cliente' | 'fornecedor'
 ): any {
@@ -1507,7 +1507,7 @@ function _getColumnStyles(
 }
 
 // Get compact column styles (for tables without Pavimento and Tipologia)
-function _getCompactColumnStyles(columns: string[]): any {
+function getCompactColumnStyles(columns: string[]): any {
   const styles: Record<number, any> = {};
   
   columns.forEach((col, index) => {
@@ -1529,7 +1529,7 @@ function _getCompactColumnStyles(columns: string[]): any {
   return styles;
 }
 
-async function _addSectionToPDF(
+async function addSectionToPDF(
   doc: jsPDF, 
   title: string, 
   items: Installation[], 
@@ -1776,7 +1776,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   }
 }
 
-async function _addSectionToXLSX(
+async function addSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -1854,7 +1854,7 @@ async function _addSectionToXLSX(
 }
 
 // Enhanced XLSX section with hierarchical structure (Pavimento → Tipologia → Items)
-async function _addEnhancedSectionToXLSX(
+async function addEnhancedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -1945,7 +1945,7 @@ async function _addEnhancedSectionToXLSX(
 }
 
 // Convert data URL to base64 string for Excel
-function _dataUrlToBase64(dataUrl: string): string {
+function dataUrlToBase64(dataUrl: string): string {
   if (dataUrl.startsWith('data:')) {
     return dataUrl.split(',')[1];
   }
@@ -1987,7 +1987,7 @@ async function addFlatSectionToXLSX(
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
   
   // Set column widths
-  const colWidths = columns.map((col, _idx) => {
+  const colWidths = columns.map((col, idx) => {
     if (col === 'Foto') return { wch: 15 };
     if (col === 'Pavimento') return { wch: 15 };
     if (col === 'Tipologia') return { wch: 20 };
@@ -2067,8 +2067,8 @@ function addAggregatedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
-  _interlocutor: 'cliente' | 'fornecedor',
-  _sectionType: 'concluidas' | 'andamento'
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'concluidas' | 'andamento'
 ) {
   const aggregatedData = aggregateByPavimentoTipologia(items);
   

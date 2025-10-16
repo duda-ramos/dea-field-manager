@@ -394,7 +394,7 @@ export const reportSharingService = {
       }
 
       // Call edge function to send email
-      const { error } = await supabase.functions.invoke('send-report-email', {
+      const { data, error } = await supabase.functions.invoke('send-report-email', {
         body: params
       });
 

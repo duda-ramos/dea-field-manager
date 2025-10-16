@@ -19,19 +19,19 @@ interface AddInstallationModalProps {
   onUpdate: () => void;
   editingInstallation?: Installation | null;
   isRevision?: boolean; // Indica se é uma nova revisão
-  currentRevision?: number; // Número da revisão atual (não utilizado)
+  currentRevision?: number; // Número da revisão atual
   revisionMotivo?: string; // Motivo da revisão
   revisionDescricao?: string; // Descrição do motivo
 }
 
-export function AddInstallationModal({
-  projectId,
-  isOpen,
-  onClose,
+export function AddInstallationModal({ 
+  projectId, 
+  isOpen, 
+  onClose, 
   onUpdate,
   editingInstallation,
   isRevision = false,
-  currentRevision: _currentRevision = 1,
+  currentRevision = 1,
   revisionMotivo = "",
   revisionDescricao = ""
 }: AddInstallationModalProps) {

@@ -32,7 +32,7 @@ export function ReportShareModal({
   onClose,
   blob,
   format,
-  config: _config,
+  config,
   project,
   interlocutor,
 }: ReportShareModalProps) {

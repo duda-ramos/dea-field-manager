@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, X, Info, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Bell, Check, X, Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,7 +126,7 @@ export const addNotification = {
   projectCreated: (projectName: string, projectId: string) => {
     notificationService.addNotification({
       title: 'Projeto criado',
-      message: `O projeto "${projectName}" foi criado com sucesso.`,
+      message: `O projeto \"${projectName}\" foi criado com sucesso.`,
       type: 'success',
       category: 'project',
       projectId
