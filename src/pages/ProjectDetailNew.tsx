@@ -13,29 +13,38 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { 
-  ArrowLeft, Upload, CheckCircle2, Clock, 
-  Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
+  ArrowLeft, Upload, Download, CheckCircle2, Clock, AlertTriangle, 
+  Settings, Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
   ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2
 } from "lucide-react";
 import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { PhotoGallery } from "@/components/photo-gallery";
 import { EnhancedImageUpload } from "@/components/image-upload";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";
 import { AddInstallationModal } from "@/components/add-installation-modal";
 import { EditProjectModal } from "@/components/edit-project-modal";
+import { BulkOperationPanel } from "@/components/bulk-operations/BulkOperationPanel";
 import { importExcelFile, syncImportedPhotosToGallery } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
+import { calculateReportSections, calculatePavimentoSummary } from "@/lib/reports-new";
 import { FileUpload } from "@/components/file-upload";
+import { FileManager } from "@/components/file-manager/FileManager";
 import { CollaborationPanel } from "@/components/collaboration/CollaborationPanel";
+import { ProjectVersioning } from "@/components/versioning/ProjectVersioning";
+import { AutomaticBackup } from "@/components/backup/AutomaticBackup";
 import { BudgetTab } from "@/components/project/BudgetTab";
+import { logger } from '@/services/logger';
+import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoadingBoundary } from '@/components/loading-boundary';
 import { 
   ProjectErrorFallback, 
   UploadErrorFallback, 
-  ReportErrorFallback
+  ReportErrorFallback,
+  GalleryErrorFallback 
 } from '@/components/error-fallbacks';
 import { ReportCustomizationModal, ReportConfig } from "@/components/reports/ReportCustomizationModal";
 import { ReportShareModal } from "@/components/reports/ReportShareModal";
@@ -56,7 +65,7 @@ export default function ProjectDetailNew() {
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
-  const [_itemStatusFilter, _setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
+  const [itemStatusFilter, setItemStatusFilter] = useState<"all" | "ativo" | "on hold" | "cancelado">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -66,7 +75,8 @@ export default function ProjectDetailNew() {
   const [showReportShare, setShowReportShare] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<{ blob: Blob; format: 'pdf' | 'xlsx'; config: ReportConfig } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  // Removed unused filters
+  const [reportFilter, setReportFilter] = useState<'all' | 'pendentes' | 'emAndamento' | 'instalados'>('all');
+  const [reportPavimentoFilter, setReportPavimentoFilter] = useState<string>('all');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
   const [lastReportDate, setLastReportDate] = useState<string | null>(null);
@@ -185,14 +195,14 @@ export default function ProjectDetailNew() {
                             (statusFilter === "installed" && installation.installed) ||
                             (statusFilter === "pending" && !installation.installed);
       
-      const matchesItemStatus = _itemStatusFilter === "all" || 
-                               installation.status === _itemStatusFilter;
+      const matchesItemStatus = itemStatusFilter === "all" || 
+                               installation.status === itemStatusFilter;
                             
       const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
       
       return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
     });
-  }, [installations, searchTerm, statusFilter, _itemStatusFilter, pavimentoFilter]);
+  }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
 
   const isOwner = project?.user_id ? project.user_id === user?.id : true;
 

@@ -9,6 +9,9 @@ import {
   Wifi, 
   WifiOff, 
   RefreshCw, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Clock,
   ChevronDown
 } from "lucide-react";
 import { SyncState, syncStateManager } from "@/services/sync/syncState";

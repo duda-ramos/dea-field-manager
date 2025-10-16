@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, X, Plus, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export function PhotoGallery({
   installationId,
   installationCode
 }: PhotoGalleryProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const { toast } = useToast();
 

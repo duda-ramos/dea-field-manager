@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function ContatosPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast: _toast } = useToast();
+  const { toast } = useToast();
   
   const [project, setProject] = useState<any>(null);
   const [contatos, setContatos] = useState<Contato[]>([]);
@@ -177,7 +177,7 @@ export default function ContatosPage() {
             <BulkOperationPanel
               items={contatos.filter(c => selectedContacts.includes(c.id))}
               itemType="contacts"
-              onItemsChange={(_updatedItems) => {
+              onItemsChange={(updatedItems) => {
                 loadContatos();
                 setSelectedContacts([]);
               }}

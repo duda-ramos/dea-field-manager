@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Eye, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, Download, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
 import { Installation, Project } from '@/types';
 import { calculateReportSections, calculatePavimentoSummary, ReportSections, PavimentoSummary } from '@/lib/reports-new';
 import { StorageBar } from '@/components/storage-bar';

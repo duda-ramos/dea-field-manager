@@ -1,5 +1,5 @@
 // IndexedDB management for offline functionality
-import { Project, Installation, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
+import { Project, Installation, ItemVersion, ProjectBudget, ProjectContact, ProjectReport } from '@/types';
 
 class IndexedDBManager {
   private dbName = 'dea_manager_db';

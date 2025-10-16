@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { conflictStore } from '@/stores/conflictStore';
 import { EditConflictAlert } from './EditConflictAlert';
 import { resolveEditConflict } from '@/lib/conflictResolution';
+import { Badge } from './ui/badge';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 
