@@ -33,9 +33,10 @@ export default function ReportsPage() {
   }, []);
 
   const loadData = async () => {
+    let projectsData: Project[] = [];
     try {
       setIsLoading(true);
-      const projectsData = await storage.getProjects();
+      projectsData = await storage.getProjects();
       setProjects(projectsData);
 
       const allInstallations = [];
@@ -46,8 +47,10 @@ export default function ReportsPage() {
       setInstallations(allInstallations);
     } catch (error) {
       console.error('[ReportsPage] Falha ao carregar dados:', error, {
-        projectCount: projectsData?.length,
-        userId: user?.id
+        attemptedProjectCount: projectsData.length,
+        cachedProjectCount: projects.length,
+        cachedInstallationCount: installations.length,
+        selectedProject
       });
       errorMonitoring.captureError(
         error instanceof Error ? error : new Error(String(error)),
@@ -141,7 +144,8 @@ export default function ReportsPage() {
       console.error('[ReportsPage] Falha ao gerar relatório CSV:', error, {
         projectCount: projects.length,
         installationCount: installations.length,
-        filterType
+        selectedProject,
+        isExporting
       });
       errorMonitoring.captureError(
         error instanceof Error ? error : new Error(String(error)),
