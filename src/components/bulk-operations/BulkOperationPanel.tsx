@@ -474,6 +474,12 @@ export function BulkOperationPanel({
 
       setSelectedItems([]);
     } catch (error) {
+      console.error('[BulkOperationPanel] Falha na operação em lote:', error, {
+        operation: operation.id,
+        operationLabel: operation.label,
+        itemCount: selectedItemsData.length,
+        itemType
+      });
       logger.error('Erro na operação em lote', {
         error,
         operation: operation.id,

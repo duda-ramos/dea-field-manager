@@ -54,6 +54,11 @@ export function SyncStatusPanel() {
         description: "Push e Pull executados com sucesso!"
       });
     } catch (error) {
+      console.error('[SyncStatusPanel] Falha na sincronização completa:', error, {
+        isOnline: syncState.isOnline,
+        pendingPush: syncState.pendingPush,
+        status: syncState.status
+      });
       toast({
         title: "Erro na Sincronização",
         description: error instanceof Error ? error.message : "Erro desconhecido",
@@ -70,6 +75,11 @@ export function SyncStatusPanel() {
         description: "Dados locais enviados para a nuvem!"
       });
     } catch (error) {
+      console.error('[SyncStatusPanel] Falha no push de dados:', error, {
+        isOnline: syncState.isOnline,
+        pendingPush: syncState.pendingPush,
+        pendingByTable: syncState.pendingByTable
+      });
       toast({
         title: "Erro no Push",
         description: error instanceof Error ? error.message : "Erro desconhecido",
@@ -86,6 +96,11 @@ export function SyncStatusPanel() {
         description: "Dados atualizados da nuvem!"
       });
     } catch (error) {
+      console.error('[SyncStatusPanel] Falha no pull de dados:', error, {
+        isOnline: syncState.isOnline,
+        lastSyncAt: syncState.metrics.lastSyncAt,
+        cursor: syncState.metrics.cursor
+      });
       toast({
         title: "Erro no Pull",
         description: error instanceof Error ? error.message : "Erro desconhecido",

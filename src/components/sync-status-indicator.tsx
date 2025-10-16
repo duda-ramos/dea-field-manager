@@ -34,6 +34,11 @@ export function SyncStatusIndicator() {
         description: "Dados sincronizados com sucesso!"
       });
     } catch (error) {
+      console.error('[SyncStatusIndicator] Falha na sincronização:', error, {
+        isOnline: syncState.isOnline,
+        status: syncState.status,
+        pendingPush: syncState.pendingPush
+      });
       toast({
         title: "Erro na sincronização",
         description: error instanceof Error ? error.message : "Erro desconhecido",

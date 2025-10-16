@@ -79,6 +79,7 @@ export default function Dashboard() {
       const allProjects = await storage.getProjects();
       setProjects(allProjects);
     } catch (error) {
+      console.error('[Dashboard] Falha ao carregar projetos:', error);
       // Error loading projects - logged via logger service
       
       toast({
@@ -202,6 +203,10 @@ export default function Dashboard() {
       });
 
     } catch (error) {
+      console.error('[Dashboard] Falha ao criar projeto:', error, {
+        projectName: newProject.name,
+        clientName: newProject.client
+      });
       // Error creating project - logged via logger service
       
       toast({

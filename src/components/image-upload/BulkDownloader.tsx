@@ -82,6 +82,11 @@ export function BulkDownloader({ images, projectName, className }: BulkDownloade
             processedCount++;
             setDownloadProgress((processedCount / totalImages) * 100);
           } catch (error) {
+            console.error('[BulkDownloader] Falha ao baixar imagem individual para ZIP:', error, {
+              imageName: image.name,
+              imageId: image.id,
+              storagePath: image.storagePath || image.storage_path
+            });
             logger.error('Error downloading individual image for ZIP', {
               error,
               imageName: image.name,
@@ -118,6 +123,11 @@ export function BulkDownloader({ images, projectName, className }: BulkDownloade
 
       setIsDialogOpen(false);
     } catch (error) {
+      console.error('[BulkDownloader] Falha ao criar arquivo ZIP para download em lote:', error, {
+        imageCount: images.length,
+        projectName,
+        processedCount: downloadProgress
+      });
       logger.error('Error creating ZIP file for bulk download', {
         error,
         imageCount: images.length,

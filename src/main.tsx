@@ -19,6 +19,7 @@ if (import.meta.env.DEV) {
       logger.info('Initializing IndexedDB for development...');
     }
   }).catch(error => {
+    console.error('[Main] Falha na inicialização do IndexedDB:', error);
     logger.error('IndexedDB initialization failed:', error);
     // Try to refresh database on error
     refreshDatabase().then(() => {

@@ -110,6 +110,12 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
       setChangeDescription('');
       loadVersions();
     } catch (error) {
+      console.error('[ProjectVersioning] Falha ao criar versão:', error, {
+        projectId: project.id,
+        projectName: project.name,
+        versionNumber: Math.max(...versions.map(v => v.version_number), 0) + 1,
+        sizeBytes: new Blob([JSON.stringify({ project, installations, timestamp: new Date().toISOString() })]).size
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao criar versão',
@@ -145,6 +151,12 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
 
       onVersionRestored();
     } catch (error) {
+      console.error('[ProjectVersioning] Falha ao restaurar versão:', error, {
+        versionId: version.id,
+        versionNumber: version.version_number,
+        projectId: project.id,
+        projectName: project.name
+      });
       toast({
         title: 'Erro',
         description: 'Erro ao restaurar versão',

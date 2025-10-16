@@ -276,6 +276,12 @@ export default function ProjectDetailNew() {
                 });
               });
             } catch (_error) {
+              console.error('[ProjectDetail] Falha ao reverter estado da instalação:', _error, {
+                installationId: installationSnapshot.id,
+                installationCode: installationSnapshot.codigo,
+                previousState: previousInstalled,
+                newState: newInstalledState
+              });
               setInstallations(prevInstallations =>
                 prevInstallations.map(inst =>
                   inst.id === installationSnapshot.id
@@ -307,6 +313,12 @@ export default function ProjectDetailNew() {
           description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
         });
       } catch (error) {
+        console.error('[ProjectDetail] Falha ao alternar status de instalação:', error, {
+          installationId: installationSnapshot.id,
+          installationCode: installationSnapshot.codigo,
+          previousState: previousInstalled,
+          newState: newInstalledState
+        });
         setInstallations(prevInstallations =>
           prevInstallations.map(inst =>
             inst.id === installationSnapshot.id
@@ -400,6 +412,10 @@ export default function ProjectDetailNew() {
       try {
         await syncImportedPhotosToGallery(project.id, results);
       } catch (error) {
+        console.error('[ProjectDetail] Falha ao sincronizar fotos importadas com galeria:', error, {
+          projectId: project.id,
+          importedCount: results.length
+        });
         // Silently fail - photo sync is not critical
       }
       
@@ -413,6 +429,10 @@ export default function ProjectDetailNew() {
         description: summaryText || `Importados ${results.length} itens`,
       });
     } catch (error) {
+      console.error('[ProjectDetail] Falha na importação de planilha:', error, {
+        projectId: project.id,
+        projectName: project.name
+      });
       toast({
         title: "Erro na importação",
         description: "Erro ao processar arquivo Excel",
@@ -675,6 +695,10 @@ export default function ProjectDetailNew() {
           locale: ptBR
         });
       } catch (error) {
+        console.error('[ProjectDetail] Falha ao formatar data do último relatório:', error, {
+          lastReportDate,
+          projectId: project.id
+        });
         return 'Data desconhecida';
       }
     };
@@ -690,6 +714,10 @@ export default function ProjectDetailNew() {
           minute: '2-digit'
         });
       } catch (error) {
+        console.error('[ProjectDetail] Falha ao formatar data completa do relatório:', error, {
+          lastReportDate,
+          projectId: project.id
+        });
         return '';
       }
     };

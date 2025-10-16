@@ -92,6 +92,10 @@ export function EnhancedImageUpload({
       setImages(imageFiles);
       onImagesChange?.(imageFiles);
     } catch (error) {
+      console.error('[EnhancedImageUpload] Falha ao carregar imagens:', error, {
+        projectId,
+        imageCount: images.length
+      });
       logger.error('Error loading images', {
         error,
         projectId,
@@ -109,6 +113,9 @@ export function EnhancedImageUpload({
       });
       setInstallations(map);
     } catch (error) {
+      console.error('[EnhancedImageUpload] Falha ao carregar instalações:', error, {
+        projectId
+      });
       logger.error('Error loading installations', {
         error,
         projectId,
@@ -275,6 +282,11 @@ export function EnhancedImageUpload({
           }
         } catch (syncError) {
           // Erro de sync não deve bloquear o upload principal
+          console.error('[EnhancedImageUpload] Falha ao sincronizar foto com álbum:', syncError, {
+            projectId,
+            installationId,
+            storagePath: res.storagePath
+          });
           logger.error('Erro ao sincronizar foto com álbum', {
             error: syncError,
             projectId,
@@ -295,6 +307,12 @@ export function EnhancedImageUpload({
 
       return imageRecord;
     } catch (error) {
+      console.error('[EnhancedImageUpload] Falha no upload de imagem após retries:', error, {
+        fileName: file.name,
+        fileSize: file.size,
+        projectId,
+        installationId
+      });
       logger.error('Image upload failed after retries', {
         error,
         fileName: file.name,
@@ -479,6 +497,11 @@ export function EnhancedImageUpload({
           : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
       );
     } catch (error) {
+      console.error('[EnhancedImageUpload] Falha ao enviar imagens em lote:', error, {
+        fileCount: filePreviews.length,
+        projectId,
+        installationId
+      });
       logger.error('Erro ao enviar imagens em lote após retries', {
         error,
         fileCount: filePreviews.length,
@@ -606,6 +629,12 @@ export function EnhancedImageUpload({
       });
       showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
+      console.error('[EnhancedImageUpload] Falha ao salvar imagem editada:', error, {
+        originalImageId: originalImage.id,
+        originalImageName: originalImage.name,
+        projectId,
+        installationId
+      });
       logger.error('Erro ao salvar imagem editada após retries', {
         error,
         originalImageId: originalImage.id,
