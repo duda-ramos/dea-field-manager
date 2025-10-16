@@ -13,7 +13,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { useEffect } from "react";
 import { onlineMonitor } from "@/services/sync/onlineMonitor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { useUndoShortcut } from "@/hooks/useUndoShortcut";
 import { ConflictManager } from "@/components/ConflictManager";
 
