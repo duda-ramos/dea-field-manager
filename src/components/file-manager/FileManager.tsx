@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from '@/hooks/useAuthContext';
 import { logger } from '@/services/logger';
 
 interface ProjectFile {
