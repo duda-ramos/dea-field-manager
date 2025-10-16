@@ -11,19 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatConflictDate, getRecordPreview } from '@/lib/conflictUtils';
-
-export interface EditConflictAlertProps {
-  conflictInfo: {
-    recordType: string;
-    recordName: string;
-    localVersion: any;
-    remoteVersion: any;
-  };
-  isOpen: boolean;
-  onClose: () => void;
-  onResolve: (useLocal: boolean) => void;
-  isResolving?: boolean;
-}
+import type { EditConflictAlertProps } from './EditConflictAlert.types';
 
 export function EditConflictAlert({
   conflictInfo,

@@ -12,64 +12,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Eye, Download, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
-import { Installation, Project } from '@/types';
 import { calculateReportSections, calculatePavimentoSummary, ReportSections, PavimentoSummary } from '@/lib/reports-new';
 import { StorageBar } from '@/components/storage-bar';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
 import { ReportErrorBoundary } from './report-error-boundary';
-
-interface ReportCustomizationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onGenerate: (config: ReportConfig, format: 'pdf' | 'xlsx') => Promise<Blob>;
-  onShare: (blob: Blob, format: 'pdf' | 'xlsx', config: ReportConfig) => void;
-  project: Project;
-  installations: Installation[];
-}
-
-export interface ReportConfig {
-  interlocutor: 'cliente' | 'fornecedor';
-  sections: {
-    pendencias: boolean;
-    concluidas: boolean;
-    emRevisao: boolean;
-    emAndamento: boolean;
-  };
-  includeDetails: {
-    photos: boolean;
-    observations: boolean;
-    supplierComments: boolean;
-    timestamps: boolean;
-    pavimentoSummary: boolean;
-    storageChart: boolean;
-  };
-  groupBy: 'none' | 'pavimento' | 'tipologia';
-  sortBy: 'codigo' | 'pavimento' | 'tipologia' | 'updated_at';
-}
-
-const defaultConfig: ReportConfig = {
-  interlocutor: 'cliente',
-  sections: {
-    pendencias: true,
-    concluidas: true,
-    emRevisao: true,
-    emAndamento: true,
-  },
-  includeDetails: {
-    photos: true,
-    observations: true,
-    supplierComments: true,
-    timestamps: true,
-    pavimentoSummary: true,
-    storageChart: true,
-  },
-  groupBy: 'pavimento',
-  sortBy: 'codigo',
-};
-
-const STORAGE_KEY = 'report-config-preferences';
+import type { ReportCustomizationModalProps, ReportConfig } from './ReportCustomizationModal.types';
+import { DEFAULT_REPORT_CONFIG, REPORT_CONFIG_STORAGE_KEY } from './ReportCustomizationModal.constants';
 
 export function ReportCustomizationModal({
   isOpen,
@@ -80,7 +30,7 @@ export function ReportCustomizationModal({
   installations,
 }: ReportCustomizationModalProps) {
   const { toast } = useToast();
-  const [config, setConfig] = useState<ReportConfig>(defaultConfig);
+  const [config, setConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG);
   const [previewData, setPreviewData] = useState<{
     sections: ReportSections;
     pavimentoSummary: PavimentoSummary[];
@@ -99,7 +49,7 @@ export function ReportCustomizationModal({
   // Load saved preferences from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(REPORT_CONFIG_STORAGE_KEY);
       if (saved) {
         const savedConfig = JSON.parse(saved);
         setConfig(savedConfig);
@@ -112,7 +62,7 @@ export function ReportCustomizationModal({
   // Save preferences to localStorage whenever config changes
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      localStorage.setItem(REPORT_CONFIG_STORAGE_KEY, JSON.stringify(config));
     } catch (error) {
       console.error('Error saving preferences:', error);
     }

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
 import { Project } from '@/types';
-import { ReportConfig } from './ReportCustomizationModal';
+import type { ReportConfig } from './ReportCustomizationModal.types';
 
 interface ReportShareModalProps {
   isOpen: boolean;

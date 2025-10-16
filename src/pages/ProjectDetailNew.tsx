@@ -37,7 +37,7 @@ import {
   ReportErrorFallback,
   GalleryErrorFallback 
 } from '@/components/error-fallbacks';
-import { ReportConfig } from "@/components/reports/ReportCustomizationModal";
+import { ReportConfig } from "@/components/reports/ReportCustomizationModal.types";
 import { CardLoadingState } from "@/components/ui/loading-spinner";
 
 // Lazy load heavy components - Modals and Panels (loaded on demand when user interacts)
