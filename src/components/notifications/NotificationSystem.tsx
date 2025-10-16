@@ -126,7 +126,7 @@ export const addNotification = {
   projectCreated: (projectName: string, projectId: string) => {
     notificationService.addNotification({
       title: 'Projeto criado',
-      message: `O projeto \"${projectName}\" foi criado com sucesso.`,
+      message: `O projeto "${projectName}" foi criado com sucesso.`,
       type: 'success',
       category: 'project',
       projectId
