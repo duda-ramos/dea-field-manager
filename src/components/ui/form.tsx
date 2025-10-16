@@ -11,7 +11,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
-import { FormFieldContext, FormItemContext } from "./form.hooks"
+import { FormFieldContext, FormItemContext, useFormField } from "./form.hooks"
 
 const Form = FormProvider
 
