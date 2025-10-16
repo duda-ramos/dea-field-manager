@@ -205,51 +205,79 @@ export default function ProjectDetailNew() {
 
     // Save previous state
     const previousInstalled = installation.installed;
+    const newInstalledState = !installation.installed;
 
-    const updated = await storage.upsertInstallation({
-      ...installation,
-      installed: !installation.installed
-    });
+    // Update local state immediately for instant UI feedback
+    setInstallations(prevInstallations => 
+      prevInstallations.map(inst => 
+        inst.id === installationId 
+          ? { ...inst, installed: newInstalledState }
+          : inst
+      )
+    );
 
-    if (updated) {
-      const updatedInstallations = await storage.getInstallationsByProject(project.id);
-      setInstallations(updatedInstallations);
-      
-      // Add undo action
-      addAction({
-        type: 'UPDATE_INSTALLATION',
-        description: updated.installed 
-          ? `Marcou "${installation.descricao}" como instalado`
-          : `Marcou "${installation.descricao}" como pendente`,
-        data: { 
-          installationId: installation.id,
-          previousInstalled: previousInstalled 
-        },
-        undo: async () => {
-          // Restaurar status anterior
-          await storage.upsertInstallation({
-            ...installation,
-            installed: previousInstalled
-          });
-          // Atualizar UI
-          const refreshedInstallations = await storage.getInstallationsByProject(project.id);
-          setInstallations(refreshedInstallations);
-        }
+    try {
+      const updated = await storage.upsertInstallation({
+        ...installation,
+        installed: newInstalledState
       });
-      
-      // Show undo toast
-      showUndoToast(
-        updated.installed 
-          ? `Marcou "${installation.descricao}" como instalado`
-          : `Marcou "${installation.descricao}" como pendente`,
-        async () => {
-          await undo();
-        }
+
+      if (updated) {
+        // Add undo action
+        addAction({
+          type: 'UPDATE_INSTALLATION',
+          description: updated.installed 
+            ? `Marcou "${installation.descricao}" como instalado`
+            : `Marcou "${installation.descricao}" como pendente`,
+          data: { 
+            installationId: installation.id,
+            previousInstalled: previousInstalled 
+          },
+          undo: async () => {
+            // Update local state immediately
+            setInstallations(prevInstallations => 
+              prevInstallations.map(inst => 
+                inst.id === installationId 
+                  ? { ...inst, installed: previousInstalled }
+                  : inst
+              )
+            );
+            // Then persist to storage
+            await storage.upsertInstallation({
+              ...installation,
+              installed: previousInstalled
+            });
+          }
+        });
+        
+        // Show undo toast
+        showUndoToast(
+          updated.installed 
+            ? `Marcou "${installation.descricao}" como instalado`
+            : `Marcou "${installation.descricao}" como pendente`,
+          async () => {
+            await undo();
+          }
+        );
+        
+        toast({
+          title: updated.installed ? "Item instalado" : "Item desmarcado",
+          description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
+        });
+      }
+    } catch (error) {
+      // Revert local state on error
+      setInstallations(prevInstallations => 
+        prevInstallations.map(inst => 
+          inst.id === installationId 
+            ? { ...inst, installed: previousInstalled }
+            : inst
+        )
       );
-      
       toast({
-        title: updated.installed ? "Item instalado" : "Item desmarcado",
-        description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status do item. Tente novamente.",
+        variant: "destructive"
       });
     }
   };
