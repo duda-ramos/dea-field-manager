@@ -9,7 +9,7 @@ import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPa
 import { Users, Search, Mail, Phone, Building2, User, Truck, ChevronDown } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';

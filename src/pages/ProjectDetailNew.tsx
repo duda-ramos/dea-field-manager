@@ -20,7 +20,7 @@ import {
 import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from '@/hooks/useAuthContext';
 import { PhotoGallery } from "@/components/photo-gallery";
 import { EnhancedImageUpload } from "@/components/image-upload";
 import { InstallationDetailModalNew } from "@/components/installation-detail-modal-new";

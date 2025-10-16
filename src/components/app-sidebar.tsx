@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  useSidebar,
 } from "@/components/ui/sidebar"
+import { useSidebar } from "@/components/ui/sidebar.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 

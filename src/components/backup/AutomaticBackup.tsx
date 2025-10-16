@@ -15,7 +15,7 @@ import {
   Clock,
   CheckCircle2
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Project } from '@/types';
 import { format } from 'date-fns';

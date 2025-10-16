@@ -17,8 +17,9 @@ import { DashboardErrorFallback } from "@/components/error-fallbacks";
 import { useUndo } from "@/hooks/useUndo";
 import { showUndoToast } from "@/lib/toast";
 
-import { OnboardingFlow, useOnboarding } from "@/components/onboarding/OnboardingFlow";
-import { useAuth } from "@/hooks/useAuth";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { useAuth } from '@/hooks/useAuthContext';
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
