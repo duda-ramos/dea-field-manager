@@ -164,9 +164,14 @@ export default function ProjectDetailNew() {
 
   const filteredInstallations = useMemo(() => {
     return installations.filter(installation => {
-      const matchesSearch = installation.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            installation.tipologia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            String(installation.codigo).toLowerCase().includes(searchTerm.toLowerCase());
+      // Converter searchTerm para lowercase uma única vez
+      const searchLower = searchTerm.toLowerCase();
+      
+      // Busca case-insensitive nos campos
+      const matchesSearch = searchLower === '' || 
+                            installation.descricao.toLowerCase().includes(searchLower) ||
+                            installation.tipologia.toLowerCase().includes(searchLower) ||
+                            String(installation.codigo).toLowerCase().includes(searchLower);
       
       const matchesStatus = statusFilter === "all" || 
                             (statusFilter === "installed" && installation.installed) ||
