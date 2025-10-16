@@ -21,14 +21,14 @@ export interface RetryOptions {
   maxAttempts?: number;
   baseDelay?: number;
   maxDelay?: number;
-  retryCondition?: (error: any) => boolean;
+  retryCondition?: (error: Error | unknown) => boolean;
 }
 
 const defaultRetryOptions: Required<RetryOptions> = {
   maxAttempts: 5,
   baseDelay: 500,
   maxDelay: 8000,
-  retryCondition: (error: any) => {
+  retryCondition: (error: Error | unknown) => {
     // Retry on network errors, 429 (rate limit), 5xx server errors
     if (error?.status) {
       return error.status === 429 || (error.status >= 500 && error.status < 600);
@@ -46,7 +46,7 @@ export async function withRetry<T>(
   operationName?: string
 ): Promise<T> {
   const opts = { ...defaultRetryOptions, ...options };
-  let lastError: any;
+  let lastError: Error | unknown;
   
   for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
     try {

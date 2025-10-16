@@ -20,7 +20,7 @@ export interface Action {
   type: ActionType;
   description: string; // texto amigável: "Criou projeto X"
   timestamp: number;
-  data: any; // dados necessários para undo
+  data: Record<string, unknown>; // dados necessários para undo
   undo: () => Promise<void>; // função que desfaz a ação
 }
 
@@ -30,7 +30,7 @@ interface SerializedAction {
   type: ActionType;
   description: string;
   timestamp: number;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 // Chave para SessionStorage
@@ -42,7 +42,7 @@ const STORAGE_KEY = 'undo-history';
 export class UndoManager {
   private history: Action[] = [];
   private readonly maxHistorySize: number = 10;
-  private undoFunctions: Map<ActionType, (data: any) => Promise<void>> = new Map();
+  private undoFunctions: Map<ActionType, (data: Record<string, unknown>) => Promise<void>> = new Map();
 
   constructor() {
     this.loadFromStorage();
@@ -52,7 +52,7 @@ export class UndoManager {
    * Registra uma função de undo para um tipo de ação específico
    * Necessário para reconstruir as funções undo ao carregar do storage
    */
-  registerUndoFunction(type: ActionType, undoFn: (data: any) => Promise<void>): void {
+  registerUndoFunction(type: ActionType, undoFn: (data: Record<string, unknown>) => Promise<void>): void {
     this.undoFunctions.set(type, undoFn);
   }
 

@@ -7,7 +7,7 @@ interface LogEntry {
   timestamp: string;
   level: LogType;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   duration?: number;
 }
 
@@ -33,7 +33,7 @@ class Logger {
     }
   }
 
-  private formatMessage(message: string, data?: any): string {
+  private formatMessage(message: string, data?: Record<string, unknown>): string {
     if (this.logLevel === 'minimal') {
       // Single line format for production
       return data ? `${message} ${JSON.stringify(data)}` : message;
@@ -41,7 +41,7 @@ class Logger {
     return message;
   }
 
-  private log(type: LogType, message: string, data?: any, duration?: number) {
+  private log(type: LogType, message: string, data?: Record<string, unknown>, duration?: number) {
     if (!this.shouldLog(type)) return;
 
     const logEntry: LogEntry = {
@@ -98,23 +98,23 @@ class Logger {
     return emojis[type] || '📋';
   }
 
-  info(message: string, data?: any) {
+  info(message: string, data?: Record<string, unknown>) {
     this.log('info', message, data);
   }
 
-  warn(message: string, data?: any) {
+  warn(message: string, data?: Record<string, unknown>) {
     this.log('warn', message, data);
   }
 
-  error(message: string, data?: any) {
+  error(message: string, data?: Record<string, unknown>) {
     this.log('error', message, data);
   }
 
-  debug(message: string, data?: any) {
+  debug(message: string, data?: Record<string, unknown>) {
     this.log('debug', message, data);
   }
 
-  performance(message: string, startTime: number, data?: any) {
+  performance(message: string, startTime: number, data?: Record<string, unknown>) {
     const duration = Date.now() - startTime;
     this.log('performance', message, data, duration);
   }
@@ -125,7 +125,7 @@ class Logger {
     return Date.now();
   }
 
-  syncComplete(operation: 'push' | 'pull' | 'full', startTime: number, metrics: any) {
+  syncComplete(operation: 'push' | 'pull' | 'full', startTime: number, metrics: Record<string, unknown>) {
     const duration = Date.now() - startTime;
     
     if (this.logLevel === 'minimal') {
@@ -142,7 +142,7 @@ class Logger {
     }
   }
 
-  syncError(operation: string, error: Error, context?: any) {
+  syncError(operation: string, error: Error, context?: Record<string, unknown>) {
     const errorData = {
       operation,
       message: error.message,

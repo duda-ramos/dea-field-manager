@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Eye, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
 import { Installation, Project } from '@/types';
-import { calculateReportSections, calculatePavimentoSummary } from '@/lib/reports-new';
+import { calculateReportSections, calculatePavimentoSummary, ReportSections, PavimentoSummary } from '@/lib/reports-new';
 import { StorageBar } from '@/components/storage-bar';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
@@ -81,7 +81,16 @@ export function ReportCustomizationModal({
 }: ReportCustomizationModalProps) {
   const { toast } = useToast();
   const [config, setConfig] = useState<ReportConfig>(defaultConfig);
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<{
+    sections: ReportSections;
+    pavimentoSummary: PavimentoSummary[];
+    totals: {
+      pendencias: number;
+      concluidas: number;
+      emRevisao: number;
+      emAndamento: number;
+    };
+  } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingFormat, setGeneratingFormat] = useState<'pdf' | 'xlsx' | null>(null);
   const [activeTab, setActiveTab] = useState('sections');

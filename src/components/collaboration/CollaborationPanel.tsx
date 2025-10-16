@@ -29,7 +29,7 @@ interface RealtimeEvent {
   id: string;
   user_id: string;
   event_type: string;
-  event_data: any;
+  event_data: Record<string, unknown>;
   created_at: string;
 }
 
@@ -37,7 +37,7 @@ interface Collaborator {
   id: string;
   user_id: string;
   role: string;
-  permissions: any;
+  permissions: Record<string, boolean>;
   invited_by: string;
   invited_at: string;
   accepted_at?: string;
@@ -162,7 +162,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
     }
   };
 
-  const publishEvent = async (eventType: string, eventData?: any) => {
+  const publishEvent = async (eventType: string, eventData?: Record<string, unknown>) => {
     if (!user) return;
 
     await supabase

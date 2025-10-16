@@ -30,16 +30,16 @@ export interface BulkOperation {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-  action: (items: any[]) => Promise<void>;
+  action: (items: Installation[] | Project[]) => Promise<void>;
   requiresConfirmation?: boolean;
   destructive?: boolean;
   category: 'data' | 'sync' | 'export' | 'organize';
 }
 
 interface BulkOperationPanelProps {
-  items: any[];
+  items: Installation[] | Project[];
   itemType: 'projects' | 'contacts' | 'budgets' | 'installations';
-  onItemsChange?: (items: any[]) => void;
+  onItemsChange?: (items: Installation[] | Project[]) => void;
   className?: string;
 }
 
@@ -73,7 +73,7 @@ export function BulkOperationPanel({
         icon: FileDown, 
         description: 'Exportar itens selecionados para Excel',
         category: 'export',
-        action: async (_items) => {
+        action: async (_items: Installation[] | Project[]) => {
           // Mock export functionality
           await new Promise(resolve => setTimeout(resolve, 2000));
           const blob = new Blob(['Mock CSV data'], { type: 'text/csv' });
@@ -91,7 +91,7 @@ export function BulkOperationPanel({
         icon: Copy,
         description: 'Criar cópias dos itens selecionados',
         category: 'organize',
-        action: async (items) => {
+        action: async (items: Installation[] | Project[]) => {
           const duplicatedIds: string[] = [];
           
           for (const item of items) {
@@ -116,11 +116,11 @@ export function BulkOperationPanel({
           addAction({
             type: 'BULK_UPDATE',
             description: `Duplicou ${items.length} ${itemType === 'installations' ? 'instalação(ões)' : 'projeto(s)'}`,
-            data: { 
-              itemType,
-              newItemIds: duplicatedIds
-            },
-            undo: async () => {
+              data: { 
+                itemType,
+                newItemIds: duplicatedIds as string[]
+              },
+              undo: async () => {
               // Delete duplicated items
               for (const id of duplicatedIds) {
                 if (itemType === 'projects') {
@@ -198,7 +198,7 @@ export function BulkOperationPanel({
               type: 'BULK_UPDATE',
               description: `Marcou ${items.length} instalação(ões) como instaladas`,
               data: { 
-                installationIds: items.map((item: any) => item.id),
+                installationIds: items.map((item) => item.id),
                 previousStates
               },
               undo: async () => {
@@ -290,7 +290,7 @@ export function BulkOperationPanel({
               type: 'BULK_UPDATE',
               description: `Arquivou ${items.length} projeto(s)`,
               data: { 
-                projectIds: items.map((item: any) => item.id),
+                projectIds: items.map((item) => item.id),
                 previousStates
               },
               undo: async () => {

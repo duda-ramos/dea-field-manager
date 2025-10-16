@@ -839,7 +839,7 @@ async function uploadSinglePhotoWithRetry(
   timestamp: number,
   maxRetries = 3
 ): Promise<string | null> {
-  let _lastError: any = null; // eslint-disable-line @typescript-eslint/no-unused-vars
+  let _lastError: Error | unknown = null; // eslint-disable-line @typescript-eslint/no-unused-vars
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -900,12 +900,12 @@ async function uploadSinglePhotoWithRetry(
 }
 
 // PERFORMANCE: Helper function to process photos in chunks
-async function uploadPhotosInChunks<T>(
+async function uploadPhotosInChunks<T, R>(
   items: T[],
-  processFn: (item: T, index: number) => Promise<any>,
+  processFn: (item: T, index: number) => Promise<R>,
   chunkSize = 5
-): Promise<any[]> {
-  const results: any[] = [];
+): Promise<R[]> {
+  const results: R[] = [];
   
   for (let i = 0; i < items.length; i += chunkSize) {
     const chunk = items.slice(i, i + chunkSize);
@@ -1281,9 +1281,9 @@ async function prepareDynamicTableData(
     includeTipologia: boolean;
   } = { includePavimento: true, includeTipologia: true },
   _projectId?: string
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: unknown[][] }> {
   let columns: string[] = [];
-  let rows: any[][] = [];
+  let rows: unknown[][] = [];
 
   // Build columns based on options and section type
   const baseColumns: string[] = [];
@@ -1295,7 +1295,7 @@ async function prepareDynamicTableData(
     if (interlocutor === 'cliente') {
       columns = [...baseColumns, 'Observação', 'Foto'];
       rows = items.map((item) => {
-        const row: any[] = [];
+        const row: unknown[] = [];
         if (options.includePavimento) row.push(item.pavimento);
         if (options.includeTipologia) row.push(item.tipologia);
         row.push(
@@ -1309,7 +1309,7 @@ async function prepareDynamicTableData(
     } else {
       columns = [...baseColumns, 'Observação', 'Comentários do Fornecedor', 'Foto'];
       rows = items.map((item) => {
-        const row: any[] = [];
+        const row: unknown[] = [];
         if (options.includePavimento) row.push(item.pavimento);
         if (options.includeTipologia) row.push(item.tipologia);
         row.push(
@@ -1331,7 +1331,7 @@ async function prepareDynamicTableData(
     const versionsMap = await batchFetchVersions(itemIds, revisionHints);
     
     rows = items.map(item => {
-      const row: any[] = [];
+      const row: unknown[] = [];
       if (options.includePavimento) row.push(item.pavimento);
       if (options.includeTipologia) row.push(item.tipologia);
       
@@ -1351,7 +1351,7 @@ async function prepareDynamicTableData(
     // concluidas or andamento
     columns = baseColumns;
     rows = items.map(item => {
-      const row: any[] = [];
+      const row: unknown[] = [];
       if (options.includePavimento) row.push(item.pavimento);
       if (options.includeTipologia) row.push(item.tipologia);
       row.push(item.codigo.toString(), item.descricao);
@@ -1369,7 +1369,7 @@ async function prepareFlatTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
   _projectId?: string
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: unknown[][] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: true,
     includeTipologia: true
@@ -1395,7 +1395,7 @@ function aggregateByPavimentoTipologia(items: Installation[]): { pavimento: stri
 function getFlatColumnStyles(
   sectionType: 'pendencias' | 'revisao',
   interlocutor: 'cliente' | 'fornecedor'
-): any {
+): Record<number, { halign: string; cellWidth?: number }> {
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       return {
@@ -1432,7 +1432,7 @@ function getFlatColumnStyles(
 }
 
 // Get column styles for aggregated tables
-function getAggregatedColumnStyles(): any {
+function getAggregatedColumnStyles(): Record<number, { halign: string; cellWidth: number }> {
   return {
     0: { halign: 'left', cellWidth: 68 },   // Pavimento - 40%
     1: { halign: 'left', cellWidth: 68 },   // Tipologia - 40%
@@ -1447,7 +1447,7 @@ async function _prepareTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: unknown[][] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: true,
     includeTipologia: true
@@ -1461,7 +1461,7 @@ async function _prepareCompactTableData(
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectId?: string
-): Promise<{ columns: string[], rows: any[][] }> {
+): Promise<{ columns: string[], rows: unknown[][] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: false,
     includeTipologia: false
@@ -1472,7 +1472,7 @@ async function _prepareCompactTableData(
 function _getColumnStyles(
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   interlocutor: 'cliente' | 'fornecedor'
-): any {
+): Record<number, { halign: string }> {
   const baseStyles = {
     0: { halign: 'left' }, // Pavimento
     1: { halign: 'left' }, // Tipologia  
@@ -1507,7 +1507,7 @@ function _getColumnStyles(
 }
 
 // Get compact column styles (for tables without Pavimento and Tipologia)
-function _getCompactColumnStyles(columns: string[]): any {
+function _getCompactColumnStyles(columns: string[]): Record<number, { halign: string }> {
   const styles: Record<number, any> = {};
   
   columns.forEach((col, index) => {
@@ -1549,7 +1549,7 @@ async function _addSectionToPDF(
 
   // Prepare table data based on section type and interlocutor
   let columns: string[] = [];
-  let rows: any[][] = [];
+  let rows: unknown[][] = [];
 
   // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
   const sortedItems = [...items].sort((a, b) => {
@@ -2000,7 +2000,7 @@ async function addFlatSectionToXLSX(
   worksheet['!cols'] = colWidths;
   
   // Set row heights for data rows if there are photos
-  const rowHeights: any[] = [{ hpt: 20 }]; // Header row
+  const rowHeights: Array<{ hpt: number }> = [{ hpt: 20 }]; // Header row
   
   // Add photo information for pendencias section
   if (sectionType === 'pendencias') {

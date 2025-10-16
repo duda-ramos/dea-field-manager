@@ -20,10 +20,10 @@ const now = () => Date.now();
 const isOnline = () => navigator.onLine;
 
 // Fila de sincronização para operações offline
-const syncQueue: Array<{ type: string; data: any }> = [];
+const syncQueue: Array<{ type: string; data: unknown }> = [];
 
 // Sincronizar item imediatamente se online
-async function syncToServerImmediate(entityType: string, data: any) {
+async function syncToServerImmediate(entityType: string, data: Record<string, unknown>) {
   if (!isOnline()) {
     syncQueue.push({ type: entityType, data });
     return;
@@ -83,7 +83,7 @@ async function syncToServerImmediate(entityType: string, data: any) {
 }
 
 // Transformadores para Supabase
-function transformProjectForSupabase(project: any, userId: string) {
+function transformProjectForSupabase(project: Record<string, unknown>, userId: string) {
   return {
     id: project.id,
     name: project.name,
@@ -102,7 +102,7 @@ function transformProjectForSupabase(project: any, userId: string) {
   };
 }
 
-function transformInstallationForSupabase(installation: any, userId: string) {
+function transformInstallationForSupabase(installation: Record<string, unknown>, userId: string) {
   return {
     id: installation.id,
     project_id: installation.project_id,
@@ -120,7 +120,7 @@ function transformInstallationForSupabase(installation: any, userId: string) {
   };
 }
 
-function transformContactForSupabase(contact: any, userId: string) {
+function transformContactForSupabase(contact: Record<string, unknown>, userId: string) {
   return {
     id: contact.id,
     name: contact.name,
@@ -133,7 +133,7 @@ function transformContactForSupabase(contact: any, userId: string) {
   };
 }
 
-function transformBudgetForSupabase(budget: any, userId: string) {
+function transformBudgetForSupabase(budget: Record<string, unknown>, userId: string) {
   return {
     id: budget.id,
     project_id: budget.projectId,
@@ -147,7 +147,7 @@ function transformBudgetForSupabase(budget: any, userId: string) {
   };
 }
 
-function transformFileForSupabase(file: any, userId: string) {
+function transformFileForSupabase(file: Record<string, unknown>, userId: string) {
   return {
     id: file.id,
     name: file.name,
@@ -174,7 +174,7 @@ export async function processSyncQueue() {
   }
 }
 
-export const StorageManagerDexie: any = {
+export const StorageManagerDexie: Record<string, unknown> = {
   // -------- PROJECTS ----------
   async getProjects() {
     const projects = await db.projects.where('_deleted').notEqual(1).toArray();
@@ -560,7 +560,7 @@ export const StorageManagerDexie: any = {
 (StorageManagerDexie as any).saveInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as any).updateInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as any).overwriteInstallation = StorageManagerDexie.upsertInstallation;
-(StorageManagerDexie as any).importInstallations = async (projectId: string, installations: any[]) => {
+(StorageManagerDexie as Record<string, unknown>).importInstallations = async (projectId: string, installations: Installation[]) => {
   const results = [];
   for (const installation of installations) {
     const result = await StorageManagerDexie.upsertInstallation({ ...installation, project_id: projectId });
@@ -580,10 +580,10 @@ export const StorageManagerDexie: any = {
   return projectId ? allContacts.filter(c => c.projetoId === projectId) : allContacts;
 };
 (StorageManagerDexie as any).saveProjectContact = StorageManagerDexie.upsertContact;
-(StorageManagerDexie as any).saveContact = async (projectId: string, contact: any) => {
+(StorageManagerDexie as Record<string, unknown>).saveContact = async (projectId: string, contact: ProjectContact) => {
   return StorageManagerDexie.upsertContact({ ...contact, projetoId: projectId });
 };
-(StorageManagerDexie as any).updateContact = async (id: string, contact: any) => {
+(StorageManagerDexie as Record<string, unknown>).updateContact = async (id: string, contact: Partial<ProjectContact>) => {
   return StorageManagerDexie.upsertContact({ ...contact, id });
 };
 (StorageManagerDexie as any).deleteProjectContact = StorageManagerDexie.deleteContact;
@@ -655,7 +655,7 @@ function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
   };
 }
 
-function normalizeReportHistoryEntry(report: any, payload?: ReportPayloadRecord): ReportHistoryEntry {
+function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: ReportPayloadRecord): ReportHistoryEntry {
   if (!report) {
     throw new Error('Report payload is required');
   }
