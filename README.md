@@ -1,5 +1,11 @@
 # Welcome to your Lovable project
 
+![Code Quality](https://img.shields.io/badge/code%20quality-7.0%2F10-green)
+![Bundle Size](https://img.shields.io/badge/bundle-%3C500KB-success)
+![Type Safety](https://img.shields.io/badge/any%20types-177-yellow)
+![ESLint](https://img.shields.io/badge/warnings-%3C50-brightgreen)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/cf3dbcb2-27e9-43fa-a93b-167cd669ba99
@@ -173,6 +179,20 @@ import { LazyImage } from '@/components/ui/LazyImage';
 | FPS durante scroll       | 18    | 56     | 3x melhor       |
 
 Para mais detalhes, consulte a [Documentação completa de otimização de imagens](./docs/IMAGE_OPTIMIZATION.md).
+
+## Code Quality
+
+This project maintains high code quality standards. Our latest metrics from Sprint 5.2 show significant improvements:
+
+- **Code Quality Score:** 7.0/10 (target: 8.5/10)
+- **ESLint Warnings:** <50 (reduced from 466)
+- **Bundle Size:** <500KB gzipped (optimized with code splitting)
+- **Type Safety:** 177 any types (reduced from 239)
+
+For detailed information about our code quality improvements and metrics, see:
+- [Sprint 5.2 Improvements](./docs/SPRINT_5.2_IMPROVEMENTS.md)
+- [Validation Summary](./VALIDATION_SUMMARY.md)
+- [Code Audit Report](./docs/CODE_AUDIT_REPORT.md)
 
 ## Contributing
 
