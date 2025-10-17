@@ -54,6 +54,7 @@ const getLocalTable = <K extends keyof LocalTables>(table: K): LocalTables[K] =>
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
 const FILE_BATCH_SIZE = 5;
+const LOCAL_PROCESS_BATCH_SIZE = 100;
 
 // Timestamp normalization helpers
 const normalizeTimestamps = (obj: Record<string, unknown>) => ({
@@ -177,54 +178,65 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
       if (records.length > 0) {
         logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
 
-        for (const rawRecord of records) {
-          // Type assertion: after filtering, we know these are valid records with properties
-          const remoteRecord = rawRecord as any;
-          
-          try {
-            // Ensure remoteRecord has an id property
-            if (!remoteRecord || !remoteRecord.id) {
-              logger.warn('Skipping record without id');
-              continue;
-            }
+        // Create batches for parallel processing
+        const batches = createBatches(records, LOCAL_PROCESS_BATCH_SIZE);
+        
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          logger.debug(`📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} records) for ${entityName}`);
 
-            // Get local version
-            const localRecord = await localTable.get(remoteRecord.id);
+          // Process batch in parallel
+          await Promise.all(batch.map(async (rawRecord) => {
+            // Type assertion: after filtering, we know these are valid records with properties
+            const remoteRecord = rawRecord as any;
             
-            // Check for conflicts only for entities that support it
-            if (localRecord && localRecord._dirty === 1 && recordType) {
-              const conflictInfo = checkForRemoteEdits(
-                localRecord,
-                remoteRecord,
-                remoteRecord.id,
-                recordType
-              );
-
-              if (conflictInfo.hasConflict) {
-                // Store conflict for later resolution
-                conflicts++;
-                const recordName = getRecordDisplayName(recordType, localRecord);
-                
-                conflictStore.getState().addConflict({
-                  recordType,
-                  recordName,
-                  localVersion: localRecord,
-                  remoteVersion: transformRecordForLocal(remoteRecord, entityName)
-                });
-
-                logger.warn(`[Conflict] Detected for ${recordType} ${remoteRecord.id}`);
-                continue; // Skip automatic update
+            try {
+              // Ensure remoteRecord has an id property
+              if (!remoteRecord || !remoteRecord.id) {
+                logger.warn('Skipping record without id');
+                return;
               }
-            }
 
-            // No conflict or no local changes - apply remote version
-            const transformedRecord = transformRecordForLocal(remoteRecord, entityName);
-            await localTable.put(transformedRecord);
-            pulled++;
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            errors.push(`${entityName}_${remoteRecord.id || 'unknown'}: ${errorMsg}`);
-          }
+              // Get local version
+              const localRecord = await localTable.get(remoteRecord.id);
+              
+              // Check for conflicts only for entities that support it
+              if (localRecord && localRecord._dirty === 1 && recordType) {
+                const conflictInfo = checkForRemoteEdits(
+                  localRecord,
+                  remoteRecord,
+                  remoteRecord.id,
+                  recordType
+                );
+
+                if (conflictInfo.hasConflict) {
+                  // Store conflict for later resolution
+                  conflicts++;
+                  const recordName = getRecordDisplayName(recordType, localRecord);
+                  
+                  conflictStore.getState().addConflict({
+                    recordType,
+                    recordName,
+                    localVersion: localRecord,
+                    remoteVersion: transformRecordForLocal(remoteRecord, entityName)
+                  });
+
+                  logger.warn(`[Conflict] Detected for ${recordType} ${remoteRecord.id}`);
+                  return; // Skip automatic update
+                }
+              }
+
+              // No conflict or no local changes - apply remote version
+              const transformedRecord = transformRecordForLocal(remoteRecord, entityName);
+              await localTable.put(transformedRecord);
+              pulled++;
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              errors.push(`${entityName}_${remoteRecord.id || 'unknown'}: ${errorMsg}`);
+            }
+          }));
+
+          logger.debug(`✅ Batch ${batchIndex + 1}/${batches.length} complete for ${entityName}`);
         }
 
         hasMore = records.length === PULL_PAGE_SIZE;
