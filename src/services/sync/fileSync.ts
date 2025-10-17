@@ -2,6 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/db/indexedDb';
 import { storageService } from '@/services/storage';
 import type { ProjectFile } from '@/types';
+import { logger } from '@/services/logger';
+import { withRetry, createBatches } from './utils';
+
+const PAGE_SIZE = 100;
+const BATCH_SIZE = 50;
 
 /**
  * Sync files with Supabase Storage
@@ -41,51 +46,103 @@ export class FileSyncService {
    * Pull files metadata from Supabase DB
    */
   async pullFiles(lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
-    const { data: remoteFiles, error } = await supabase
-      .from('files')
-      .select('*')
-      .gt('updated_at', new Date(lastPulledAt).toISOString())
-      .order('updated_at', { ascending: true });
+    const errors: string[] = [];
+    const allRemoteFiles: any[] = [];
+    let page = 0;
+    let hasMore = true;
 
-    if (error) {
-      throw new Error(`Failed to pull files: ${error.message}`);
+    // Fetch files in pages
+    while (hasMore) {
+      logger.debug(`Fetching files page ${page + 1} (offset ${page * PAGE_SIZE})`);
+      
+      const { data: remoteFiles, error } = await withRetry(
+        async () => {
+          const result = await supabase
+            .from('files')
+            .select('*')
+            .gt('updated_at', new Date(lastPulledAt).toISOString())
+            .order('updated_at', { ascending: true })
+            .order('id', { ascending: true })
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          
+          if (result.error) {
+            throw new Error(`Failed to pull files: ${result.error.message}`);
+          }
+          
+          return result;
+        },
+        {},
+        `Pull files page ${page + 1}`
+      );
+
+      if (error) {
+        throw new Error(`Failed to pull files: ${error.message}`);
+      }
+
+      const filesCount = remoteFiles?.length || 0;
+      logger.debug(`Fetched ${filesCount} files on page ${page + 1}`);
+      
+      if (remoteFiles && remoteFiles.length > 0) {
+        allRemoteFiles.push(...remoteFiles);
+      }
+      
+      hasMore = remoteFiles?.length === PAGE_SIZE;
+      page++;
     }
 
-    const errors: string[] = [];
+    logger.debug(`Total files fetched: ${allRemoteFiles.length} across ${page} page(s)`);
+
+    // Process files in batches
+    const batches = createBatches(allRemoteFiles, BATCH_SIZE);
     let pulled = 0;
 
-    for (const remoteFile of remoteFiles || []) {
-      try {
-        const localFile = await db.files.get(remoteFile.id);
-        
-        if (!localFile || this.shouldUpdateLocal(localFile, remoteFile)) {
-          // Convert remote file to local format
-          const fileRecord: ProjectFile = {
-            id: remoteFile.id,
-            projectId: remoteFile.project_id,
-            project_id: remoteFile.project_id,
-            installationId: remoteFile.installation_id,
-            installation_id: remoteFile.installation_id,
-            name: remoteFile.name,
-            size: remoteFile.size,
-            type: remoteFile.type,
-            url: remoteFile.url || '',
-            storagePath: remoteFile.storage_path,
-            storage_path: remoteFile.storage_path,
-            uploadedAt: remoteFile.created_at,
-            uploaded_at: remoteFile.created_at,
-            updatedAt: new Date(remoteFile.updated_at).getTime(),
-            createdAt: new Date(remoteFile.created_at).getTime(),
-            _dirty: 0,
-            _deleted: 0
-          };
+    for (const [batchIndex, batch] of batches.entries()) {
+      logger.debug(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} files)`);
+      
+      const results = await Promise.allSettled(
+        batch.map(async (remoteFile) => {
+          const localFile = await db.files.get(remoteFile.id);
+          
+          if (!localFile || this.shouldUpdateLocal(localFile, remoteFile)) {
+            // Convert remote file to local format
+            const fileRecord: ProjectFile = {
+              id: remoteFile.id,
+              projectId: remoteFile.project_id,
+              project_id: remoteFile.project_id,
+              installationId: remoteFile.installation_id,
+              installation_id: remoteFile.installation_id,
+              name: remoteFile.name,
+              size: remoteFile.size,
+              type: remoteFile.type,
+              url: remoteFile.url || '',
+              storagePath: remoteFile.storage_path,
+              storage_path: remoteFile.storage_path,
+              uploadedAt: remoteFile.created_at,
+              uploaded_at: remoteFile.created_at,
+              updatedAt: new Date(remoteFile.updated_at).getTime(),
+              createdAt: new Date(remoteFile.created_at).getTime(),
+              _dirty: 0,
+              _deleted: 0
+            };
 
-          await db.files.put(fileRecord);
-          pulled++;
+            await db.files.put(fileRecord);
+            return { success: true, name: remoteFile.name };
+          }
+          return { success: true, name: remoteFile.name, skipped: true };
+        })
+      );
+
+      // Process results
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'fulfilled') {
+          if (!result.value.skipped) {
+            pulled++;
+          }
+        } else {
+          const remoteFile = batch[index];
+          console.error(`Failed to process remote file ${remoteFile.id}:`, result.reason);
+          errors.push(`${remoteFile.name}: ${result.reason instanceof Error ? result.reason.message : 'Unknown error'}`);
         }
-      } catch (error) {
-        console.error(`Failed to process remote file ${remoteFile.id}:`, error);
-        errors.push(`${remoteFile.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
