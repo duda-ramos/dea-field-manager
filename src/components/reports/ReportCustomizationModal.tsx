@@ -145,7 +145,7 @@ export function ReportCustomizationModal({
   }, []);
 
   const handleRestoreDefaults = useCallback(() => {
-    setConfig(defaultConfig);
+    setConfig(DEFAULT_REPORT_CONFIG);
     toast({
       title: 'Preferências restauradas',
       description: 'As configurações padrão foram restauradas.',
@@ -240,6 +240,36 @@ export function ReportCustomizationModal({
           </Alert>
         )}
 
+        <Card className="flex-shrink-0">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Destinatário do Relatório</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup 
+              value={config.interlocutor} 
+              onValueChange={(value: 'cliente' | 'fornecedor') => 
+                setConfig(prev => ({ ...prev, interlocutor: value }))
+              }
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                <RadioGroupItem value="cliente" id="cliente" />
+                <Label htmlFor="cliente" className="cursor-pointer flex-1">
+                  <div className="font-medium">Cliente</div>
+                  <div className="text-xs text-muted-foreground">Relatório para aprovação</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                <RadioGroupItem value="fornecedor" id="fornecedor" />
+                <Label htmlFor="fornecedor" className="cursor-pointer flex-1">
+                  <div className="font-medium">Fornecedor</div>
+                  <div className="text-xs text-muted-foreground">Relatório técnico com instruções</div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
         <div className="flex-1 overflow-hidden">
           <Tabs 
             value={activeTab} 
@@ -262,35 +292,6 @@ export function ReportCustomizationModal({
               <ScrollArea className="h-full">
                 <div className="pr-4">
                   <TabsContent value="sections" className="space-y-4 mt-0">
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base sm:text-lg">Destinatário do Relatório</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RadioGroup 
-                          value={config.interlocutor} 
-                          onValueChange={(value: 'cliente' | 'fornecedor') => 
-                            setConfig(prev => ({ ...prev, interlocutor: value }))
-                          }
-                          className="space-y-3"
-                        >
-                          <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                            <RadioGroupItem value="cliente" id="cliente" />
-                            <Label htmlFor="cliente" className="cursor-pointer flex-1">
-                              <div className="font-medium">Cliente</div>
-                              <div className="text-xs text-muted-foreground">Relatório para aprovação</div>
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                            <RadioGroupItem value="fornecedor" id="fornecedor" />
-                            <Label htmlFor="fornecedor" className="cursor-pointer flex-1">
-                              <div className="font-medium">Fornecedor</div>
-                              <div className="text-xs text-muted-foreground">Relatório técnico com instruções</div>
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </CardContent>
-                    </Card>
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base sm:text-lg">Seções do Relatório</CardTitle>
@@ -375,20 +376,29 @@ export function ReportCustomizationModal({
                         <CardTitle className="text-base sm:text-lg">Informações Incluídas</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {Object.entries(config.includeDetails).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={key}
-                                checked={value}
-                                onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
-                              />
-                              <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
-                                {getDetailLabel(key)}
-                              </Label>
+                        {Object.entries(config.includeDetails)
+                          .filter(([key]) => {
+                            // Only show supplierComments when interlocutor is fornecedor
+                            if (key === 'supplierComments') {
+                              return config.interlocutor === 'fornecedor';
+                            }
+                            return true;
+                          })
+                          .map(([key, value]) => (
+                            <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={key}
+                                  checked={value}
+                                  onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
+                                />
+                                <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
+                                  {getDetailLabel(key)}
+                                </Label>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        }
                       </CardContent>
                     </Card>
                   </TabsContent>
