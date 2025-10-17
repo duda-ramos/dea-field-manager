@@ -68,7 +68,7 @@ class AutoSyncManager {
         // Non-blocking background sync
         void syncPush();
       } catch (error) {
-        logger.error('autoSync', 'Operação falhou', error as Error, { operation: 'background-sync' });
+        logger.syncError('background-sync', error as Error, { trigger: 'visibilitychange' });
       }
     }
   }
@@ -81,7 +81,7 @@ class AutoSyncManager {
         // Simple push without blocking
         void syncPush();
       } catch (error) {
-        logger.error('autoSync', 'Operação falhou', error as Error, { operation: 'page-unload' });
+        logger.syncError('page-unload', error as Error, { trigger: 'pagehide' });
       }
     }
   }
@@ -101,7 +101,7 @@ class AutoSyncManager {
           await syncPush();
           // Debounced auto-push completed
         } catch (error) {
-          logger.error('autoSync', 'Operação falhou', error as Error, { operation: 'debounced-sync' });
+          logger.syncError('debounced-sync', error as Error, { trigger: 'debounce-timer' });
         }
       }
     }, 3000);
@@ -113,7 +113,7 @@ class AutoSyncManager {
       await syncPull();
       // Auto-pull completed
     } catch (error) {
-      logger.error('autoSync', 'Operação falhou', error as Error, { operation: 'boot-pull' });
+      logger.syncError('boot-pull', error as Error, { trigger: 'initialize-with-auth' });
     }
   }
 
@@ -140,7 +140,7 @@ class AutoSyncManager {
           await syncPull();
           // Periodic auto-pull completed
         } catch (error) {
-          logger.error('autoSync', 'Operação falhou', error as Error, { operation: 'periodic-pull' });
+          logger.syncError('periodic-pull', error as Error, { trigger: 'visibility-online-check' });
         }
       }
     }, intervalMs);
