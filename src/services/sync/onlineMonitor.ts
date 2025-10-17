@@ -7,6 +7,9 @@ import { realtimeManager } from '@/services/realtime/realtime';
 class OnlineMonitor {
   private checkInterval: number | null = null;
   private isMonitoring = false;
+  private reconnectDebounceTimer: NodeJS.Timeout | null = null;
+  private isHandlingReconnect = false;
+  private abortController: AbortController | null = null;
 
   initialize() {
     if (this.isMonitoring) return;
@@ -32,6 +35,16 @@ class OnlineMonitor {
       this.checkInterval = null;
     }
     
+    // Limpar debounce timer
+    if (this.reconnectDebounceTimer) {
+      clearTimeout(this.reconnectDebounceTimer);
+      this.reconnectDebounceTimer = null;
+    }
+    
+    // Cancelar syncs em andamento
+    this.abortController?.abort();
+    this.abortController = null;
+    
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
     this.isMonitoring = false;
@@ -40,6 +53,13 @@ class OnlineMonitor {
   private handleOnline = async () => {
     console.log('🟢 Conexão restaurada');
     
+    // Limpar timer anterior se existir
+    if (this.reconnectDebounceTimer) {
+      clearTimeout(this.reconnectDebounceTimer);
+      this.reconnectDebounceTimer = null;
+    }
+
+    // Atualizar estado imediatamente
     syncStateManager.updateState({
       isOnline: true,
       status: 'idle'
@@ -51,47 +71,74 @@ class OnlineMonitor {
       console.error('Erro ao reconectar canais em tempo real:', error);
     }
 
-    const pendingCount = syncStateManager.getState().pendingPush;
+    // Debounce de 2000ms antes de sincronizar
+    this.reconnectDebounceTimer = setTimeout(async () => {
+      this.reconnectDebounceTimer = null;
 
-    if (pendingCount > 0) {
-      toast({
-        title: "Conexão Restaurada",
-        description: `Sincronizando ${pendingCount} alteração${pendingCount > 1 ? 'ões' : ''} pendente${pendingCount > 1 ? 's' : ''}...`,
-      });
+      if (!navigator.onLine) {
+        console.log('⏸️ Reconexão cancelada - conexão perdida novamente');
+        return;
+      }
+
+      // Verificar se já está processando uma reconexão
+      if (this.isHandlingReconnect) {
+        console.log('⏭️ Sync já em andamento, ignorando...');
+        return;
+      }
 
       try {
-        // Processar fila de sincronização
-        await processSyncQueue();
+        this.isHandlingReconnect = true;
         
-        // Fazer sincronização completa
-        await fullSync();
-        
-        toast({
-          title: "Sincronização Concluída",
-          description: "Todas as alterações foram sincronizadas com sucesso!",
-        });
-      } catch (error) {
-        console.error('Erro ao sincronizar após reconexão:', error);
-        toast({
-          title: "Erro na Sincronização",
-          description: "Algumas alterações não puderam ser sincronizadas. Tentaremos novamente.",
-          variant: "destructive"
-        });
+        const pendingCount = syncStateManager.getState().pendingPush;
+
+        if (pendingCount > 0) {
+          toast({
+            title: "Conexão Restaurada",
+            description: `Sincronizando ${pendingCount} alteração${pendingCount > 1 ? 'ões' : ''} pendente${pendingCount > 1 ? 's' : ''}...`,
+          });
+
+          try {
+            // Processar fila de sincronização
+            await processSyncQueue();
+            
+            // Fazer sincronização completa
+            await fullSync();
+            
+            toast({
+              title: "Sincronização Concluída",
+              description: "Todas as alterações foram sincronizadas com sucesso!",
+            });
+          } catch (error) {
+            console.error('Erro ao sincronizar após reconexão:', error);
+            toast({
+              title: "Erro na Sincronização",
+              description: "Algumas alterações não puderam ser sincronizadas. Tentaremos novamente.",
+              variant: "destructive"
+            });
+          }
+        } else {
+          toast({
+            title: "Online",
+            description: "Conexão com servidor restaurada",
+          });
+        }
+      } finally {
+        this.isHandlingReconnect = false;
       }
-    } else {
-      toast({
-        title: "Online",
-        description: "Conexão com servidor restaurada",
-      });
-    }
+    }, 2000);
   };
 
   private handleOffline = () => {
     console.log('🔴 Conexão perdida - trabalhando offline');
-    
-    syncStateManager.updateState({ 
+
+    if (this.reconnectDebounceTimer) {
+      clearTimeout(this.reconnectDebounceTimer);
+      this.reconnectDebounceTimer = null;
+    }
+
+    syncStateManager.updateState({
       isOnline: false,
-      status: 'idle' 
+      status: 'idle'
     });
 
     toast({
