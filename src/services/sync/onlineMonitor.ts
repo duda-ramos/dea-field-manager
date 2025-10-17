@@ -110,6 +110,14 @@ class OnlineMonitor {
             });
           } catch (error) {
             console.error('Erro ao sincronizar após reconexão:', error);
+            syncStateManager.setError({
+              message: error instanceof Error ? error.message : 'Erro desconhecido',
+              timestamp: Date.now(),
+              operation: 'reconnect-sync'
+            });
+            syncStateManager.updateState({
+              status: 'error'
+            });
             toast({
               title: "Erro na Sincronização",
               description: "Algumas alterações não puderam ser sincronizadas. Tentaremos novamente.",
