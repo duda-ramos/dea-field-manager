@@ -245,6 +245,7 @@ export const StorageManagerDexie = {
         withDates._dirty = 1;
         await db.projects.put(withDates);
         realtimeManager.trackLocalOperation('projects');
+        syncStateManager.incrementPending('projects', 1);
         syncQueue.push({ type: 'project', data: withDates });
         syncStateManager.updateState({ pendingPush: syncQueue.length });
         return withDates;
@@ -255,6 +256,7 @@ export const StorageManagerDexie = {
     withDates._dirty = 1;
     await db.projects.put(withDates);
     realtimeManager.trackLocalOperation('projects');
+    syncStateManager.incrementPending('projects', 1);
     syncQueue.push({ type: 'project', data: withDates });
     syncStateManager.updateState({ pendingPush: syncQueue.length });
     return withDates;
@@ -265,22 +267,26 @@ export const StorageManagerDexie = {
     if (existing) {
       await db.projects.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
       realtimeManager.trackLocalOperation('projects');
+      syncStateManager.incrementPending('projects', 1);
     }
     
     // Also mark related records as deleted
     const installations = await db.installations.where('project_id').equals(id).toArray();
     for (const installation of installations) {
       await db.installations.put({ ...installation, _deleted: 1, _dirty: 1, updatedAt: now() });
+      syncStateManager.incrementPending('installations', 1);
     }
     
     const budgets = await db.budgets.where('projectId').equals(id).toArray();
     for (const budget of budgets) {
       await db.budgets.put({ ...budget, _deleted: 1, _dirty: 1, updatedAt: now() });
+      syncStateManager.incrementPending('budgets', 1);
     }
     
     const files = await db.files.where('projectId').equals(id).toArray();
     for (const file of files) {
       await db.files.put({ ...file, _deleted: 1, _dirty: 1, updatedAt: now() });
+      syncStateManager.incrementPending('files', 1);
     }
   },
 
@@ -413,17 +419,20 @@ export const StorageManagerDexie = {
     if (existing) {
       await db.installations.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
       realtimeManager.trackLocalOperation('installations');
+      syncStateManager.incrementPending('installations', 1);
     }
     
     // Also mark related records as deleted
     const itemVersions = await db.itemVersions.where('installationId').equals(id).toArray();
     for (const itemVersion of itemVersions) {
       await db.itemVersions.put({ ...itemVersion, _deleted: 1, _dirty: 1 });
+      syncStateManager.incrementPending('itemVersions', 1);
     }
     
     const files = await db.files.where('installationId').equals(id).toArray();
     for (const file of files) {
       await db.files.put({ ...file, _deleted: 1, _dirty: 1, updatedAt: now() });
+      syncStateManager.incrementPending('files', 1);
     }
   },
 
@@ -439,6 +448,7 @@ export const StorageManagerDexie = {
       _deleted: 0
     };
     await db.itemVersions.put(withDates);
+    syncStateManager.incrementPending('itemVersions', 1);
     
     // Trigger debounced auto-sync
     autoSyncManager.triggerDebouncedSync();
@@ -465,6 +475,7 @@ export const StorageManagerDexie = {
     if (existing) {
       await db.contacts.put({ ...existing, _deleted: 1, _dirty: 1 });
       realtimeManager.trackLocalOperation('contacts');
+      syncStateManager.incrementPending('contacts', 1);
     }
   },
 
@@ -531,6 +542,7 @@ export const StorageManagerDexie = {
   },
   async deleteFile(id: string) {
     await db.files.put({ id, _deleted: 1, _dirty: 1, updatedAt: Date.now() } as any);
+    syncStateManager.incrementPending('files', 1);
   }
 };
 
