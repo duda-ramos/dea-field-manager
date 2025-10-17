@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ReportHistoryEntry } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportHistoryProps {
   projectId: string;
@@ -17,6 +18,7 @@ interface ReportHistoryProps {
 export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadReports();
@@ -29,13 +31,14 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       // Load from local storage
       const localReports = await storage.getReports(projectId);
       
-      // Load from Supabase - commented out as table doesn't exist yet
+      // Load from Supabase
       const supabaseReports: any[] = [];
-      /* 
+      const { data: { user } } = await supabase.auth.getUser();
+      
       if (user) {
         try {
           const { data, error } = await supabase
-            .from('project_report_history')
+            .from('report_history')
             .select('*')
             .eq('project_id', projectId)
             .order('generated_at', { ascending: false });
@@ -44,7 +47,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
             console.error('Error loading reports from Supabase:', error);
           } else if (data) {
             // Transform Supabase data to ReportHistoryEntry format
-            supabaseReports = data.map(report => ({
+            supabaseReports.push(...data.map(report => ({
               id: report.id,
               projectId: report.project_id,
               project_id: report.project_id,
@@ -60,13 +63,12 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
               stats: report.stats,
               source: 'supabase', // Mark as Supabase source
               userId: report.user_id
-            }));
+            })));
           }
         } catch (error) {
           console.error('Error fetching Supabase reports:', error);
         }
       }
-      */
 
       // Merge reports, prioritizing Supabase reports (remove duplicates from local)
       const supabaseFileNames = new Set(supabaseReports.map(r => r.fileName));
@@ -204,13 +206,14 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
     try {
+      const report = reports.find(r => r.id === reportId);
+      const { data: { user } } = await supabase.auth.getUser();
       
       // Delete from Supabase if it's a Supabase report
-      /* Commented out - table doesn't exist yet
       if (report && (report as any).source === 'supabase') {
         // Delete from database
         const { error: dbError } = await supabase
-          .from('project_report_history')
+          .from('report_history')
           .delete()
           .eq('id', reportId);
 
@@ -229,7 +232,6 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
           }
         }
       }
-      */
       
       // Delete from local storage
       try {

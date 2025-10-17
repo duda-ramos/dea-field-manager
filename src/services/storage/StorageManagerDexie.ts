@@ -873,7 +873,7 @@ async function migrateLegacyReportHistory() {
       
       if (user) {
         let query = supabase
-          .from('project_report_history')
+          .from('report_history')
           .select('*')
           .eq('user_id', user.id)
           .order('generated_at', { ascending: false });
@@ -984,7 +984,7 @@ async function migrateLegacyReportHistory() {
       if (user) {
         // Get report details to delete file from storage
         const { data: report } = await supabase
-          .from('project_report_history')
+          .from('report_history')
           .select('file_url, project_id')
           .eq('id', reportId)
           .eq('user_id', user.id)
@@ -1008,7 +1008,7 @@ async function migrateLegacyReportHistory() {
           
           // Delete from database
           await supabase
-            .from('project_report_history')
+            .from('report_history')
             .delete()
             .eq('id', reportId)
             .eq('user_id', user.id);

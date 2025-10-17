@@ -121,14 +121,37 @@ export const reportSharingService = {
     if (!user) throw new Error('User not authenticated');
 
     // Verify the user owns the report
-    const { data: report, error: reportError } = await supabase
-      .from('project_report_history')
+    let reportFound = false;
+
+    const { data: newReport, error: newReportError } = await supabase
+      .from('report_history')
       .select('id')
       .eq('id', reportId)
       .eq('user_id', user.id)
       .single();
 
-    if (reportError || !report) {
+    if (newReport && !newReportError) {
+      reportFound = true;
+    } else if (newReportError && newReportError.code !== 'PGRST116') {
+      throw new Error(`Failed to verify report ownership: ${newReportError.message}`);
+    }
+
+    if (!reportFound) {
+      const { data: legacyReport, error: legacyReportError } = await supabase
+        .from('project_report_history')
+        .select('id')
+        .eq('id', reportId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (legacyReport && !legacyReportError) {
+        reportFound = true;
+      } else if (legacyReportError && legacyReportError.code !== 'PGRST116') {
+        throw new Error(`Failed to verify legacy report ownership: ${legacyReportError.message}`);
+      }
+    }
+
+    if (!reportFound) {
       throw new Error('Report not found or access denied');
     }
 

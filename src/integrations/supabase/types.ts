@@ -827,6 +827,65 @@ export type Database = {
           },
         ]
       }
+      report_history: {
+        Row: {
+          created_at: string
+          config: Json | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          format: 'pdf' | 'xlsx'
+          generated_at: string
+          generated_by: string | null
+          id: string
+          interlocutor: 'cliente' | 'fornecedor'
+          project_id: string
+          sections_included: Json | null
+          stats: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          config?: Json | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          format: 'pdf' | 'xlsx'
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor: 'cliente' | 'fornecedor'
+          project_id: string
+          sections_included?: Json | null
+          stats?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          config?: Json | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          format?: 'pdf' | 'xlsx'
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor?: 'cliente' | 'fornecedor'
+          project_id?: string
+          sections_included?: Json | null
+          stats?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           access_notes: string | null
