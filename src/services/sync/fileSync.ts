@@ -231,7 +231,9 @@ export class FileSyncService {
 
   private async handleFileUpsert(file: ProjectFile): Promise<void> {
     // Get current user for user_id
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withRetry(async () => {
+      return await supabase.auth.getUser();
+    });
     if (!user) throw new Error('User not authenticated');
 
     // Prepare data for Supabase (remove local-only fields)
