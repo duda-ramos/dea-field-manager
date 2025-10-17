@@ -130,6 +130,8 @@ export interface ReportHistoryEntry {
   generated_by?: string;
   mimeType?: string;
   blob?: Blob;
+  storagePath?: string;
+  storage_path?: string;
   createdAt?: number;
   [key: string]: any;
 }

@@ -5,7 +5,7 @@ import { Project, Installation, ItemVersion } from '@/types';
 import { storage } from './storage';
 import { supabase } from '@/integrations/supabase/client';
 
-const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
+const bucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string) || 'reports';
 
 /**
  * Upload report file to Supabase Storage and save metadata to database
@@ -14,14 +14,14 @@ const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
  * @param projectId - Project ID
  * @param format - Report format ('pdf' or 'xlsx')
  * @param config - Report configuration
- * @returns Promise<{ fileUrl: string; fileName: string } | null>
+ * @returns Promise<{ fileName: string; storagePath: string; signedUrl?: string } | null>
  */
 export async function saveReportToSupabase(
   blob: Blob,
   projectId: string,
   format: 'pdf' | 'xlsx',
   config: any
-): Promise<{ fileUrl: string; fileName: string } | null> {
+): Promise<{ fileName: string; storagePath: string; signedUrl?: string } | null> {
   try {
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -37,11 +37,11 @@ export async function saveReportToSupabase(
     const filePath = `${user.id}/${projectId}/${fileName}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('reports')
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
       .upload(filePath, blob, {
-        contentType: format === 'pdf' 
-          ? 'application/pdf' 
+        contentType: format === 'pdf'
+          ? 'application/pdf'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         upsert: false
       });
@@ -51,14 +51,15 @@ export async function saveReportToSupabase(
       return null;
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('reports')
-      .getPublicUrl(filePath);
+    const storagePath = filePath;
 
-    if (!urlData?.publicUrl) {
-      console.error('[saveReportToSupabase] Failed to get public URL');
-      return null;
+    // Try to generate a temporary signed URL for immediate usage (optional)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(storagePath, 60 * 60); // 1 hour expiry for immediate follow-up actions
+
+    if (signedUrlError) {
+      console.warn('[saveReportToSupabase] Failed to generate signed URL:', signedUrlError);
     }
 
     // Save metadata to database
@@ -69,7 +70,7 @@ export async function saveReportToSupabase(
         user_id: user.id,
         format,
         config: config || {},
-        file_url: urlData.publicUrl,
+        file_url: storagePath,
         file_name: fileName,
         interlocutor: config?.interlocutor || 'cliente',
         generated_by: user.id,
@@ -81,18 +82,19 @@ export async function saveReportToSupabase(
     if (dbError) {
       console.error('[saveReportToSupabase] Database error:', dbError);
       // Try to delete uploaded file
-      await supabase.storage.from('reports').remove([filePath]);
+      await supabase.storage.from(bucket).remove([filePath]);
       return null;
     }
 
     console.log('[saveReportToSupabase] Report saved successfully:', {
       fileName,
-      fileUrl: urlData.publicUrl
+      storagePath
     });
 
     return {
-      fileUrl: urlData.publicUrl,
-      fileName
+      fileName,
+      storagePath,
+      signedUrl: signedUrlData?.signedUrl
     };
   } catch (error) {
     console.error('[saveReportToSupabase] Critical error:', error);

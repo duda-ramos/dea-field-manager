@@ -27,6 +27,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ReportHistoryEntry } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+
+const bucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string) || 'reports';
 
 interface ReportHistoryPanelProps {
   projectId: string;
@@ -104,17 +107,39 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
   const handleDownload = async (report: ReportHistoryEntry) => {
     try {
       // Check if report has a file URL (from Supabase)
-      if ((report as any).file_url || (report as any).fileUrl) {
-        const fileUrl = (report as any).file_url || (report as any).fileUrl;
-        
-        // Download from URL
-        const response = await fetch(fileUrl);
+      const rawUrl = (report as any).file_url || (report as any).fileUrl;
+      const storagePath =
+        (report as any).storagePath ||
+        (report as any).storage_path ||
+        (typeof rawUrl === 'string' && !rawUrl.startsWith('http') ? rawUrl : undefined);
+
+      if (typeof rawUrl === 'string' && rawUrl.startsWith('http')) {
+        // Legacy public URL downloads
+        const response = await fetch(rawUrl);
         if (!response.ok) {
           throw new Error('Failed to download file from URL');
         }
-        
+
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = report.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      if (typeof storagePath === 'string' && storagePath.length > 0) {
+        const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+
+        if (error || !data) {
+          throw error ?? new Error('Arquivo não encontrado no armazenamento');
+        }
+
+        const url = URL.createObjectURL(data);
         const a = document.createElement('a');
         a.href = url;
         a.download = report.fileName;

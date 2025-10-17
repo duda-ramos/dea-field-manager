@@ -885,20 +885,30 @@ async function migrateLegacyReportHistory() {
         const { data, error } = await query;
         
         if (!error && data) {
-          supabaseReports = data.map((report: any) => ({
-            id: report.id,
-            projectId: report.project_id,
-            fileName: report.file_name,
-            format: report.format,
-            interlocutor: report.interlocutor,
-            config: report.config || {},
-            size: 0, // Size not stored in Supabase
-            generatedAt: report.generated_at,
-            generatedBy: report.generated_by,
-            fileUrl: report.file_url,
-            file_url: report.file_url,
-            createdAt: new Date(report.created_at).getTime(),
-          }));
+          supabaseReports = data.map((report: any) => {
+            const storagePath = report.file_url;
+            const resolvedFileUrl =
+              typeof storagePath === 'string' && storagePath.startsWith('http')
+                ? storagePath
+                : undefined;
+
+            return {
+              id: report.id,
+              projectId: report.project_id,
+              fileName: report.file_name,
+              format: report.format,
+              interlocutor: report.interlocutor,
+              config: report.config || {},
+              size: 0, // Size not stored in Supabase
+              generatedAt: report.generated_at,
+              generatedBy: report.generated_by,
+              fileUrl: resolvedFileUrl,
+              file_url: storagePath,
+              storagePath,
+              storage_path: storagePath,
+              createdAt: new Date(report.created_at).getTime(),
+            };
+          });
         }
       }
     } catch (error) {
@@ -911,8 +921,9 @@ async function migrateLegacyReportHistory() {
     
     allReports.forEach(report => {
       const key = `${report.projectId}-${report.fileName}`;
-      if (!uniqueReports.has(key) || report.fileUrl) {
-        // Prefer reports with fileUrl (from Supabase)
+      const hasRemoteReference = Boolean(report.fileUrl || report.storagePath || report.storage_path);
+      if (!uniqueReports.has(key) || hasRemoteReference) {
+        // Prefer reports that reference Supabase storage (fileUrl or storagePath)
         uniqueReports.set(key, report);
       }
     });
