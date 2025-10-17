@@ -19,6 +19,43 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Global flags to prevent duplicate auto-sync initialization
+let _autoSyncInitialized = false;
+let _autoSyncInitializing = false;
+
+// Helper function to initialize auto-sync only once
+const initializeAutoSyncOnce = async () => {
+  // Return immediately if already initialized
+  if (_autoSyncInitialized) {
+    logger.debug('[initializeAutoSyncOnce] Already initialized, skipping');
+    return;
+  }
+  
+  // Return if initialization is in progress
+  if (_autoSyncInitializing) {
+    logger.debug('[initializeAutoSyncOnce] Initialization in progress, skipping');
+    return;
+  }
+  
+  // Set flag to prevent concurrent initializations
+  _autoSyncInitializing = true;
+  
+  try {
+    logger.debug('[initializeAutoSyncOnce] Starting auto-sync initialization');
+    await autoSyncManager.initialize();
+    await autoSyncManager.initializeWithAuth();
+    _autoSyncInitialized = true;
+    logger.debug('[initializeAutoSyncOnce] Auto-sync initialized successfully');
+  } catch (error) {
+    console.error('[initializeAutoSyncOnce] Falha ao inicializar auto-sync:', error);
+    // Reset flag on error to allow retry
+    _autoSyncInitializing = false;
+    throw error;
+  } finally {
+    _autoSyncInitializing = false;
+  }
+};
+
 // Helper function to get the correct redirect URL based on environment
 const getRedirectUrl = (path = '/') => {
   const isProduction = window.location.hostname !== 'localhost';
@@ -62,8 +99,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    let hasInitialized = false;
-
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -78,20 +113,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             fetchProfile(session.user.id);
           }, 0);
           
-          // Initialize auto-sync when user logs in
-          if (!hasInitialized) {
-            hasInitialized = true;
-            setTimeout(() => {
-              autoSyncManager.initialize().then(() => {
-                autoSyncManager.initializeWithAuth();
-              }).catch(error => {
-                console.error('[useAuth] Falha ao inicializar auto-sync:', error);
-                // Auto-sync initialization failed - logged via logger service
-              });
-            }, 100);
-          }
+          // Initialize auto-sync when user logs in (only once globally)
+          setTimeout(() => {
+            initializeAutoSyncOnce().catch(error => {
+              // Error already logged in initializeAutoSyncOnce
+            });
+          }, 100);
         } else {
           setProfile(null);
+          
+          // Reset flags when user signs out
+          if (event === 'SIGNED_OUT') {
+            logger.debug('[useAuth] SIGNED_OUT event - resetting auto-sync flags');
+            _autoSyncInitialized = false;
+            _autoSyncInitializing = false;
+          }
         }
         
         setLoading(false);
@@ -108,18 +144,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           fetchProfile(session.user.id);
         }, 0);
         
-        // Initialize auto-sync for existing session
-        if (!hasInitialized) {
-          hasInitialized = true;
-          setTimeout(() => {
-            autoSyncManager.initialize().then(() => {
-              autoSyncManager.initializeWithAuth();
-            }).catch(error => {
-              console.error('[useAuth] Falha ao inicializar auto-sync após mudança de sessão:', error);
-              // Auto-sync initialization failed - logged via logger service
-            });
-          }, 100);
-        }
+        // Initialize auto-sync for existing session (only once globally)
+        setTimeout(() => {
+          initializeAutoSyncOnce().catch(error => {
+            // Error already logged in initializeAutoSyncOnce
+          });
+        }, 100);
       }
       
       setLoading(false);
