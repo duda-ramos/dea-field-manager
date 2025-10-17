@@ -73,6 +73,13 @@ class OnlineMonitor {
 
     // Debounce de 2000ms antes de sincronizar
     this.reconnectDebounceTimer = setTimeout(async () => {
+      this.reconnectDebounceTimer = null;
+
+      if (!navigator.onLine) {
+        console.log('⏸️ Reconexão cancelada - conexão perdida novamente');
+        return;
+      }
+
       // Verificar se já está processando uma reconexão
       if (this.isHandlingReconnect) {
         console.log('⏭️ Sync já em andamento, ignorando...');
@@ -123,10 +130,15 @@ class OnlineMonitor {
 
   private handleOffline = () => {
     console.log('🔴 Conexão perdida - trabalhando offline');
-    
-    syncStateManager.updateState({ 
+
+    if (this.reconnectDebounceTimer) {
+      clearTimeout(this.reconnectDebounceTimer);
+      this.reconnectDebounceTimer = null;
+    }
+
+    syncStateManager.updateState({
       isOnline: false,
-      status: 'idle' 
+      status: 'idle'
     });
 
     toast({
