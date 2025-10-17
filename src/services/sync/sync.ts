@@ -12,6 +12,10 @@ import { checkForRemoteEdits, getRecordDisplayName } from '@/lib/conflictUtils';
 import { conflictStore } from '@/stores/conflictStore';
 import type { ProjectBudget, ProjectFile } from '@/types';
 
+// Global flags to prevent concurrent sync operations
+let _syncPullInProgress = false;
+let _fullSyncInProgress = false;
+
 type EntityName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'item_versions' | 'files';
 type LocalTableName = 'projects' | 'installations' | 'contacts' | 'budgets' | 'itemVersions' | 'files';
 type RecordType = 'project' | 'installation' | 'contact' | 'budget';
@@ -569,6 +573,17 @@ export async function syncPush(): Promise<LegacySyncMetrics> {
 }
 
 export async function syncPull(): Promise<LegacySyncMetrics> {
+  // Early return if sync is already in progress
+  if (_syncPullInProgress) {
+    logger.debug('[syncPull] Sync pull already in progress, skipping');
+    const metrics = createEmptyMetrics();
+    metrics.success = true;
+    metrics.duration = 0;
+    return metrics;
+  }
+  
+  _syncPullInProgress = true;
+  
   const startTime = logger.syncStart('pull');
   const metrics = createEmptyMetrics();
   const lastPulledAt = await getLastPulledAt();
@@ -618,10 +633,23 @@ export async function syncPull(): Promise<LegacySyncMetrics> {
     metrics.duration = Date.now() - startTime;
     
     throw error;
+  } finally {
+    _syncPullInProgress = false;
   }
 }
 
 export async function fullSync(): Promise<LegacySyncMetrics> {
+  // Early return if full sync is already in progress
+  if (_fullSyncInProgress) {
+    logger.debug('[fullSync] Full sync already in progress, skipping');
+    const metrics = createEmptyMetrics();
+    metrics.success = true;
+    metrics.duration = 0;
+    return metrics;
+  }
+  
+  _fullSyncInProgress = true;
+  
   const startTime = logger.syncStart('full');
   const metrics = createEmptyMetrics();
   
@@ -647,6 +675,8 @@ export async function fullSync(): Promise<LegacySyncMetrics> {
     metrics.duration = Date.now() - startTime;
     
     throw error;
+  } finally {
+    _fullSyncInProgress = false;
   }
 }
 
