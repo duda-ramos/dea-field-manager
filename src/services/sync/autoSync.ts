@@ -110,15 +110,13 @@ class AutoSyncManager {
   private async handleBootPull() {
     try {
       syncStateManager.updateState({
-        status: 'syncing',
-        lastSyncMessage: 'Carregando dados...'
+        status: 'syncing'
       });
-      
+
       await syncPull();
-      
+
       syncStateManager.updateState({
-        status: 'idle',
-        lastSyncMessage: 'Dados atualizados'
+        status: 'idle'
       });
     } catch (error) {
       syncStateManager.setError({
