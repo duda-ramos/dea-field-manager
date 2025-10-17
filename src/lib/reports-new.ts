@@ -382,6 +382,8 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
  */
 export async function generatePDFReport(data: ReportData): Promise<Blob> {
   try {
+    console.log('[generatePDFReport] Processando fotos para hyperlinks...');
+    
     // Input validation
     if (!data) {
       console.error('[generatePDFReport] Error: data is null or undefined');
@@ -666,13 +668,18 @@ async function addEnhancedSectionToPDF(
     // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
     const galleryUrlsMap = new Map<string, { url: string, count: number }>();
     if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
+      let processedCount = 0;
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
           const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
           if (galleryUrl) {
             galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
+            processedCount++;
           }
         }
+      }
+      if (processedCount > 0) {
+        console.log(`[generatePDFReport] ${processedCount} fotos processadas com sucesso`);
       }
     }
 
@@ -1650,6 +1657,8 @@ function getMotivoPtBr(motivo: string): string {
  */
 export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   try {
+    console.log('[generateXLSXReport] Processando fotos para hyperlinks...');
+    
     // Input validation
     if (!data) {
       console.error('[generateXLSXReport] Error: data is null or undefined');
@@ -1948,6 +1957,33 @@ function dataUrlToBase64(dataUrl: string): string {
   return dataUrl;
 }
 
+/**
+ * Create hyperlink cell for XLSX with clickable link
+ * 
+ * @param url - Target URL
+ * @param text - Display text (default: 'Ver Foto')
+ * @returns Cell object with hyperlink and styling
+ */
+function createHyperlinkCell(url: string, text: string = 'Ver Foto'): any {
+  return {
+    v: text,
+    l: {
+      Target: url,
+      Tooltip: 'Clique para ver a foto'
+    },
+    s: {
+      font: {
+        color: { rgb: '0000FF' },
+        underline: true
+      },
+      alignment: {
+        horizontal: 'center',
+        vertical: 'center'
+      }
+    }
+  };
+}
+
 // Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
 async function addFlatSectionToXLSX(
   workbook: XLSX.WorkBook,
@@ -1966,18 +2002,29 @@ async function addFlatSectionToXLSX(
     return codeA - codeB;
   });
 
+  // Pre-upload photos and create galleries for pendencias section
+  const galleryUrlsMap = new Map<string, { url: string, count: number }>();
+  if (sectionType === 'pendencias' && projectId) {
+    let processedCount = 0;
+    for (const item of sortedItems) {
+      if (item.photos && item.photos.length > 0) {
+        const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
+        if (galleryUrl) {
+          galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
+          processedCount++;
+        }
+      }
+    }
+    if (processedCount > 0) {
+      console.log(`[generateXLSXReport] ${processedCount} fotos processadas com sucesso`);
+    }
+  }
+
   // Prepare flat table data (includes Pavimento and Tipologia)
   const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
-  // For XLSX with pendencias section, keep empty strings for photo cells (will embed images)
-  const xlsxRows = sectionType === 'pendencias' ? rows.map(row => {
-    const newRow = [...row];
-    const photoIdx = columns.indexOf('Foto');
-    if (photoIdx !== -1) {
-      newRow[photoIdx] = ''; // Empty cell, images will be embedded
-    }
-    return newRow;
-  }) : rows;
+  // For XLSX with pendencias section, create hyperlink cells for photos
+  const xlsxRows = rows;
 
   const wsData = [columns, ...xlsxRows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
@@ -1998,43 +2045,36 @@ async function addFlatSectionToXLSX(
   // Set row heights for data rows if there are photos
   const rowHeights: Array<{ hpt: number }> = [{ hpt: 20 }]; // Header row
   
-  // Add photo information for pendencias section
+  // Add hyperlink cells for photos in pendencias section
   if (sectionType === 'pendencias') {
     const photoColIndex = columns.indexOf('Foto');
     if (photoColIndex !== -1) {
-      // Add styling and photo count for each row that has photos
+      // Add hyperlinks and styling for each row that has photos
       for (let rowIdx = 0; rowIdx < sortedItems.length; rowIdx++) {
         const item = sortedItems[rowIdx];
-        const hasPhotos = item.photos && item.photos.length > 0;
+        const galleryInfo = galleryUrlsMap.get(item.id);
         
-        // Set row height based on whether there are photos
-        rowHeights.push({ hpt: hasPhotos ? 25 : 20 });
+        // Set row height
+        rowHeights.push({ hpt: 20 });
         
-        if (hasPhotos) {
-          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
-          const photoCount = item.photos.length;
-          
-          try {
-            // Create a cell with photo count text and a note with instructions
-            worksheet[cellAddress] = {
-              t: 's',
-              v: `📷 ${photoCount} foto${photoCount > 1 ? 's' : ''}`,
-              c: [{
-                a: 'Sistema',
-                t: `${photoCount} foto(s) disponível(is). Consulte o relatório PDF para visualizar todas as fotos em alta qualidade.`
-              }],
-              s: {
-                font: { bold: true, color: { rgb: '0066CC' } },
-                alignment: { horizontal: 'center', vertical: 'center' }
-              }
-            };
-          } catch (error) {
-            console.error('Error processing photo for XLSX:', error);
-            worksheet[cellAddress] = { t: 's', v: 'Sem foto' };
-          }
+        const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
+        
+        if (galleryInfo) {
+          // Create clickable hyperlink cell
+          const linkText = `Ver Fotos (${galleryInfo.count})`;
+          worksheet[cellAddress] = createHyperlinkCell(galleryInfo.url, linkText);
+        } else if (item.photos && item.photos.length > 0) {
+          // If upload failed, show "Sem foto" instead of breaking
+          worksheet[cellAddress] = {
+            t: 's',
+            v: 'Sem foto',
+            s: {
+              font: { color: { rgb: '999999' } },
+              alignment: { horizontal: 'center', vertical: 'center' }
+            }
+          };
         } else {
           // Add "Sem foto" for items without photos
-          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
           worksheet[cellAddress] = {
             t: 's',
             v: 'Sem foto',
