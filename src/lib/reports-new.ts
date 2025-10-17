@@ -80,7 +80,7 @@ export async function saveReportToSupabase(
     // Save metadata to database (non-blocking)
     try {
       const { error: dbError } = await supabase
-        .from('project_report_history')
+        .from('report_history')
         .insert({
           project_id: projectId,
           user_id: user.id,
