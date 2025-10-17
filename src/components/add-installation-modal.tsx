@@ -31,7 +31,6 @@ export function AddInstallationModal({
   onUpdate,
   editingInstallation,
   isRevision = false,
-  currentRevision = 1,
   revisionMotivo = "",
   revisionDescricao = ""
 }: AddInstallationModalProps) {

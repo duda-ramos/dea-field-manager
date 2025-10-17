@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { ThemeProviderContext, ThemeProviderState } from "@/contexts/ThemeContext"
+import { ThemeProviderContext } from "@/contexts/ThemeContext"
 
 type Theme = "dark" | "light" | "system"
 

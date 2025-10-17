@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Table as TableIcon, Download, Trash2, Calendar, User, Search, Filter } from 'lucide-react';
+import { FileText, Table as TableIcon, Download, Trash2, Calendar, User, Search } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -152,14 +152,6 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
     }
   };
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    const value = bytes / Math.pow(k, i);
-    return `${Math.round(value * 100) / 100} ${sizes[i]}`;
-  };
 
   const formatGeneratedAt = (report: ReportHistoryEntry) => {
     const dateValue = report.generatedAt || report.generated_at;

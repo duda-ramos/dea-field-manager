@@ -5,7 +5,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { BulkOperationPanel } from '@/components/bulk-operations/BulkOperationPanel';
 import { Users, Search, Mail, Phone, Building2, User, Truck, ChevronDown } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +26,6 @@ interface GlobalContact {
 
 export default function GlobalContactsPage() {
   const [contacts, setContacts] = useState<GlobalContact[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +56,6 @@ export default function GlobalContactsPage() {
         ...localProjects,
         ...(supabaseProjects.data || [])
       ];
-      setProjects(allProjects);
 
       // Load local contacts
       const localContacts = await storage.getContacts();

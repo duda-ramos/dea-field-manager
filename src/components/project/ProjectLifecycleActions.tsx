@@ -44,7 +44,6 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
 
   const isDeleted = !!project.deleted_at;
   const isArchived = !!project.archived_at && !project.deleted_at;
-  const isActive = !project.deleted_at && !project.archived_at;
 
   const handleSoftDelete = async () => {
     // Save complete project state before deletion

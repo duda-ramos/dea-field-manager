@@ -62,7 +62,7 @@ export const reportTheme = {
 
 // Calculate report sections based on interlocutor
 export function calculateReportSections(data: ReportData): ReportSections {
-  const { installations, versions, interlocutor } = data;
+  const { installations, interlocutor } = data;
   
   const pendencias: Installation[] = [];
   const concluidas: Installation[] = [];
@@ -550,8 +550,7 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 async function addPavimentoSummaryToPDF(
   doc: jsPDF, 
   summary: PavimentoSummary[], 
-  yPosition: number, 
-  interlocutor: 'cliente' | 'fornecedor'
+  yPosition: number
 ): Promise<number> {
   // Check if new page needed
   if (yPosition > 200) {
@@ -839,7 +838,7 @@ async function uploadSinglePhotoWithRetry(
   timestamp: number,
   maxRetries = 3
 ): Promise<string | null> {
-  let _lastError: Error | unknown = null; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const _lastError: Error | unknown = null;  
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -1112,7 +1111,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     const htmlFilename = `reports/gallery_${itemId}_${timestamp}.html`;
     
-    const { data: htmlUploadData, error: htmlUploadError } = await supabase.storage
+    const { error: htmlUploadError } = await supabase.storage
       .from(bucket)
       .upload(htmlFilename, htmlBlob, {
         contentType: 'text/html',
@@ -1440,19 +1439,18 @@ function getAggregatedColumnStyles(): Record<number, { halign: string; cellWidth
   };
 }
 
-// Prepare table data based on section type and interlocutor
-// PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
-async function prepareTableData(
-  items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectId?: string
-): Promise<{ columns: string[], rows: unknown[][] }> {
-  return prepareDynamicTableData(items, interlocutor, sectionType, {
-    includePavimento: true,
-    includeTipologia: true
-  }, projectId);
-}
+// COMMENTED OUT - Function not currently used
+// async function prepareTableData(
+//   items: Installation[],
+//   interlocutor: 'cliente' | 'fornecedor',
+//   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+//   projectId?: string
+// ): Promise<{ columns: string[], rows: unknown[][] }> {
+//   return prepareDynamicTableData(items, interlocutor, sectionType, {
+//     includePavimento: true,
+//     includeTipologia: true
+//   }, projectId);
+// }
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
 // PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
@@ -1468,43 +1466,41 @@ async function prepareCompactTableData(
   }, projectId);
 }
 
-// Get column styles based on section type
-function getColumnStyles(
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  interlocutor: 'cliente' | 'fornecedor'
-): Record<number, { halign: string }> {
-  const baseStyles = {
-    0: { halign: 'left' }, // Pavimento
-    1: { halign: 'left' }, // Tipologia  
-    2: { halign: 'right' }, // Código
-    3: { halign: 'left' }  // Descrição
-  };
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      return {
-        ...baseStyles,
-        4: { halign: 'left' }, // Observação
-        5: { halign: 'center' } // Foto
-      };
-    } else {
-      return {
-        ...baseStyles,
-        4: { halign: 'left' }, // Observação
-        5: { halign: 'left' }, // Comentários do Fornecedor
-        6: { halign: 'center' } // Foto
-      };
-    }
-  } else if (sectionType === 'revisao') {
-    return {
-      ...baseStyles,
-      4: { halign: 'center' }, // Versão
-      5: { halign: 'left' }    // Motivo
-    };
-  }
-
-  return baseStyles;
-}
+// COMMENTED OUT - Function not currently used
+// function getColumnStyles(
+//   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
+//   interlocutor: 'cliente' | 'fornecedor'
+// ): Record<number, { halign: string }> {
+//   const baseStyles = {
+//     0: { halign: 'left' }, // Pavimento
+//     1: { halign: 'left' }, // Tipologia  
+//     2: { halign: 'right' }, // Código
+//     3: { halign: 'left' }  // Descrição
+//   };
+//   if (sectionType === 'pendencias') {
+//     if (interlocutor === 'cliente') {
+//       return {
+//         ...baseStyles,
+//         4: { halign: 'left' }, // Observação
+//         5: { halign: 'center' } // Foto
+//       };
+//     } else {
+//       return {
+//         ...baseStyles,
+//         4: { halign: 'left' }, // Observação
+//         5: { halign: 'left' }, // Comentários do Fornecedor
+//         6: { halign: 'center' } // Foto
+//       };
+//     }
+//   } else if (sectionType === 'revisao') {
+//     return {
+//       ...baseStyles,
+//       4: { halign: 'center' }, // Versão
+//       5: { halign: 'left' }    // Motivo
+//     };
+//   }
+//   return baseStyles;
+// }
 
 // Get compact column styles (for tables without Pavimento and Tipologia)
 function _getCompactColumnStyles(columns: string[]): Record<number, { halign: string }> {

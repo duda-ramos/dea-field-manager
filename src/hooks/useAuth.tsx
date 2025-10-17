@@ -5,7 +5,7 @@ import { logger } from '@/services/logger';
 import { errorMonitoring } from '@/services/errorMonitoring';
 import { authRateLimiter } from '@/services/auth/rateLimiter';
 import { autoSyncManager } from '@/services/sync/autoSync';
-import { AuthContext, AuthContextType } from '@/contexts/AuthContext';
+import { AuthContext } from '@/contexts/AuthContext';
 
 interface Profile {
   id: string;

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { RefreshCw, Loader2, Wifi, WifiOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Loader2, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { fullSync } from '@/services/sync/sync';
 import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager, type SyncState } from '@/services/sync/syncState';
