@@ -259,6 +259,7 @@ export const StorageManagerDexie = {
     syncStateManager.incrementPending('projects', 1);
     syncQueue.push({ type: 'project', data: withDates });
     syncStateManager.updateState({ pendingPush: syncQueue.length });
+    autoSyncManager.triggerDebouncedSync();
     return withDates;
   },
   async deleteProject(id: string) {
@@ -410,6 +411,7 @@ export const StorageManagerDexie = {
     await syncToServerImmediate('installation', withDates);
     await db.installations.put(withDates);
     realtimeManager.trackLocalOperation('installations');
+    autoSyncManager.triggerDebouncedSync();
     
     return withDates;
   },
@@ -467,6 +469,7 @@ export const StorageManagerDexie = {
     await syncToServerImmediate('contact', withFlags);
     await db.contacts.put(withFlags);
     realtimeManager.trackLocalOperation('contacts');
+    autoSyncManager.triggerDebouncedSync();
     
     return withFlags;
   },
@@ -496,6 +499,7 @@ export const StorageManagerDexie = {
     await syncToServerImmediate('budget', withDates);
     await db.budgets.put(withDates);
     realtimeManager.trackLocalOperation('budgets');
+    autoSyncManager.triggerDebouncedSync();
     
     return withDates;
   },
@@ -537,6 +541,7 @@ export const StorageManagerDexie = {
     // ONLINE FIRST: Sincronizar imediatamente
     await syncToServerImmediate('file', metaAtualizado);
     await db.files.put(metaAtualizado);
+    autoSyncManager.triggerDebouncedSync();
 
     return metaAtualizado;
   },
