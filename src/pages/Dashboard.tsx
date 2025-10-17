@@ -23,7 +23,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [_showTemplateSelector, _setShowTemplateSelector] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
@@ -234,7 +234,7 @@ export default function Dashboard() {
 
   const _handleSelectTemplate = async (template: any) => {
     setSelectedTemplate(template);
-    _setShowTemplateSelector(false);
+    setShowTemplateSelector(false);
     
     // Pre-fill some fields from template if available
     if (template.template_data) {

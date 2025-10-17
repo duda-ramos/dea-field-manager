@@ -23,6 +23,7 @@ export interface UseUndoReturn {
  */
 export function useUndo(): UseUndoReturn {
   const [undoManager] = useState(() => getUndoManager());
+  const [, setHistoryVersion] = useState(0);
 
   // Estado derivado do histórico
   const history = undoManager.getHistory();

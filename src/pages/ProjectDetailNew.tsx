@@ -60,6 +60,9 @@ export default function ProjectDetailNew() {
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
+  const [itemStatusFilter, setItemStatusFilter] = useState<
+    "all" | "ativo" | "on hold" | "cancelado" | "pendente"
+  >("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
