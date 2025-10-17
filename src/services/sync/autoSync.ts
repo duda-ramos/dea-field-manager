@@ -7,6 +7,8 @@ class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
   private periodicTimer: NodeJS.Timeout | null = null;
   private isVisible = !document.hidden;
+  private visibilityChangeHandler: (() => void) | null = null;
+  private pageHideHandler: ((event: PageTransitionEvent) => void) | null = null;
 
   async initialize() {
     // Auto-sync initialization logged via logger service
@@ -30,25 +32,31 @@ class AutoSyncManager {
 
   private setupEventListeners() {
     // Use modern APIs instead of deprecated beforeunload
-    document.addEventListener('visibilitychange', () => {
-      this.isVisible = !document.hidden;
-      
-      if (this.isVisible) {
-        // Page became visible - resume periodic sync
-        this.setupPeriodicSync();
-      } else {
-        // Page hidden - try to sync
-        this.handleBackgroundSync();
-      }
-    });
+    this.visibilityChangeHandler = this.handleVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
 
     // Use pagehide instead of beforeunload (more reliable)
-    window.addEventListener('pagehide', (event) => {
-      // Only sync if page is being unloaded (not just cached)
-      if (!event.persisted) {
-        this.handlePageUnload();
-      }
-    });
+    this.pageHideHandler = this.handlePageHide.bind(this);
+    window.addEventListener('pagehide', this.pageHideHandler);
+  }
+
+  private handleVisibilityChange() {
+    this.isVisible = !document.hidden;
+    
+    if (this.isVisible) {
+      // Page became visible - resume periodic sync
+      this.setupPeriodicSync();
+    } else {
+      // Page hidden - try to sync
+      this.handleBackgroundSync();
+    }
+  }
+
+  private handlePageHide(event: PageTransitionEvent) {
+    // Only sync if page is being unloaded (not just cached)
+    if (!event.persisted) {
+      this.handlePageUnload();
+    }
   }
 
   private async handleBackgroundSync() {
@@ -148,6 +156,14 @@ class AutoSyncManager {
     }
     if (this.periodicTimer) {
       clearInterval(this.periodicTimer);
+    }
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
+    if (this.pageHideHandler) {
+      window.removeEventListener('pagehide', this.pageHideHandler);
+      this.pageHideHandler = null;
     }
   }
 }

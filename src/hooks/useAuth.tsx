@@ -155,7 +155,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      
+      // Cleanup auto-sync on unmount or HMR
+      if (_autoSyncInitialized) {
+        logger.debug('[useAuth] Cleaning up auto-sync');
+        autoSyncManager.cleanup();
+        _autoSyncInitialized = false;
+        _autoSyncInitializing = false;
+      }
+    };
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
