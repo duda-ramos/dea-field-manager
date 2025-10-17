@@ -1489,6 +1489,7 @@ export default function ProjectDetailNew() {
             config={generatedReport.config}
             project={project}
             interlocutor={generatedReport.config.interlocutor}
+            installations={installations}
           />
         </Suspense>
       )}

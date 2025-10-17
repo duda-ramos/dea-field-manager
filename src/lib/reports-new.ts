@@ -14,13 +14,15 @@ const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
  * @param projectId - Project ID
  * @param format - Report format ('pdf' or 'xlsx')
  * @param config - Report configuration
+ * @param data - Optional report data for stats calculation
  * @returns Promise<{ fileUrl: string; fileName: string } | null>
  */
 export async function saveReportToSupabase(
   blob: Blob,
   projectId: string,
   format: 'pdf' | 'xlsx',
-  config: any
+  config: any,
+  data?: ReportData
 ): Promise<{ fileUrl: string; fileName: string } | null> {
   try {
     // Get current user
@@ -61,33 +63,52 @@ export async function saveReportToSupabase(
       return null;
     }
 
-    // Save metadata to database
-    const { error: dbError } = await supabase
-      .from('project_report_history')
-      .insert({
-        project_id: projectId,
-        user_id: user.id,
-        format,
-        config: config || {},
-        file_url: urlData.publicUrl,
-        file_name: fileName,
-        interlocutor: config?.interlocutor || 'cliente',
-        generated_by: user.id,
-        generated_at: new Date().toISOString(),
-        sections_included: config?.sections || {},
-        stats: config?.stats || {}
-      });
-
-    if (dbError) {
-      console.error('[saveReportToSupabase] Database error:', dbError);
-      // Try to delete uploaded file
-      await supabase.storage.from('reports').remove([filePath]);
-      return null;
+    // Calculate stats from data if provided, otherwise use config stats
+    let stats = config?.stats || {};
+    if (data) {
+      const sections = calculateReportSections(data);
+      stats = {
+        pendencias: sections.pendencias.length,
+        concluidas: sections.concluidas.length,
+        emRevisao: sections.emRevisao.length,
+        emAndamento: sections.emAndamento.length,
+        total: sections.pendencias.length + sections.concluidas.length + 
+               sections.emRevisao.length + sections.emAndamento.length
+      };
     }
 
-    console.log('[saveReportToSupabase] Report saved successfully:', {
+    // Save metadata to database (non-blocking)
+    try {
+      const { error: dbError } = await supabase
+        .from('project_report_history')
+        .insert({
+          project_id: projectId,
+          user_id: user.id,
+          format,
+          config: config || {},
+          file_url: urlData.publicUrl,
+          file_name: fileName,
+          interlocutor: config?.interlocutor || 'cliente',
+          generated_by: user.id,
+          generated_at: new Date().toISOString(),
+          sections_included: config?.sections || {},
+          stats
+        });
+
+      if (dbError) {
+        console.warn('⚠️ Failed to save metadata (file is safe):', dbError);
+      } else {
+        console.log('✅ Report metadata saved to Supabase database');
+      }
+    } catch (metadataError) {
+      // Don't break the flow if metadata save fails
+      console.warn('⚠️ Failed to save metadata (file is safe):', metadataError);
+    }
+
+    console.log('[saveReportToSupabase] Report file uploaded successfully:', {
       fileName,
-      fileUrl: urlData.publicUrl
+      fileUrl: urlData.publicUrl,
+      fileSize: blob.size
     });
 
     return {

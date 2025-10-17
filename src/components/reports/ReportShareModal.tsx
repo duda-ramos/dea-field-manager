@@ -28,6 +28,7 @@ interface ReportShareModalProps {
   config: ReportConfig;
   project: Project;
   interlocutor: 'cliente' | 'fornecedor';
+  installations?: any[]; // Optional for stats calculation
 }
 
 export function ReportShareModal({
@@ -38,6 +39,7 @@ export function ReportShareModal({
   project,
   interlocutor,
   config,
+  installations,
 }: ReportShareModalProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -58,6 +60,19 @@ export function ReportShareModal({
     try {
       setIsSaving(true);
 
+      // Prepare report data for stats calculation if installations available
+      let reportData = undefined;
+      if (installations && installations.length > 0) {
+        reportData = {
+          project,
+          installations,
+          versions: [],
+          generatedBy: project.owner || 'Sistema',
+          generatedAt: new Date().toISOString(),
+          interlocutor,
+        };
+      }
+
       // Save to Supabase Storage and database
       const supabaseResult = await saveReportToSupabase(
         blob,
@@ -66,13 +81,8 @@ export function ReportShareModal({
         {
           interlocutor,
           ...config,
-          stats: {
-            // Add any relevant stats from config
-            pendentes: config?.stats?.pendentes || 0,
-            concluidos: config?.stats?.concluidos || 0,
-            revisao: config?.stats?.revisao || 0,
-          }
-        }
+        },
+        reportData
       );
 
       // Also save to local IndexedDB for offline access
