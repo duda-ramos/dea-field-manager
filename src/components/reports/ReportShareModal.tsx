@@ -5,17 +5,20 @@
  * Removidas funcionalidades de compartilhamento (Email, WhatsApp, Links públicos)
  * para manter apenas o download direto.
  * 
+ * Atualizado: 2025-10-17 - Adicionado salvamento automático no histórico
  * Refatorado em: 2025-10-15
  * Redução: ~242 linhas → ~65 linhas (73%)
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Download } from 'lucide-react';
-import { Project } from '@/types';
+import { Download, Loader2 } from 'lucide-react';
+import { Project, ReportHistoryEntry } from '@/types';
 import type { ReportConfig } from './ReportCustomizationModal.types';
+import { saveReportToSupabase } from '@/lib/reports-new';
+import { storage } from '@/lib/storage';
 
 interface ReportShareModalProps {
   isOpen: boolean;
@@ -34,13 +37,78 @@ export function ReportShareModal({
   format,
   project,
   interlocutor,
+  config,
 }: ReportShareModalProps) {
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Nome do arquivo
   const fileName = `relatorio-${project.name
     .toLowerCase()
     .replace(/\s+/g, '-')}-${interlocutor}-${new Date().getTime()}.${format}`;
+
+  // Save report to history when modal opens
+  useEffect(() => {
+    if (isOpen && blob) {
+      saveReportToHistory();
+    }
+  }, [isOpen, blob]);
+
+  const saveReportToHistory = async () => {
+    try {
+      setIsSaving(true);
+
+      // Save to Supabase Storage and database
+      const supabaseResult = await saveReportToSupabase(
+        blob,
+        project.id,
+        format,
+        {
+          interlocutor,
+          ...config,
+          stats: {
+            // Add any relevant stats from config
+            pendentes: config?.stats?.pendentes || 0,
+            concluidos: config?.stats?.concluidos || 0,
+            revisao: config?.stats?.revisao || 0,
+          }
+        }
+      );
+
+      // Also save to local IndexedDB for offline access
+      const reportEntry: ReportHistoryEntry = {
+        id: crypto.randomUUID(),
+        projectId: project.id,
+        fileName,
+        format,
+        interlocutor,
+        config: {
+          interlocutor,
+          ...config,
+        },
+        size: blob.size,
+        generatedAt: new Date().toISOString(),
+        generatedBy: project.owner || 'Sistema',
+        mimeType: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        blob,
+        createdAt: Date.now(),
+      };
+
+      await storage.saveReport(reportEntry);
+
+      if (supabaseResult) {
+        console.log('[ReportShareModal] Report saved to Supabase:', supabaseResult);
+      } else {
+        console.warn('[ReportShareModal] Failed to save to Supabase, but saved locally');
+      }
+
+    } catch (error) {
+      console.error('[ReportShareModal] Error saving report:', error);
+      // Don't show error to user as this is background operation
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDownload = () => {
     const url = URL.createObjectURL(blob);
@@ -68,6 +136,13 @@ export function ReportShareModal({
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          {isSaving && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted rounded-md">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando relatório no histórico...
+            </div>
+          )}
+
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
               Projeto: <span className="font-medium text-foreground">{project.name}</span>
@@ -89,6 +164,7 @@ export function ReportShareModal({
             onClick={handleDownload} 
             className="w-full gap-2"
             size="lg"
+            disabled={isSaving}
           >
             <Download className="h-5 w-5" />
             Baixar Relatório {format.toUpperCase()}

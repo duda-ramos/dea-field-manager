@@ -846,11 +846,12 @@ async function migrateLegacyReportHistory() {
   try {
     await migrateLegacyReportHistory();
 
-    const reports = projectId
+    // Get local reports from IndexedDB
+    const localReports = projectId
       ? await db.reports.where('projectId').equals(projectId).toArray()
       : await db.reports.toArray();
 
-    const payloadIds = reports.map((report) => (report as any).payloadId ?? report.id);
+    const payloadIds = localReports.map((report) => (report as any).payloadId ?? report.id);
     const payloads = payloadIds.length > 0 ? await db.reportPayloads.bulkGet(payloadIds) : [];
     const payloadMap = new Map<string, ReportPayloadRecord>();
 
@@ -860,8 +861,63 @@ async function migrateLegacyReportHistory() {
       }
     });
 
-    return reports
-      .map((report) => normalizeReportHistoryEntry(report, payloadMap.get((report as any).payloadId ?? report.id)))
+    const normalizedLocalReports = localReports.map((report) => 
+      normalizeReportHistoryEntry(report, payloadMap.get((report as any).payloadId ?? report.id))
+    );
+
+    // Fetch reports from Supabase
+    let supabaseReports: any[] = [];
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        let query = supabase
+          .from('project_report_history')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('generated_at', { ascending: false });
+        
+        if (projectId) {
+          query = query.eq('project_id', projectId);
+        }
+        
+        const { data, error } = await query;
+        
+        if (!error && data) {
+          supabaseReports = data.map((report: any) => ({
+            id: report.id,
+            projectId: report.project_id,
+            fileName: report.file_name,
+            format: report.format,
+            interlocutor: report.interlocutor,
+            config: report.config || {},
+            size: 0, // Size not stored in Supabase
+            generatedAt: report.generated_at,
+            generatedBy: report.generated_by,
+            fileUrl: report.file_url,
+            file_url: report.file_url,
+            createdAt: new Date(report.created_at).getTime(),
+          }));
+        }
+      }
+    } catch (error) {
+      console.warn('[getReports] Failed to fetch from Supabase, using local only:', error);
+    }
+
+    // Merge and deduplicate reports (prefer Supabase version if exists)
+    const allReports = [...supabaseReports, ...normalizedLocalReports];
+    const uniqueReports = new Map();
+    
+    allReports.forEach(report => {
+      const key = `${report.projectId}-${report.fileName}`;
+      if (!uniqueReports.has(key) || report.fileUrl) {
+        // Prefer reports with fileUrl (from Supabase)
+        uniqueReports.set(key, report);
+      }
+    });
+
+    return Array.from(uniqueReports.values())
       .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   } catch (error) {
     console.error('Error getting reports:', error);
@@ -919,6 +975,50 @@ async function migrateLegacyReportHistory() {
 (StorageManagerDexie as any).deleteReport = async (reportId: string) => {
   try {
     await migrateLegacyReportHistory();
+    
+    // Try to delete from Supabase first
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Get report details to delete file from storage
+        const { data: report } = await supabase
+          .from('project_report_history')
+          .select('file_url, project_id')
+          .eq('id', reportId)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (report) {
+          // Extract file path from URL
+          const fileUrl = report.file_url;
+          if (fileUrl) {
+            // Parse the URL to get the file path
+            const urlParts = fileUrl.split('/storage/v1/object/public/reports/');
+            if (urlParts.length > 1) {
+              const filePath = urlParts[1];
+              
+              // Delete file from storage
+              await supabase.storage
+                .from('reports')
+                .remove([filePath]);
+            }
+          }
+          
+          // Delete from database
+          await supabase
+            .from('project_report_history')
+            .delete()
+            .eq('id', reportId)
+            .eq('user_id', user.id);
+        }
+      }
+    } catch (error) {
+      console.warn('[deleteReport] Failed to delete from Supabase, continuing with local delete:', error);
+    }
+    
+    // Delete from local IndexedDB
     await db.transaction('rw', db.reports, db.reportPayloads, async () => {
       const existing = await db.reports.get(reportId);
       await db.reports.delete(reportId);
