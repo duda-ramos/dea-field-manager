@@ -34,7 +34,7 @@ export class FileSyncService {
         await db.files.update(file.id, { _dirty: 0 });
         pushed++;
       } catch (error) {
-        console.error(`Failed to sync file ${file.id}:`, error);
+        logger.error('fileSync', `Failed to sync file ${file.id}`, error, { fileId: file.id, fileName: file.name });
         errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
@@ -140,7 +140,7 @@ export class FileSyncService {
           }
         } else {
           const remoteFile = batch[index];
-          console.error(`Failed to process remote file ${remoteFile.id}:`, result.reason);
+          logger.error('fileSync', `Failed to process remote file`, result.reason, { fileId: remoteFile.id, fileName: remoteFile.name });
           errors.push(`${remoteFile.name}: ${result.reason instanceof Error ? result.reason.message : 'Unknown error'}`);
         }
       }
@@ -192,7 +192,7 @@ export class FileSyncService {
         
         uploaded++;
       } catch (error) {
-        console.error(`Failed to upload pending file ${file.id}:`, error);
+        logger.error('fileSync', `Failed to upload pending file`, error, { fileId: file.id, fileName: file.name, filePath: file.url });
         errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
