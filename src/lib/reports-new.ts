@@ -7,6 +7,99 @@ import { supabase } from '@/integrations/supabase/client';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 
+/**
+ * Upload report file to Supabase Storage and save metadata to database
+ * 
+ * @param blob - Report file blob
+ * @param projectId - Project ID
+ * @param format - Report format ('pdf' or 'xlsx')
+ * @param config - Report configuration
+ * @returns Promise<{ fileUrl: string; fileName: string } | null>
+ */
+export async function saveReportToSupabase(
+  blob: Blob,
+  projectId: string,
+  format: 'pdf' | 'xlsx',
+  config: any
+): Promise<{ fileUrl: string; fileName: string } | null> {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('[saveReportToSupabase] User not authenticated');
+      return null;
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const extension = format === 'pdf' ? 'pdf' : 'xlsx';
+    const fileName = `report-${projectId}-${timestamp}.${extension}`;
+    const filePath = `${user.id}/${projectId}/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('reports')
+      .upload(filePath, blob, {
+        contentType: format === 'pdf' 
+          ? 'application/pdf' 
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('[saveReportToSupabase] Upload error:', uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('reports')
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      console.error('[saveReportToSupabase] Failed to get public URL');
+      return null;
+    }
+
+    // Save metadata to database
+    const { error: dbError } = await supabase
+      .from('project_report_history')
+      .insert({
+        project_id: projectId,
+        user_id: user.id,
+        format,
+        config: config || {},
+        file_url: urlData.publicUrl,
+        file_name: fileName,
+        interlocutor: config?.interlocutor || 'cliente',
+        generated_by: user.id,
+        generated_at: new Date().toISOString(),
+        sections_included: config?.sections || {},
+        stats: config?.stats || {}
+      });
+
+    if (dbError) {
+      console.error('[saveReportToSupabase] Database error:', dbError);
+      // Try to delete uploaded file
+      await supabase.storage.from('reports').remove([filePath]);
+      return null;
+    }
+
+    console.log('[saveReportToSupabase] Report saved successfully:', {
+      fileName,
+      fileUrl: urlData.publicUrl
+    });
+
+    return {
+      fileUrl: urlData.publicUrl,
+      fileName
+    };
+  } catch (error) {
+    console.error('[saveReportToSupabase] Critical error:', error);
+    return null;
+  }
+}
+
 export interface ReportData {
   project: Project;
   installations: Installation[];

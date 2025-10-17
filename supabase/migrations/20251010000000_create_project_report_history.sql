@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS project_report_history (
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   interlocutor TEXT NOT NULL CHECK (interlocutor IN ('cliente', 'fornecedor')),
   format TEXT NOT NULL CHECK (format IN ('pdf', 'xlsx')),
+  config JSONB DEFAULT '{}'::jsonb,
   generated_by UUID REFERENCES auth.users(id),
   generated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   file_url TEXT NOT NULL,

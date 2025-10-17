@@ -101,21 +101,43 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
     return undefined;
   };
 
-  const handleDownload = (report: ReportHistoryEntry) => {
+  const handleDownload = async (report: ReportHistoryEntry) => {
     try {
-      const blob = resolveReportBlob(report);
-      if (!blob) {
-        throw new Error('Arquivo do relatório indisponível');
+      // Check if report has a file URL (from Supabase)
+      if ((report as any).file_url || (report as any).fileUrl) {
+        const fileUrl = (report as any).file_url || (report as any).fileUrl;
+        
+        // Download from URL
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error('Failed to download file from URL');
+        }
+        
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = report.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        // Fallback to local blob
+        const blob = resolveReportBlob(report);
+        if (!blob) {
+          throw new Error('Arquivo do relatório indisponível');
+        }
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = report.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
-      
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = report.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
 
       toast({
         title: 'Download realizado',
