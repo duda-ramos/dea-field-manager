@@ -171,11 +171,13 @@ export class FileSyncService {
         const fileObject = new File([blob], file.name, { type: file.type });
 
         // Upload to storage
-        const { storagePath } = await storageService.uploadFile(
-          fileObject,
-          file.project_id,
-          file.installation_id
-        );
+        const { storagePath } = await withRetry(async () => {
+          return await storageService.uploadFile(
+            fileObject,
+            file.project_id,
+            file.installation_id
+          );
+        });
 
         // Update record with storage path and mark as dirty for next push
         await db.files.update(file.id, {
@@ -202,7 +204,9 @@ export class FileSyncService {
     // Delete from storage if it exists
     if (file.storage_path) {
       try {
-        await storageService.deleteFile(file.storage_path);
+        await withRetry(async () => {
+          return await storageService.deleteFile(file.storage_path);
+        });
       } catch (error) {
         // Storage deletion failed, but continue with DB deletion
         console.warn(`Failed to delete file from storage: ${error}`);
@@ -210,10 +214,12 @@ export class FileSyncService {
     }
 
     // Delete metadata from Supabase DB
-    const { error } = await supabase
-      .from('files')
-      .delete()
-      .eq('id', file.id);
+    const { error } = await withRetry(async () => {
+      return await supabase
+        .from('files')
+        .delete()
+        .eq('id', file.id);
+    });
 
     if (error) {
       throw new Error(`Failed to delete file metadata: ${error.message}`);
@@ -250,9 +256,11 @@ export class FileSyncService {
     };
 
     // Upsert metadata to Supabase DB
-    const { error } = await supabase
-      .from('files')
-      .upsert(supabaseFile);
+    const { error } = await withRetry(async () => {
+      return await supabase
+        .from('files')
+        .upsert(supabaseFile);
+    });
 
     if (error) {
       throw new Error(`Failed to upsert file metadata: ${error.message}`);
