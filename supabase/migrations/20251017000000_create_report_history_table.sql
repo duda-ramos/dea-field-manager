@@ -16,9 +16,9 @@ CREATE TABLE report_history (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_report_history_project ON report_history(project_id);
-CREATE INDEX idx_report_history_user ON report_history(user_id);
-CREATE INDEX idx_report_history_generated_at ON report_history(generated_at DESC);
+CREATE INDEX idx_report_history_project_id ON report_history(project_id);
+CREATE INDEX idx_report_history_user_id ON report_history(user_id);
+CREATE INDEX idx_report_history_generated_at_desc ON report_history(generated_at DESC);
 
 -- Enable Row Level Security
 ALTER TABLE report_history ENABLE ROW LEVEL SECURITY;
