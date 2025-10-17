@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Settings, User, Bell, Shield, Palette } from "lucide-react";
+import { User, Bell, Shield, Palette } from "lucide-react";
 
 export default function ConfiguracoesPage() {
   return (

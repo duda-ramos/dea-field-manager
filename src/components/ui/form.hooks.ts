@@ -2,7 +2,6 @@ import * as React from "react"
 import { useFormContext } from "react-hook-form"
 
 type FormFieldContextValue<
-  TFieldValues extends Record<string, any> = Record<string, any>,
   TName extends string = string
 > = {
   name: TName

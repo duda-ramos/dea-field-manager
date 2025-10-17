@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { 
   markForForceUpload, 
   cleanSyncFlags, 
-  logConflict,
-  type EditConflictInfo 
+  logConflict
 } from './conflictUtils';
 import { logger } from '@/services/logger';
 

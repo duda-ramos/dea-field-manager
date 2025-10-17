@@ -10,23 +10,20 @@ import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, LayoutTem
 import { InstallationCalendar } from "@/components/installation-calendar";
 import { Project } from "@/types";
 import { storage } from "@/lib/storage";
-import { LoadingState, CardLoadingState } from "@/components/ui/loading-spinner";
+import { CardLoadingState } from "@/components/ui/loading-spinner";
 import { LoadingBoundary } from "@/components/loading-boundary";
-import { errorMonitoring } from "@/services/errorMonitoring";
 import { DashboardErrorFallback } from "@/components/error-fallbacks";
 import { useUndo } from "@/hooks/useUndo";
 import { showUndoToast } from "@/lib/toast";
 
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { useAuth } from '@/hooks/useAuthContext';
-import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [_showTemplateSelector, _setShowTemplateSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
@@ -45,7 +42,6 @@ export default function Dashboard() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { toast } = useToast();
-  const { user } = useAuth();
   const { showOnboarding, closeOnboarding, markOnboardingComplete } = useOnboarding();
   const { addAction, undo } = useUndo();
 
@@ -236,9 +232,9 @@ export default function Dashboard() {
     setErrors({});
   };
 
-  const handleSelectTemplate = async (template: any) => {
+  const _handleSelectTemplate = async (template: any) => {
     setSelectedTemplate(template);
-    setShowTemplateSelector(false);
+    _setShowTemplateSelector(false);
     
     // Pre-fill some fields from template if available
     if (template.template_data) {

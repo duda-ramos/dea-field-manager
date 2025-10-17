@@ -1,5 +1,4 @@
 import { logger } from '@/services/logger';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ContactsAuditEvent {
   action: 'view' | 'create' | 'update' | 'delete' | 'export';

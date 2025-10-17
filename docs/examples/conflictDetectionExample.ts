@@ -9,9 +9,10 @@
  * para incluir detecção de conflitos
  */
 
-import { db } from '@/db/indexedDb';
-import { checkForRemoteEdits, getRecordDisplayName } from './conflictUtils';
-import { conflictStore } from '@/stores/conflictStore';
+// Imports are shown in the examples below but not used in this documentation file
+// import { db } from '@/db/indexedDb';
+// import { checkForRemoteEdits, getRecordDisplayName } from './conflictUtils';
+// import { conflictStore } from '@/stores/conflictStore';
 
 // Exemplo de modificação necessária na função pullEntityType do sync.ts
 export const pullEntityTypeModification = `

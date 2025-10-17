@@ -68,7 +68,6 @@ export function useKeyboardNavigation({
       
       if (focusableElements.length > 0) {
         const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
         
         // Focus first element when modal opens
         setTimeout(() => firstElement?.focus(), 100);

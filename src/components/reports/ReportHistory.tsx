@@ -6,8 +6,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, Table, Download, Trash2, Calendar, User, ExternalLink } from 'lucide-react';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ReportHistoryEntry } from '@/types';
@@ -19,8 +17,6 @@ interface ReportHistoryProps {
 export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     loadReports();
@@ -34,7 +30,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const localReports = await storage.getReports(projectId);
       
       // Load from Supabase - commented out as table doesn't exist yet
-      let supabaseReports: any[] = [];
+      const supabaseReports: any[] = [];
       /* 
       if (user) {
         try {
@@ -208,7 +204,6 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
     try {
-      const report = reports.find(r => r.id === reportId);
       
       // Delete from Supabase if it's a Supabase report
       /* Commented out - table doesn't exist yet
