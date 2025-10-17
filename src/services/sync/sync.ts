@@ -49,6 +49,7 @@ const getLocalTable = <K extends keyof LocalTables>(table: K): LocalTables[K] =>
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
+const FILE_BATCH_SIZE = 5;
 
 // Timestamp normalization helpers
 const normalizeTimestamps = (obj: Record<string, unknown>) => ({
@@ -390,6 +391,64 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
   }
 }
 
+async function uploadSingleFile(
+  file: ProjectFile,
+  fileIndex: number,
+  totalFiles: number
+): Promise<{ success: boolean; error?: unknown }> {
+  try {
+    logger.info(`📤 Uploading file ${fileIndex}/${totalFiles}: ${file.name}`);
+
+    let fileObj: File | null = null;
+    if (file.url && file.url.startsWith('blob:')) {
+      try {
+        const response = await withRetry(async () => {
+          return await fetch(file.url!);
+        });
+        const blob = await response.blob();
+        fileObj = new File([blob], file.name, { type: file.type });
+      } catch (err) {
+        logger.warn(`Failed to retrieve blob for ${file.id}`, err);
+        return { success: false, error: err };
+      }
+    }
+
+    if (!fileObj) {
+      logger.warn(`Missing blob for ${file.id}, skipping`);
+      return { success: false, error: new Error('Missing blob') };
+    }
+
+    const { storagePath, uploadedAtISO } = await withRetry(async () => {
+      return await uploadToStorage(fileObj!, {
+        projectId: file.projectId,
+        installationId: file.installationId,
+        id: file.id
+      });
+    });
+
+    await db.files.update(file.id, {
+      storagePath,
+      storage_path: storagePath,
+      uploadedAt: uploadedAtISO,
+      uploaded_at: uploadedAtISO,
+      updatedAt: Date.now(),
+      needsUpload: undefined,
+      _dirty: 1,
+      _deleted: 0
+    } as any);
+
+    if (file.url && file.url.startsWith('blob:')) {
+      URL.revokeObjectURL(file.url);
+    }
+
+    logger.info(`✅ Successfully uploaded file ${fileIndex}/${totalFiles}: ${file.name}`);
+    return { success: true };
+  } catch (error) {
+    logger.warn(`❌ Failed to upload file ${fileIndex}/${totalFiles}: ${file.name}`, error);
+    return { success: false, error };
+  }
+}
+
 async function prePushFiles(): Promise<{ tentados: number; sucesso: number; falhas: number }> {
   const pending = await db.files
     .where('needsUpload')
@@ -401,57 +460,49 @@ async function prePushFiles(): Promise<{ tentados: number; sucesso: number; falh
     return { tentados: 0, sucesso: 0, falhas: pending.length };
   }
 
+  const totalFiles = pending.length;
+  if (totalFiles === 0) {
+    return { tentados: 0, sucesso: 0, falhas: 0 };
+  }
+
+  logger.info(`📦 Starting file upload: ${totalFiles} files in batches of ${FILE_BATCH_SIZE}`);
+
+  const batches = createBatches(pending as ProjectFile[], FILE_BATCH_SIZE);
   let tentados = 0;
   let sucesso = 0;
   let falhas = 0;
 
-  for (const file of pending as ProjectFile[]) {
-    tentados++;
-    try {
-      let fileObj: File | null = null;
-      if (file.url && file.url.startsWith('blob:')) {
-        try {
-          const response = await fetch(file.url);
-          const blob = await response.blob();
-          fileObj = new File([blob], file.name, { type: file.type });
-        } catch (err) {
-          logger.warn(`prePushFiles: failed to retrieve blob for ${file.id}`, err);
-        }
-      }
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    const batchNum = batchIndex + 1;
+    const totalBatches = batches.length;
 
-      if (!fileObj) {
-        logger.warn(`prePushFiles: missing blob for ${file.id}, skipping`);
+    logger.info(`📦 Processing batch ${batchNum}/${totalBatches} (${batch.length} files)`);
+
+    const results = await Promise.allSettled(
+      batch.map((file, indexInBatch) => {
+        const globalIndex = batchIndex * FILE_BATCH_SIZE + indexInBatch + 1;
+        return uploadSingleFile(file, globalIndex, totalFiles);
+      })
+    );
+
+    for (const result of results) {
+      tentados++;
+      if (result.status === 'fulfilled' && result.value.success) {
+        sucesso++;
+      } else {
         falhas++;
-        continue;
       }
-
-      const { storagePath, uploadedAtISO } = await uploadToStorage(fileObj, {
-        projectId: file.projectId,
-        installationId: file.installationId,
-        id: file.id
-      });
-
-      await db.files.update(file.id, {
-        storagePath,
-        storage_path: storagePath,
-        uploadedAt: uploadedAtISO,
-        uploaded_at: uploadedAtISO,
-        updatedAt: Date.now(),
-        needsUpload: undefined,
-        _dirty: 1,
-        _deleted: 0
-      } as any);
-
-      if (file.url && file.url.startsWith('blob:')) {
-        URL.revokeObjectURL(file.url);
-      }
-
-      sucesso++;
-    } catch (error) {
-      falhas++;
-      logger.warn(`prePushFiles: failed to upload ${file.id}`, error);
     }
+
+    logger.info(
+      `📦 Batch ${batchNum}/${totalBatches} complete: ${sucesso}/${tentados} successful, ${falhas} failed`
+    );
   }
+
+  logger.info(
+    `📦 File upload complete: ${sucesso}/${tentados} successful, ${falhas} failed`
+  );
 
   return { tentados, sucesso, falhas };
 }
