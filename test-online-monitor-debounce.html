@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste 3 - Online Monitor Debounce</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #1e40af;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        .danger {
+            background: #ef4444;
+        }
+        .danger:hover {
+            background: #dc2626;
+        }
+        #log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid transparent;
+        }
+        .log-online {
+            border-left-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+        .log-sync {
+            border-left-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .log-skip {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+        .log-error {
+            border-left-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .status.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e40af;
+        }
+        .stat-label {
+            color: #64748b;
+            margin-top: 5px;
+        }
+        .instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #1e40af;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste 3: Online Monitor Debounce</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instruções do Teste</h3>
+            <ol>
+                <li>Abra o Console do DevTools (F12)</li>
+                <li>Clique em "Simular 5 Reconexões Rápidas" (dentro de 1 segundo)</li>
+                <li><strong>Resultado Esperado:</strong> Apenas 1 sync deve ser executado após 2000ms</li>
+                <li>Observe os logs abaixo e no console</li>
+                <li><strong>Validação:</strong> Contador "Syncs Executados" deve ser = 1</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>🎮 Controles de Teste</h2>
+            <button id="btnSimulate5">🔄 Simular 5 Reconexões Rápidas (1s)</button>
+            <button id="btnSimulate10">🔄 Simular 10 Reconexões Muito Rápidas (500ms)</button>
+            <button id="btnReset" class="danger">🔄 Resetar Contadores</button>
+            <button id="btnClear">🧹 Limpar Log</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Status Atual</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="reconnectCount">0</div>
+                    <div class="stat-label">Reconexões Disparadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="syncCount">0</div>
+                    <div class="stat-label">Syncs Executados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="skipCount">0</div>
+                    <div class="stat-label">Syncs Ignorados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ratio">-</div>
+                    <div class="stat-label">Taxa (Reconexões/Syncs)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Log de Eventos</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mock das dependências
+        const syncStateManager = {
+            state: { isOnline: false, status: 'idle', pendingPush: 0 },
+            updateState(updates) {
+                this.state = { ...this.state, ...updates };
+            },
+            getState() {
+                return this.state;
+            }
+        };
+
+        const realtimeManager = {
+            async reconnect() {
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+        };
+
+        const processSyncQueue = async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        };
+
+        const fullSync = async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        };
+
+        // Mock OnlineMonitor com lógica corrigida
+        class OnlineMonitor {
+            constructor() {
+                this.checkInterval = null;
+                this.isMonitoring = false;
+                this.reconnectDebounceTimer = null;
+                this.isHandlingReconnect = false;
+                this.abortController = null;
+            }
+
+            initialize() {
+                if (this.isMonitoring) return;
+                this.isMonitoring = true;
+            }
+
+            cleanup() {
+                if (this.checkInterval) {
+                    clearInterval(this.checkInterval);
+                    this.checkInterval = null;
+                }
+                
+                if (this.reconnectDebounceTimer) {
+                    clearTimeout(this.reconnectDebounceTimer);
+                    this.reconnectDebounceTimer = null;
+                }
+                
+                this.abortController?.abort();
+                this.abortController = null;
+                
+                this.isMonitoring = false;
+            }
+
+            async handleOnline() {
+                const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+                log(`🟢 [${timestamp}] Conexão restaurada (evento online disparado)`, 'online');
+                updateCounter('reconnectCount');
+
+                // Limpar timer anterior se existir
+                if (this.reconnectDebounceTimer) {
+                    clearTimeout(this.reconnectDebounceTimer);
+                    this.reconnectDebounceTimer = null;
+                    log(`⏭️ [${timestamp}] Timer anterior cancelado (debounce)`, 'skip');
+                }
+
+                // Atualizar estado imediatamente
+                syncStateManager.updateState({
+                    isOnline: true,
+                    status: 'idle'
+                });
+
+                try {
+                    await realtimeManager.reconnect();
+                } catch (error) {
+                    console.error('Erro ao reconectar canais em tempo real:', error);
+                }
+
+                // Debounce de 2000ms antes de sincronizar
+                this.reconnectDebounceTimer = setTimeout(async () => {
+                    const syncTimestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+                    
+                    // Verificar se já está processando uma reconexão
+                    if (this.isHandlingReconnect) {
+                        log(`⏭️ [${syncTimestamp}] Sync já em andamento, ignorando...`, 'skip');
+                        updateCounter('skipCount');
+                        return;
+                    }
+
+                    try {
+                        this.isHandlingReconnect = true;
+                        log(`🔄 [${syncTimestamp}] Iniciando sync após debounce de 2000ms`, 'sync');
+                        
+                        const pendingCount = syncStateManager.getState().pendingPush;
+
+                        if (pendingCount > 0) {
+                            try {
+                                await processSyncQueue();
+                                await fullSync();
+                                log(`✅ [${syncTimestamp}] Sync concluído com sucesso`, 'sync');
+                                updateCounter('syncCount');
+                            } catch (error) {
+                                console.error('Erro ao sincronizar após reconexão:', error);
+                                log(`❌ [${syncTimestamp}] Erro ao sincronizar`, 'error');
+                            }
+                        } else {
+                            log(`✅ [${syncTimestamp}] Sync concluído (sem pendências)`, 'sync');
+                            updateCounter('syncCount');
+                        }
+                    } finally {
+                        this.isHandlingReconnect = false;
+                    }
+                }, 2000);
+            }
+        }
+
+        // Instância do monitor
+        const onlineMonitor = new OnlineMonitor();
+        onlineMonitor.initialize();
+
+        // Contadores
+        let counters = {
+            reconnectCount: 0,
+            syncCount: 0,
+            skipCount: 0
+        };
+
+        function updateCounter(counterId) {
+            counters[counterId]++;
+            document.getElementById(counterId).textContent = counters[counterId];
+            updateRatio();
+        }
+
+        function updateRatio() {
+            const ratio = counters.reconnectCount > 0 
+                ? `${counters.reconnectCount}:${counters.syncCount}`
+                : '-';
+            document.getElementById('ratio').textContent = ratio;
+        }
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = message;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function resetCounters() {
+            counters = { reconnectCount: 0, syncCount: 0, skipCount: 0 };
+            document.getElementById('reconnectCount').textContent = '0';
+            document.getElementById('syncCount').textContent = '0';
+            document.getElementById('skipCount').textContent = '0';
+            document.getElementById('ratio').textContent = '-';
+            log('🔄 Contadores resetados', 'info');
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Simulações
+        async function simulateReconnects(count, interval) {
+            log(`\n🧪 INICIANDO TESTE: ${count} reconexões com intervalo de ${interval}ms`, 'info');
+            log(`⏱️ Esperado: 1 sync executado após 2000ms do último evento\n`, 'info');
+            
+            for (let i = 0; i < count; i++) {
+                await onlineMonitor.handleOnline();
+                if (i < count - 1) {
+                    await new Promise(resolve => setTimeout(resolve, interval));
+                }
+            }
+            
+            log(`\n⏳ Aguardando debounce (2000ms)...`, 'info');
+            
+            // Aguardar o debounce completar + margem
+            setTimeout(() => {
+                log(`\n✅ TESTE CONCLUÍDO`, 'info');
+                log(`📊 Resultado: ${counters.reconnectCount} reconexões → ${counters.syncCount} sync(s)`, 'info');
+                
+                if (counters.syncCount === 1) {
+                    log(`✅ SUCESSO: Debounce funcionou corretamente! Apenas 1 sync executado.`, 'sync');
+                } else {
+                    log(`❌ FALHA: Esperado 1 sync, mas foram executados ${counters.syncCount}`, 'error');
+                }
+                log(`\n${'='.repeat(80)}\n`, 'info');
+            }, 2500);
+        }
+
+        // Event listeners
+        document.getElementById('btnSimulate5').addEventListener('click', () => {
+            resetCounters();
+            simulateReconnects(5, 200); // 5 reconexões com 200ms entre elas
+        });
+
+        document.getElementById('btnSimulate10').addEventListener('click', () => {
+            resetCounters();
+            simulateReconnects(10, 50); // 10 reconexões com 50ms entre elas
+        });
+
+        document.getElementById('btnReset').addEventListener('click', resetCounters);
+        document.getElementById('btnClear').addEventListener('click', clearLog);
+
+        // Log inicial
+        log('🚀 Teste de Online Monitor Debounce inicializado', 'info');
+        log('📋 Pronto para testes. Use os botões acima para começar.\n', 'info');
+    </script>
+</body>
+</html>
