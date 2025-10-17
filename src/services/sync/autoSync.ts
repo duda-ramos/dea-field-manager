@@ -1,12 +1,11 @@
 // src/services/sync/autoSync.ts - Versão corrigida sem dependências problemáticas
-import { syncPull, syncPush, fullSync } from './sync';
+import { syncPull, syncPush } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
-import { realtimeManager } from '@/services/realtime/realtime';
+import { syncStateManager } from './syncState';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
   private periodicTimer: NodeJS.Timeout | null = null;
-  private isOnline = navigator.onLine;
   private isVisible = !document.hidden;
 
   async initialize() {
@@ -30,17 +29,6 @@ class AutoSyncManager {
   }
 
   private setupEventListeners() {
-    // Online/offline detection
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.handleOnlineStatusChange();
-    });
-    
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      this.handleOnlineStatusChange();
-    });
-
     // Use modern APIs instead of deprecated beforeunload
     document.addEventListener('visibilitychange', () => {
       this.isVisible = !document.hidden;
@@ -65,7 +53,8 @@ class AutoSyncManager {
 
   private async handleBackgroundSync() {
     const prefs = getSyncPreferences();
-    if (prefs.autoPushOnExit && this.isOnline) {
+    const isOnline = syncStateManager.getState().isOnline;
+    if (prefs.autoPushOnExit && isOnline) {
       try {
         // Non-blocking background sync
         void syncPush();
@@ -77,7 +66,8 @@ class AutoSyncManager {
 
   private async handlePageUnload() {
     const prefs = getSyncPreferences();
-    if (prefs.autoPushOnExit && this.isOnline) {
+    const isOnline = syncStateManager.getState().isOnline;
+    if (prefs.autoPushOnExit && isOnline) {
       try {
         // Simple push without blocking
         void syncPush();
@@ -87,17 +77,6 @@ class AutoSyncManager {
     }
   }
 
-  private async handleOnlineStatusChange() {
-    if (this.isOnline) {
-      // Back online - run full sync then reconnect realtime
-      try {
-        await fullSync();
-        await realtimeManager.reconnect();
-      } catch (_error) {
-        // Reconnection sync failed - logged via logger service
-      }
-    }
-  }
 
   // Method compatible with existing StorageManagerDexie calls
   triggerDebouncedSync() {
@@ -106,7 +85,8 @@ class AutoSyncManager {
     }
 
     this.debounceTimer = setTimeout(async () => {
-      if (this.isOnline) {
+      const isOnline = syncStateManager.getState().isOnline;
+      if (isOnline) {
         try {
           // Debounced auto-push in progress
           await syncPush();
@@ -144,7 +124,8 @@ class AutoSyncManager {
 
     this.periodicTimer = setInterval(async () => {
       // Only run when page is visible and online
-      if (this.isVisible && this.isOnline) {
+      const isOnline = syncStateManager.getState().isOnline;
+      if (this.isVisible && isOnline) {
         try {
           // Periodic auto-pull in progress
           await syncPull();
