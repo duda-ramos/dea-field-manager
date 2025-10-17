@@ -158,16 +158,32 @@ class SyncStateManager {
     this.listeners.forEach(listener => listener(this.currentState));
   }
 
-  public incrementPending(entityType: string, count = 1) {
-    this.currentState.pendingByTable[entityType] = (this.currentState.pendingByTable[entityType] || 0) + count;
-    this.currentState.pendingPush += count;
-    this.notify();
+  public incrementPending(entityType: keyof SyncState['pendingByTable'], count = 1) {
+    const currentCount = this.currentState.pendingByTable[entityType] || 0;
+    const pendingByTable = {
+      ...this.currentState.pendingByTable,
+      [entityType]: currentCount + count
+    };
+
+    this.updateState({
+      pendingByTable,
+      pendingPush: this.currentState.pendingPush + count
+    });
   }
 
-  public decrementPending(entityType: string, count = 1) {
-    this.currentState.pendingByTable[entityType] = Math.max(0, (this.currentState.pendingByTable[entityType] || 0) - count);
-    this.currentState.pendingPush = Math.max(0, this.currentState.pendingPush - count);
-    this.notify();
+  public decrementPending(entityType: keyof SyncState['pendingByTable'], count = 1) {
+    const currentCount = this.currentState.pendingByTable[entityType] || 0;
+    const newCount = Math.max(0, currentCount - count);
+    const pendingByTable = {
+      ...this.currentState.pendingByTable,
+      [entityType]: newCount
+    };
+    const diff = currentCount - newCount;
+
+    this.updateState({
+      pendingByTable,
+      pendingPush: Math.max(0, this.currentState.pendingPush - diff)
+    });
   }
 
   public getState(): SyncState {
