@@ -1,4 +1,4 @@
-import { Notification } from './NotificationSystem';
+import type { Notification } from './NotificationSystem.types';
 
 // Notification service for managing notifications
 class NotificationService {

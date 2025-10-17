@@ -8,25 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuthContext';
 import { notificationService } from './notificationService';
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  timestamp: string;
-  read: boolean;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-  projectId?: string;
-  category: 'sync' | 'project' | 'system' | 'budget' | 'contact';
-}
-
-interface NotificationSystemProps {
-  className?: string;
-}
+import type { Notification, NotificationSystemProps } from './NotificationSystem.types';
 
 export function NotificationSystem({ className }: NotificationSystemProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);

@@ -24,58 +24,9 @@ import { storage } from '@/lib/storage';
 import { LoadingState } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/logger';
-import type { Installation, Project, ProjectBudget, ProjectContact } from '@/types';
-
-type BulkItem = Project | Installation | ProjectContact | ProjectBudget;
-
-const getItemDisplayName = (item: BulkItem): string => {
-  if ('name' in item && typeof item.name === 'string' && item.name.trim().length > 0) {
-    return item.name;
-  }
-
-  if ('descricao' in item && typeof item.descricao === 'string') {
-    return item.descricao;
-  }
-
-  if ('supplier' in item && typeof item.supplier === 'string') {
-    return item.supplier;
-  }
-
-  if ('nome' in item && typeof item.nome === 'string' && item.nome.trim().length > 0) {
-    return item.nome;
-  }
-
-  if ('role' in item && typeof item.role === 'string') {
-    return item.role;
-  }
-
-  return 'Item';
-};
-
-export interface BulkOperation {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  action: (items: BulkItem[]) => Promise<void>;
-  requiresConfirmation?: boolean;
-  destructive?: boolean;
-  category: 'data' | 'sync' | 'export' | 'organize';
-}
-
-interface BulkOperationPanelProps {
-  items: BulkItem[];
-  itemType: 'projects' | 'contacts' | 'budgets' | 'installations';
-  onItemsChange?: (items: BulkItem[]) => void;
-  className?: string;
-}
-
-interface BulkProgress {
-  total: number;
-  completed: number;
-  current?: string;
-  errors: string[];
-}
+import type { Installation, Project } from '@/types';
+import type { BulkOperation, BulkOperationPanelProps, BulkProgress, BulkItem } from './BulkOperationPanel.types';
+import { getItemDisplayName } from './BulkOperationPanel.utils';
 
 export function BulkOperationPanel({
   items,
