@@ -145,7 +145,7 @@ export function ReportCustomizationModal({
   }, []);
 
   const handleRestoreDefaults = useCallback(() => {
-    setConfig(defaultConfig);
+    setConfig(DEFAULT_REPORT_CONFIG);
     toast({
       title: 'Preferências restauradas',
       description: 'As configurações padrão foram restauradas.',
@@ -375,20 +375,28 @@ export function ReportCustomizationModal({
                         <CardTitle className="text-base sm:text-lg">Informações Incluídas</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {Object.entries(config.includeDetails).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <Checkbox
-                                id={key}
-                                checked={value}
-                                onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
-                              />
-                              <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
-                                {getDetailLabel(key)}
-                              </Label>
+                        {Object.entries(config.includeDetails)
+                          .filter(([key]) => {
+                            // Only show supplierComments when interlocutor is fornecedor
+                            if (key === 'supplierComments') {
+                              return config.interlocutor === 'fornecedor';
+                            }
+                            return true;
+                          })
+                          .map(([key, value]) => (
+                            <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={key}
+                                  checked={value}
+                                  onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
+                                />
+                                <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
+                                  {getDetailLabel(key)}
+                                </Label>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </CardContent>
                     </Card>
                   </TabsContent>
