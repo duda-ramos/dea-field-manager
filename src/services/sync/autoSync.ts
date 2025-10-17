@@ -109,10 +109,21 @@ class AutoSyncManager {
 
   private async handleBootPull() {
     try {
-      // Auto-pull on start in progress
+      syncStateManager.updateState({
+        status: 'syncing'
+      });
+
       await syncPull();
-      // Auto-pull completed
+
+      syncStateManager.updateState({
+        status: 'idle'
+      });
     } catch (error) {
+      syncStateManager.setError({
+        message: 'Falha ao carregar dados',
+        timestamp: Date.now(),
+        operation: 'boot-pull'
+      });
       logger.syncError('boot-pull', error as Error, { trigger: 'initialize-with-auth' });
     }
   }
