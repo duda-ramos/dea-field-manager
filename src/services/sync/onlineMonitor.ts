@@ -2,6 +2,7 @@ import { syncStateManager } from './syncState';
 import { processSyncQueue } from '@/services/storage/StorageManagerDexie';
 import { fullSync } from './sync';
 import { toast } from '@/hooks/use-toast';
+import { realtimeManager } from '@/services/realtime/realtime';
 
 class OnlineMonitor {
   private checkInterval: number | null = null;
@@ -39,13 +40,19 @@ class OnlineMonitor {
   private handleOnline = async () => {
     console.log('🟢 Conexão restaurada');
     
-    syncStateManager.updateState({ 
+    syncStateManager.updateState({
       isOnline: true,
-      status: 'idle' 
+      status: 'idle'
     });
 
+    try {
+      await realtimeManager.reconnect();
+    } catch (error) {
+      console.error('Erro ao reconectar canais em tempo real:', error);
+    }
+
     const pendingCount = syncStateManager.getState().pendingPush;
-    
+
     if (pendingCount > 0) {
       toast({
         title: "Conexão Restaurada",
