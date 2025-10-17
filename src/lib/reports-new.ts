@@ -88,7 +88,6 @@ export async function saveReportToSupabase(
           config: config || {},
           file_url: urlData.publicUrl,
           file_name: fileName,
-          file_size: blob.size,
           interlocutor: config?.interlocutor || 'cliente',
           generated_by: user.id,
           generated_at: new Date().toISOString(),
