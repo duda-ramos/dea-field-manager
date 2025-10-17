@@ -151,7 +151,39 @@ class SyncStateManager {
 
   public updateState(updates: Partial<SyncState>) {
     this.currentState = { ...this.currentState, ...updates };
+    this.notify();
+  }
+
+  private notify() {
     this.listeners.forEach(listener => listener(this.currentState));
+  }
+
+  public incrementPending(entityType: keyof SyncState['pendingByTable'], count = 1) {
+    const currentCount = this.currentState.pendingByTable[entityType] || 0;
+    const pendingByTable = {
+      ...this.currentState.pendingByTable,
+      [entityType]: currentCount + count
+    };
+
+    this.updateState({
+      pendingByTable,
+      pendingPush: this.currentState.pendingPush + count
+    });
+  }
+
+  public decrementPending(entityType: keyof SyncState['pendingByTable'], count = 1) {
+    const currentCount = this.currentState.pendingByTable[entityType] || 0;
+    const newCount = Math.max(0, currentCount - count);
+    const pendingByTable = {
+      ...this.currentState.pendingByTable,
+      [entityType]: newCount
+    };
+    const diff = currentCount - newCount;
+
+    this.updateState({
+      pendingByTable,
+      pendingPush: Math.max(0, this.currentState.pendingPush - diff)
+    });
   }
 
   public getState(): SyncState {
