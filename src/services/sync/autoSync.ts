@@ -2,6 +2,7 @@
 import { syncPull, syncPush } from './sync';
 import { getSyncPreferences } from '@/lib/preferences';
 import { syncStateManager } from './syncState';
+import { logger } from '@/services/logger';
 
 class AutoSyncManager {
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -66,8 +67,8 @@ class AutoSyncManager {
       try {
         // Non-blocking background sync
         void syncPush();
-      } catch (_error) {
-        // Background sync failure logged via logger service
+      } catch (error) {
+        logger.syncError('background-sync', error as Error, { trigger: 'visibilitychange' });
       }
     }
   }
@@ -79,8 +80,8 @@ class AutoSyncManager {
       try {
         // Simple push without blocking
         void syncPush();
-      } catch (_error) {
-        // Page unload sync failure (expected behavior)
+      } catch (error) {
+        logger.syncError('page-unload', error as Error, { trigger: 'pagehide' });
       }
     }
   }
@@ -99,8 +100,8 @@ class AutoSyncManager {
           // Debounced auto-push in progress
           await syncPush();
           // Debounced auto-push completed
-        } catch (_error) {
-          // Debounced push failed - logged via logger service
+        } catch (error) {
+          logger.syncError('debounced-sync', error as Error, { trigger: 'debounce-timer' });
         }
       }
     }, 3000);
@@ -111,8 +112,8 @@ class AutoSyncManager {
       // Auto-pull on start in progress
       await syncPull();
       // Auto-pull completed
-    } catch (_error) {
-      // Auto-pull failed - logged via logger service
+    } catch (error) {
+      logger.syncError('boot-pull', error as Error, { trigger: 'initialize-with-auth' });
     }
   }
 
@@ -138,8 +139,8 @@ class AutoSyncManager {
           // Periodic auto-pull in progress
           await syncPull();
           // Periodic auto-pull completed
-        } catch (_error) {
-          // Periodic pull failed - logged via logger service
+        } catch (error) {
+          logger.syncError('periodic-pull', error as Error, { trigger: 'visibility-online-check' });
         }
       }
     }, intervalMs);
