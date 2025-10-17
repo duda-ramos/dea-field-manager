@@ -94,6 +94,14 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
 
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
+    const batchStart = Date.now();
+    
+    logger.info('Processing batch', { 
+      batch: i+1, 
+      total: batches.length, 
+      size: batch.length,
+      entityName 
+    });
     
     await withRetry(async () => {
       const operations = batch.map(async (record: Record<string, unknown>) => {
@@ -129,6 +137,14 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
       });
 
       await Promise.all(operations);
+    });
+    
+    logger.info('Batch completed', { 
+      batch: i+1,
+      duration: Date.now() - batchStart,
+      pushed, 
+      deleted,
+      errors: errors.length 
     });
   }
 
@@ -174,6 +190,13 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 
       // Type guard: ensure data is an array
       const records = Array.isArray(data) ? data : [];
+      
+      logger.debug('Pulled page', { 
+        page: page+1, 
+        records: records.length,
+        entityName,
+        hasMore: records.length === PULL_PAGE_SIZE
+      });
 
       if (records.length > 0) {
         logger.debug(`📥 Pulling ${records.length} ${entityName} (page ${page + 1})...`);
