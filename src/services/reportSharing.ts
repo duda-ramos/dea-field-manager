@@ -136,6 +136,8 @@ export const reportSharingService = {
       throw new Error(`Failed to verify report ownership: ${newReportError.message}`);
     }
 
+    // Report not found in report_history table
+
     if (!reportFound) {
       const { data: legacyReport, error: legacyReportError } = await supabase
         .from('project_report_history')
@@ -147,7 +149,7 @@ export const reportSharingService = {
       if (legacyReport && !legacyReportError) {
         reportFound = true;
       } else if (legacyReportError && legacyReportError.code !== 'PGRST116') {
-        throw new Error(`Failed to verify legacy report ownership: ${legacyReportError.message}`);
+        throw new Error(`Failed to verify report ownership: ${legacyReportError.message}`);
       }
     }
 
