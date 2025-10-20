@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { showToast } from "@/lib/toast";
 import { logger } from '@/services/logger';
 import { LazyImage } from "@/components/ui/LazyImage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PhotoGalleryProps {
   photos?: string[]; // Made optional to handle undefined
@@ -17,6 +18,7 @@ interface PhotoGalleryProps {
   projectId?: string; // Adiciona projectId opcional
   installationId?: string; // Adiciona installationId opcional
   installationCode?: string; // Adiciona código da instalação opcional
+  isLoading?: boolean; // Adiciona estado de carregamento
 }
 
 export function PhotoGallery({ 
@@ -25,7 +27,8 @@ export function PhotoGallery({
   className,
   projectId,
   installationId,
-  installationCode
+  installationCode,
+  isLoading = false
 }: PhotoGalleryProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const { toast } = useToast();
@@ -162,7 +165,13 @@ export function PhotoGallery({
         </div>
       </div>
 
-      {safePhotos.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-3 gap-2">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+            <Skeleton key={i} className="w-full h-20 rounded-md" />
+          ))}
+        </div>
+      ) : safePhotos.length === 0 ? (
         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
           <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Nenhuma foto adicionada</p>
