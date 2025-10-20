@@ -1141,18 +1141,26 @@ export default function ProjectDetailNew() {
 
         {/* Mobile-Optimized Installation List */}
         <div className="space-y-4">
-          {isLoadingData ? (
+          {isLoadingData || isImporting ? (
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <Card key={i}>
                   <CardContent className="p-4 space-y-3">
-                    <Skeleton className="h-6 w-1/3" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-2/3" />
-                      <div className="flex gap-2 pt-2">
-                        <Skeleton className="h-9 flex-1" />
-                        <Skeleton className="h-9 w-9" />
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-4 w-4 mt-1" />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                          <Skeleton className="h-6 w-16" />
+                          <Skeleton className="h-5 w-3/4" />
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-2/3" />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Skeleton className="h-9 flex-1" />
+                          <Skeleton className="h-9 w-9" />
+                        </div>
                       </div>
                     </div>
                   </CardContent>
