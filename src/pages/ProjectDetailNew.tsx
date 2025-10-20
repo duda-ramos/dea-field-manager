@@ -428,20 +428,29 @@ export default function ProjectDetailNew() {
         .map(([pavimento, count]) => `${pavimento}: ${count} itens`)
         .join(', ');
       
-      // Handle partial success (some rows rejected)
-      if (result.linhasRejeitadas > 0) {
-        const errorSummary = result.errors
+      // Handle partial success (some rows rejected or sheet-level issues)
+      const sheetErrors = result.errors ?? [];
+      const sheetLevelErrorCount = sheetErrors.length;
+      const hasPartialIssues = result.linhasRejeitadas > 0 || sheetLevelErrorCount > 0;
+
+      if (hasPartialIssues) {
+        const errorSummary = sheetErrors
           .slice(0, 3) // Show first 3 errors
           .map(err => err.mensagem)
           .join('\n');
-        
-        const moreErrors = result.errors.length > 3 
-          ? `\n... e mais ${result.errors.length - 3} erro(s)`
+
+        const moreErrors = sheetLevelErrorCount > 3
+          ? `\n... e mais ${sheetLevelErrorCount - 3} erro(s)`
           : '';
-        
+
+        const toastTitle = result.linhasRejeitadas > 0
+          ? `Importação parcial: ${result.linhasImportadas} de ${result.totalLinhas} linhas`
+          : 'Importação concluída com alertas';
+        const issueHeader = result.linhasRejeitadas > 0 ? 'Erros encontrados' : 'Alertas encontrados';
+
         toast({
-          title: `Importação parcial: ${result.linhasImportadas} de ${result.totalLinhas} linhas`,
-          description: `${summaryText}\n\nErros encontrados:\n${errorSummary}${moreErrors}`,
+          title: toastTitle,
+          description: `${summaryText}\n\n${issueHeader}:\n${errorSummary}${moreErrors}`,
           variant: "default"
         });
       } else {
