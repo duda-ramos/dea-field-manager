@@ -10,9 +10,12 @@ export async function syncPhotoToProjectAlbum(
   installationId: string,
   installationCode: string,
   storagePath: string,
+  fileSize: number,
+  fileType: string,
   sequencial?: number
 ): Promise<void> {
   try {
+    console.log('📸 Sync com metadados:', { fileSize, fileType, fileName: `peca_${installationCode}` });
     console.log(`🔄 Sincronizando foto da peça ${installationCode} com álbum do projeto...`);
     console.log(`📁 Storage path: ${storagePath}`);
     
@@ -29,9 +32,10 @@ export async function syncPhotoToProjectAlbum(
       projectId,
       installationId,
       name: fileName,
-      type: 'image',
-      size: 0, // Tamanho será atualizado pela sincronização do storage
+      type: fileType, // Usar tipo MIME completo ao invés de 'image'
+      size: fileSize, // Usar tamanho real ao invés de 0
       storagePath, // Usar storagePath existente diretamente
+      url: '', // Adicionar campo url vazio
       uploadedAt: new Date().toISOString(),
       updatedAt: Date.now(),
       createdAt: Date.now(),
@@ -86,11 +90,14 @@ export async function syncAllInstallationPhotos(
     console.log(`📸 Sincronizando foto ${i + 1}/${storagePaths.length}...`);
     
     // Sync não-bloqueante: falha em uma foto não quebra as outras
+    // Nota: fileSize e fileType não estão disponíveis aqui, usando valores padrão
     await syncPhotoToProjectAlbum(
       projectId,
       installationId,
       installationCode,
       storagePath,
+      0, // fileSize desconhecido neste contexto
+      'image/jpeg', // fileType padrão
       sequencial + i
     );
   }
