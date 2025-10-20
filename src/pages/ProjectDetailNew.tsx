@@ -348,11 +348,20 @@ export default function ProjectDetailNew() {
     try {
       const result = await importExcelFile(file, project.id);
       
-      if (!result.success) {
-        const errorMessage = result.errors?.join('\n') || 'Erro desconhecido';
+      // Handle complete failure (no data imported)
+      if (!result.success && !result.data) {
+        const errorMessages = result.errors
+          .slice(0, 5) // Show max 5 errors
+          .map(err => err.mensagem)
+          .join('\n');
+        
+        const moreErrors = result.errors.length > 5 
+          ? `\n... e mais ${result.errors.length - 5} erro(s)`
+          : '';
+        
         toast({
           title: "Erro na importação",
-          description: errorMessage,
+          description: errorMessages + moreErrors,
           variant: "destructive"
         });
         return;
@@ -419,10 +428,38 @@ export default function ProjectDetailNew() {
         .map(([pavimento, count]) => `${pavimento}: ${count} itens`)
         .join(', ');
       
-      toast({
-        title: "Planilha importada com sucesso!",
-        description: summaryText || `Importados ${results.length} itens`,
-      });
+      // Handle partial success (some rows rejected or sheet-level issues)
+      const sheetErrors = result.errors ?? [];
+      const sheetLevelErrorCount = sheetErrors.length;
+      const hasPartialIssues = result.linhasRejeitadas > 0 || sheetLevelErrorCount > 0;
+
+      if (hasPartialIssues) {
+        const errorSummary = sheetErrors
+          .slice(0, 3) // Show first 3 errors
+          .map(err => err.mensagem)
+          .join('\n');
+
+        const moreErrors = sheetLevelErrorCount > 3
+          ? `\n... e mais ${sheetLevelErrorCount - 3} erro(s)`
+          : '';
+
+        const toastTitle = result.linhasRejeitadas > 0
+          ? `Importação parcial: ${result.linhasImportadas} de ${result.totalLinhas} linhas`
+          : 'Importação concluída com alertas';
+        const issueHeader = result.linhasRejeitadas > 0 ? 'Erros encontrados' : 'Alertas encontrados';
+
+        toast({
+          title: toastTitle,
+          description: `${summaryText}\n\n${issueHeader}:\n${errorSummary}${moreErrors}`,
+          variant: "default"
+        });
+      } else {
+        // Complete success
+        toast({
+          title: "Planilha importada com sucesso!",
+          description: `${summaryText}\n${result.totalLinhas} linha(s) importada(s)`,
+        });
+      }
     } catch (error) {
       console.error('[ProjectDetail] Falha na importação de planilha:', error, {
         projectId: project.id,
