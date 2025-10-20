@@ -30,7 +30,7 @@ interface MigrationStats {
 }
 ```
 
-### 2. `fixPhotoMetadata(fileId: string, storagePath: string)`
+### 2. `fixPhotoMetadata(projectId: string, fileId: string, storagePath: string)`
 
 Corrige metadados de uma foto específica.
 
@@ -61,7 +61,7 @@ await migrateInstallationPhotos.migrateProject('project-id-aqui')
 await migrateInstallationPhotos.migrateAll()
 
 // Corrigir metadados de uma foto específica
-await migrateInstallationPhotos.fixMetadata('file-id', 'storage/path/to/photo.jpg')
+await migrateInstallationPhotos.fixMetadata('project-id', 'file-id', 'storage/path/to/photo.jpg')
 ```
 
 ### Opção 2: Importar no Código

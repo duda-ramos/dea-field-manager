@@ -68,12 +68,13 @@ export async function exampleMigrateAllProjects() {
  * EXEMPLO 3: Corrigir metadados de uma foto específica
  */
 export async function exampleFixSinglePhoto() {
+  const projectId = 'seu-project-id-aqui';
   const fileId = 'img_1234567890_abc123';
   const storagePath = 'project-id/installation-id/photo.jpg';
-  
+
   console.log('Corrigindo metadados da foto...');
-  
-  const fixed = await fixPhotoMetadata(fileId, storagePath);
+
+  const fixed = await fixPhotoMetadata(projectId, fileId, storagePath);
   
   if (fixed) {
     console.log('✅ Metadados corrigidos com sucesso!');

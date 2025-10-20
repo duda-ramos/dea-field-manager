@@ -73,6 +73,7 @@ async function getStorageFileMetadata(storagePath: string): Promise<{ size: numb
  * Busca tamanho e tipo reais do arquivo no storage
  */
 export async function fixPhotoMetadata(
+  projectId: string,
   fileId: string,
   storagePath: string
 ): Promise<boolean> {
@@ -87,9 +88,9 @@ export async function fixPhotoMetadata(
       return false;
     }
 
-    // Obter arquivo atual do banco
-    const currentFile = await StorageManagerDexie.getFilesByProject('');
-    const file = currentFile.find(f => f.id === fileId);
+    // Obter arquivo atual do banco limitado ao projeto
+    const projectFiles = await StorageManagerDexie.getFilesByProject(projectId);
+    const file = projectFiles.find(f => f.id === fileId);
     
     if (!file) {
       console.warn('⚠️ Arquivo não encontrado no banco:', fileId);
@@ -206,7 +207,7 @@ export async function migrateInstallationPhotosForProject(
             if (existingPhoto.size === 0 || !existingPhoto.type || existingPhoto.type === 'image') {
               console.log(`   🔧 Corrigindo metadados (size=${existingPhoto.size}, type=${existingPhoto.type})`);
               
-              const fixed = await fixPhotoMetadata(existingPhoto.id, photoPath);
+              const fixed = await fixPhotoMetadata(projectId, existingPhoto.id, photoPath);
               if (fixed) {
                 stats.metadataFixed++;
               }
