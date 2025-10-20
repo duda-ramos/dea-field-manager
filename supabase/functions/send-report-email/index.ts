@@ -114,7 +114,7 @@ serve(async (req) => {
 
     // Fetch report statistics
     const { data: reportData, error: reportError } = await supabase
-      .from('project_report_history')
+      .from('report_history')
       .select(`
         id,
         generated_at,
