@@ -272,7 +272,9 @@ export function EnhancedImageUpload({
               projectId,
               installationId,
               installation.codigo.toString(),
-              res.storagePath
+              res.storagePath,
+              file.size,
+              file.type
             );
           }
         } catch (syncError) {

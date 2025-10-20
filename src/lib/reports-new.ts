@@ -1295,9 +1295,9 @@ async function getPhotoPublicUrls(projectId: string, installationId: string): Pr
     
     // Get files for this installation from the database
     const files = await storage.getFilesByProject(projectId);
-    const installationFiles = files.filter(f => 
-      f.installationId === installationId && 
-      f.type === 'image' && 
+    const installationFiles = files.filter(f =>
+      f.installationId === installationId &&
+      (f.type === 'image' || (typeof f.type === 'string' && f.type.startsWith('image/'))) &&
       f.storagePath
     );
     
