@@ -117,10 +117,18 @@ serve(async (req) => {
       .from('report_history')
       .select(`
         id,
+        project_id,
+        user_id,
+        file_name,
+        file_url,
+        format,
+        interlocutor,
+        stats,
+        config,
+        sections_included,
         generated_at,
         created_at,
-        stats,
-        project_id
+        generated_by
       `)
       .eq('id', requestData.reportId)
       .eq('project_id', requestData.projectId)
@@ -137,6 +145,93 @@ serve(async (req) => {
         }
       )
     }
+
+    // Ensure legacy project_report_history entry exists for logging/links
+    let reportIdForLogging: string | null = null
+
+    const { data: legacyReport, error: legacyLookupError } = await supabase
+      .from('project_report_history')
+      .select('id')
+      .eq('id', reportData.id)
+      .eq('project_id', requestData.projectId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (legacyLookupError) {
+      console.error('Erro ao verificar relatório legado:', legacyLookupError)
+    } else if (legacyReport?.id) {
+      reportIdForLogging = legacyReport.id
+    } else {
+      const normalizeJsonObject = (value: unknown) => {
+        if (!value) {
+          return {}
+        }
+
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value)
+            if (parsed && typeof parsed === 'object') {
+              return parsed as Record<string, unknown>
+            }
+          } catch (parseError) {
+            console.warn('Falha ao converter JSON string para objeto:', parseError)
+            return {}
+          }
+        }
+
+        if (typeof value === 'object') {
+          return value as Record<string, unknown>
+        }
+
+        return {}
+      }
+
+      const rawSections = (reportData as Record<string, unknown>).sections_included ??
+        (typeof reportData.config === 'object' && reportData.config !== null
+          ? (reportData.config as Record<string, unknown>).sections
+          : undefined)
+
+      const sectionsIncluded = normalizeJsonObject(rawSections)
+      const configValue = normalizeJsonObject(reportData.config)
+      const statsValue = normalizeJsonObject(reportData.stats)
+
+      const legacyInsertPayload = {
+        id: reportData.id,
+        project_id: reportData.project_id,
+        user_id: reportData.user_id ?? user.id,
+        file_name: reportData.file_name,
+        file_url: reportData.file_url,
+        format: reportData.format,
+        interlocutor: reportData.interlocutor,
+        config: configValue,
+        sections_included: sectionsIncluded,
+        stats: statsValue,
+        generated_by: reportData.generated_by ?? user.id,
+        generated_at: reportData.generated_at ?? reportData.created_at ?? new Date().toISOString(),
+        created_at: reportData.created_at ?? new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { error: legacyInsertError } = await supabase
+        .from('project_report_history')
+        .insert(legacyInsertPayload)
+
+      if (legacyInsertError) {
+        if (legacyInsertError.code === '23505') {
+          reportIdForLogging = reportData.id
+        } else {
+          console.error('Falha ao criar registro legado para relatório:', legacyInsertError)
+        }
+      } else {
+        reportIdForLogging = reportData.id
+      }
+    }
+
+    if (!reportIdForLogging) {
+      reportIdForLogging = reportData.id
+    }
+
+    const logReportId = reportIdForLogging ?? reportData.id
 
     // Calculate statistics from stored report stats
     const stats = calculateReportStats(reportData.stats)
@@ -189,13 +284,17 @@ serve(async (req) => {
       console.error('Erro ao enviar email:', error)
       
       // Log failed attempt
-      await supabase.from('email_logs').insert({
+      const { error: failedLogError } = await supabase.from('email_logs').insert({
         user_id: user.id,
         recipient_email: requestData.to,
-        report_id: requestData.reportId,
+        report_id: logReportId,
         success: false,
         error_message: error
       })
+
+      if (failedLogError) {
+        console.error('Falha ao registrar log de email com erro:', failedLogError)
+      }
 
       return new Response(
         JSON.stringify({ error: 'Erro ao enviar email' }),
@@ -207,12 +306,16 @@ serve(async (req) => {
     }
 
     // Log successful email
-    await supabase.from('email_logs').insert({
+    const { error: successLogError } = await supabase.from('email_logs').insert({
       user_id: user.id,
       recipient_email: requestData.to,
-      report_id: requestData.reportId,
+      report_id: logReportId,
       success: true
     })
+
+    if (successLogError) {
+      console.error('Falha ao registrar log de email enviado:', successLogError)
+    }
 
     return new Response(
       JSON.stringify({ success: true }),
