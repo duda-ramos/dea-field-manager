@@ -80,7 +80,9 @@ export function PhotoGallery({
               projectId,
               installationId,
               installationCode,
-              storagePath
+              storagePath,
+              renamedFile.size,
+              renamedFile.type
             );
 
             syncedCount += 1;

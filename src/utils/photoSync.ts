@@ -10,11 +10,14 @@ export async function syncPhotoToProjectAlbum(
   installationId: string,
   installationCode: string,
   storagePath: string,
+  fileSize: number,
+  fileType: string,
   sequencial?: number
 ): Promise<void> {
   try {
     console.log(`🔄 Sincronizando foto da peça ${installationCode} com álbum do projeto...`);
     console.log(`📁 Storage path: ${storagePath}`);
+    console.log('📸 Sync com metadados:', { fileSize, fileType, installationCode });
     
     // Gerar nome do arquivo padronizado: peca_[codigo]_[data]_[seq].jpg
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -29,12 +32,13 @@ export async function syncPhotoToProjectAlbum(
       projectId,
       installationId,
       name: fileName,
-      type: 'image',
-      size: 0, // Tamanho será atualizado pela sincronização do storage
+      type: fileType, // Usar tipo MIME completo
+      size: fileSize, // Usar tamanho real do arquivo
       storagePath, // Usar storagePath existente diretamente
       uploadedAt: new Date().toISOString(),
       updatedAt: Date.now(),
       createdAt: Date.now(),
+      url: '', // Campo url vazio (será gerado sob demanda)
       _dirty: 1,
       _deleted: 0
     };
@@ -59,7 +63,7 @@ export async function syncPhotoToProjectAlbum(
 async function getNextSequentialForProject(projectId: string): Promise<number> {
   try {
     const files = await StorageManagerDexie.getFilesByProject(projectId);
-    const imageFiles = files.filter(f => f.type === 'image');
+    const imageFiles = files.filter(f => f.type?.startsWith('image/'));
     return imageFiles.length + 1;
   } catch (error) {
     console.error('Erro ao obter sequencial:', error);
@@ -75,7 +79,9 @@ export async function syncAllInstallationPhotos(
   projectId: string,
   installationId: string,
   installationCode: string,
-  storagePaths: string[]
+  storagePaths: string[],
+  fileSize: number = 0,
+  fileType: string = 'image/jpeg'
 ): Promise<void> {
   console.log(`🔄 Iniciando sincronização de ${storagePaths.length} foto(s) da peça ${installationCode}`);
   
@@ -91,6 +97,8 @@ export async function syncAllInstallationPhotos(
       installationId,
       installationCode,
       storagePath,
+      fileSize,
+      fileType,
       sequencial + i
     );
   }
