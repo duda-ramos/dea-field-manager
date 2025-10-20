@@ -6,6 +6,7 @@ import { db } from '@/db/indexedDb'
 import { realtimeManager } from '@/services/realtime/realtime'
 import { logger } from '@/services/logger'
 import { refreshDatabase } from '@/lib/dbRefresh'
+import '@/scripts/migrateInstallationPhotos' // Carrega script de migração de fotos
 
 // Debug helper (somente em DEV)
 if (import.meta.env.DEV) {
