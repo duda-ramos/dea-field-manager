@@ -74,35 +74,56 @@ async function getNextSequentialForProject(projectId: string): Promise<number> {
 }
 
 /**
+ * Metadados de foto para sincronização
+ */
+export interface PhotoMetadata {
+  storagePath: string;
+  size: number;
+  type: string;
+}
+
+/**
  * Sincroniza todas as fotos de uma peça com o álbum do projeto
- * IMPORTANTE: Recebe storagePaths, NÃO faz upload duplicado
+ * IMPORTANTE: Recebe metadados completos das fotos, NÃO faz upload duplicado
  */
 export async function syncAllInstallationPhotos(
   projectId: string,
   installationId: string,
   installationCode: string,
-  storagePaths: string[]
+  photos: PhotoMetadata[] | string[]
 ): Promise<void> {
-  console.log(`🔄 Iniciando sincronização de ${storagePaths.length} foto(s) da peça ${installationCode}`);
+  // Normalizar entrada: aceita tanto PhotoMetadata[] quanto string[] (para compatibilidade)
+  const photoMetadata: PhotoMetadata[] = photos.map(photo => {
+    if (typeof photo === 'string') {
+      // Compatibilidade com código antigo que passa apenas storagePath
+      return {
+        storagePath: photo,
+        size: 0,
+        type: 'image/jpeg'
+      };
+    }
+    return photo;
+  });
   
-  for (let i = 0; i < storagePaths.length; i++) {
-    const storagePath = storagePaths[i];
+  console.log(`🔄 Iniciando sincronização de ${photoMetadata.length} foto(s) da peça ${installationCode}`);
+  
+  for (let i = 0; i < photoMetadata.length; i++) {
+    const photo = photoMetadata[i];
     const sequencial = await getNextSequentialForProject(projectId);
     
-    console.log(`📸 Sincronizando foto ${i + 1}/${storagePaths.length}...`);
+    console.log(`📸 Sincronizando foto ${i + 1}/${photoMetadata.length}... (${photo.size} bytes, tipo: ${photo.type})`);
     
     // Sync não-bloqueante: falha em uma foto não quebra as outras
-    // Nota: fileSize e fileType não estão disponíveis aqui, usando valores padrão
     await syncPhotoToProjectAlbum(
       projectId,
       installationId,
       installationCode,
-      storagePath,
-      0, // fileSize desconhecido neste contexto
-      'image/jpeg', // fileType padrão
+      photo.storagePath,
+      photo.size,
+      photo.type,
       sequencial + i
     );
   }
   
-  console.log(`✅ Sincronização concluída: ${storagePaths.length} foto(s) processadas`);
+  console.log(`✅ Sincronização concluída: ${photoMetadata.length} foto(s) processadas`);
 }

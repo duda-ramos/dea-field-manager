@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { syncAllInstallationPhotos } from '@/utils/photoSync';
+import { syncAllInstallationPhotos, type PhotoMetadata } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import type { Installation } from '@/types';
 
@@ -26,7 +26,7 @@ export async function syncImportedPhotosToGallery(
   let successCount = 0;
   let errorCount = 0;
   
-  // Starting photo sync for installations
+  console.log(`📸 Iniciando sincronização de fotos para ${installations.length} instalações importadas`);
   
   for (const installation of installations) {
     try {
@@ -46,34 +46,38 @@ export async function syncImportedPhotosToGallery(
         continue;
       }
       
-      // Extrair storagePaths
-      const storagePaths = installationPhotos
-        .map(f => f.storagePath)
-        .filter((path): path is string => !!path);
+      // Extrair metadados das fotos (storagePath, size, type)
+      const photoMetadata = installationPhotos
+        .filter(f => f.storagePath) // Apenas fotos com storagePath válido
+        .map(f => ({
+          storagePath: f.storagePath!,
+          size: f.size || 0,
+          type: typeof f.type === 'string' ? f.type : 'image/jpeg'
+        }));
       
-      if (storagePaths.length === 0) {
+      if (photoMetadata.length === 0) {
         continue;
       }
       
-      // Sincronizar fotos
-      // Syncing photos for installation
+      console.log(`🔄 Sincronizando ${photoMetadata.length} foto(s) da instalação ${installation.codigo}`);
       
+      // Sincronizar fotos com metadados completos
       await syncAllInstallationPhotos(
         projectId,
         installation.id,
         String(installation.codigo),
-        storagePaths
+        photoMetadata
       );
       
       successCount++;
-    } catch {
-      // Error syncing photos - continue with next
+    } catch (error) {
+      console.error(`❌ Erro ao sincronizar fotos da instalação ${installation.codigo}:`, error);
       errorCount++;
       // Continuar mesmo se uma falhar
     }
   }
   
-  // Sync completed
+  console.log(`✅ Sincronização concluída: ${successCount} instalações processadas, ${errorCount} erros`);
   
   return {
     total: installations.length,
