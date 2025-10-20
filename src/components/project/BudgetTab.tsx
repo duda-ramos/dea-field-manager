@@ -4,6 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, FileText, Edit, Trash2, Download, Users } from "lucide-react";
@@ -41,6 +51,8 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [proposalToDelete, setProposalToDelete] = useState<{ id: string; filePath?: string; name: string } | null>(null);
   const [newProposal, setNewProposal] = useState({
     supplier: "",
     status: "pending" as const,
@@ -279,22 +291,27 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
     });
   };
 
-  const handleDeleteProposal = async (proposalId: string, filePath?: string) => {
-    if (!user) return;
+  const handleDeleteClick = (proposalId: string, filePath: string | undefined, supplierName: string) => {
+    setProposalToDelete({ id: proposalId, filePath, name: supplierName });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteProposal = async () => {
+    if (!user || !proposalToDelete) return;
 
     try {
       // Deletar arquivo do storage se existir
-      if (filePath) {
+      if (proposalToDelete.filePath) {
         await supabase.storage
           .from('Orcamentos')
-          .remove([filePath]);
+          .remove([proposalToDelete.filePath]);
       }
 
       // Deletar registro do banco
       const { error } = await supabase
         .from('supplier_proposals')
         .delete()
-        .eq('id', proposalId)
+        .eq('id', proposalToDelete.id)
         .eq('user_id', user.id);
 
       if (error) {
@@ -312,11 +329,14 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         title: "Proposta excluída",
         description: "Proposta foi excluída com sucesso"
       });
+      
+      setDeleteConfirmOpen(false);
+      setProposalToDelete(null);
     } catch (error) {
       logger.error('Erro ao excluir proposta de fornecedor', {
         error,
-        proposalId,
-        filePath,
+        proposalId: proposalToDelete.id,
+        filePath: proposalToDelete.filePath,
         operacao: 'handleDeleteProposal'
       });
       toast({
@@ -618,7 +638,7 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleDeleteProposal(proposal.id, proposal.file_path)}
+                      onClick={() => handleDeleteClick(proposal.id, proposal.file_path, proposal.supplier)}
                       className="gap-1"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -665,6 +685,30 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a proposta de <strong>{proposalToDelete?.name}</strong>?
+              <br />
+              <br />
+              Esta ação não pode ser desfeita e o arquivo será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProposalToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProposal}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Proposal Dialog */}
       {editingProposal && (
