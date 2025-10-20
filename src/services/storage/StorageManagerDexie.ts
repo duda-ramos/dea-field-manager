@@ -30,9 +30,12 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
     return;
   }
 
+  let userId: string | undefined;
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    userId = user.id;
 
     syncStateManager.updateState({ status: 'syncing' });
 
@@ -77,7 +80,7 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
       context: {
         entityType,
         dataId: (data as Record<string, unknown>)?.id,
-        userId: user?.id,
+        userId,
         operacao: 'syncToServerImmediate',
         timestamp: new Date().toISOString()
       }
@@ -199,9 +202,11 @@ export const StorageManagerDexie = {
 
     // ONLINE FIRST: Tentar salvar no servidor imediatamente
     if (isOnline()) {
+      let userId: string | undefined;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Usuário não autenticado');
+        userId = user.id;
 
         // Se é novo projeto, criar no Supabase
         if (!project.id || project.id === '' || project.id.startsWith('project_')) {
@@ -258,7 +263,7 @@ export const StorageManagerDexie = {
           context: {
             projectId: withDates.id,
             projectName: withDates.name,
-            userId: user.id,
+            userId,
             operacao: 'upsertProject',
             isNewProject: !project.id || project.id === '' || project.id.startsWith('project_'),
             timestamp: new Date().toISOString()
@@ -948,9 +953,12 @@ async function migrateLegacyReportHistory() {
 };
 
 (StorageManagerDexie as any).saveReport = async (report: ReportHistoryEntry) => {
+  let normalizedForLogging: ReturnType<typeof normalizeReportHistoryEntry> | undefined;
+
   try {
     await migrateLegacyReportHistory();
     const normalized = normalizeReportHistoryEntry(report);
+    normalizedForLogging = normalized;
 
     if (!normalized.projectId) {
       throw new Error('Report must include a projectId');
@@ -993,9 +1001,9 @@ async function migrateLegacyReportHistory() {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       context: {
-        reportId: normalized.id,
-        projectId: normalized.projectId,
-        format: normalized.format,
+        reportId: normalizedForLogging?.id,
+        projectId: normalizedForLogging?.projectId,
+        format: normalizedForLogging?.format,
         operacao: 'saveReport',
         timestamp: new Date().toISOString()
       }
