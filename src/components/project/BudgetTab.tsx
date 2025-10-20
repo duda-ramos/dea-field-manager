@@ -299,19 +299,21 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const handleDeleteProposal = async () => {
     if (!user || !proposalToDelete) return;
 
+    const proposal = proposalToDelete;
+
     try {
       // Deletar arquivo do storage se existir
-      if (proposalToDelete.filePath) {
+      if (proposal.filePath) {
         await supabase.storage
           .from('Orcamentos')
-          .remove([proposalToDelete.filePath]);
+          .remove([proposal.filePath]);
       }
 
       // Deletar registro do banco
       const { error } = await supabase
         .from('supplier_proposals')
         .delete()
-        .eq('id', proposalToDelete.id)
+        .eq('id', proposal.id)
         .eq('user_id', user.id);
 
       if (error) {
@@ -329,14 +331,14 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
         title: "Proposta excluída",
         description: "Proposta foi excluída com sucesso"
       });
-      
+
       setDeleteConfirmOpen(false);
       setProposalToDelete(null);
     } catch (error) {
       logger.error('Erro ao excluir proposta de fornecedor', {
         error,
-        proposalId: proposalToDelete.id,
-        filePath: proposalToDelete.filePath,
+        proposalId: proposal.id,
+        filePath: proposal.filePath,
         operacao: 'handleDeleteProposal'
       });
       toast({

@@ -198,11 +198,13 @@ export function FileManager({ projectId }: FileManagerProps) {
   const handleDelete = async () => {
     if (!fileToDelete) return;
 
+    const file = fileToDelete;
+
     try {
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('project-files')
-        .remove([fileToDelete.file_path]);
+        .remove([file.file_path]);
 
       if (storageError) throw storageError;
 
@@ -210,13 +212,13 @@ export function FileManager({ projectId }: FileManagerProps) {
       const { error: dbError } = await supabase
         .from('project_files')
         .delete()
-        .eq('id', fileToDelete.id);
+        .eq('id', file.id);
 
       if (dbError) throw dbError;
 
       toast({
         title: "Arquivo excluído",
-        description: `${fileToDelete.file_name} foi excluído com sucesso`
+        description: `${file.file_name} foi excluído com sucesso`
       });
 
       setDeleteConfirmOpen(false);
@@ -225,9 +227,9 @@ export function FileManager({ projectId }: FileManagerProps) {
     } catch (error) {
       logger.error('Error deleting file', {
         error,
-        fileId: fileToDelete.id,
-        fileName: fileToDelete.file_name,
-        filePath: fileToDelete.file_path,
+        fileId: file.id,
+        fileName: file.file_name,
+        filePath: file.file_path,
         operacao: 'handleDelete'
       });
       toast({
