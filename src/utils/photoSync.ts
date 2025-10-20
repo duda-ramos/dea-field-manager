@@ -63,7 +63,9 @@ export async function syncPhotoToProjectAlbum(
 async function getNextSequentialForProject(projectId: string): Promise<number> {
   try {
     const files = await StorageManagerDexie.getFilesByProject(projectId);
-    const imageFiles = files.filter(f => f.type === 'image');
+    const imageFiles = files.filter(
+      f => f.type === 'image' || (typeof f.type === 'string' && f.type.startsWith('image/'))
+    );
     return imageFiles.length + 1;
   } catch (error) {
     console.error('Erro ao obter sequencial:', error);
