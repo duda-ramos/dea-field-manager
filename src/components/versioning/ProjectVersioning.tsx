@@ -61,9 +61,10 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
 
     if (error) {
       toast({
-        title: 'Erro',
-        description: 'Erro ao carregar versões',
-        variant: 'destructive'
+        title: 'Erro ao carregar versões',
+        description: 'Não foi possível carregar o histórico de versões. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
       return;
     }
@@ -101,8 +102,9 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
       if (error) throw error;
 
       toast({
-        title: 'Versão criada',
-        description: `Versão ${versionNumber} criada com sucesso`
+        title: 'Versão criada com sucesso',
+        description: `Versão ${versionNumber} de "${project.name}" foi salva`,
+        duration: 3000
       });
 
       setIsCreateModalOpen(false);
@@ -116,9 +118,10 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
         sizeBytes: new Blob([JSON.stringify({ project, installations, timestamp: new Date().toISOString() })]).size
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao criar versão',
-        variant: 'destructive'
+        title: 'Erro ao criar versão',
+        description: 'Não foi possível salvar a versão do projeto. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setLoading(false);
@@ -144,8 +147,9 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
       }
 
       toast({
-        title: 'Versão restaurada',
-        description: `Projeto restaurado para versão ${version.version_number}`
+        title: 'Versão restaurada com sucesso',
+        description: `"${project.name}" foi restaurado para a versão ${version.version_number}`,
+        duration: 3000
       });
 
       onVersionRestored();
@@ -157,9 +161,10 @@ export function ProjectVersioning({ project, installations, onVersionRestored }:
         projectName: project.name
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao restaurar versão',
-        variant: 'destructive'
+        title: 'Erro ao restaurar versão',
+        description: `Não foi possível restaurar a versão ${version.version_number}. Tente novamente`,
+        variant: 'destructive',
+        duration: 5000
       });
     }
   };

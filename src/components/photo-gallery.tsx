@@ -110,9 +110,10 @@ export function PhotoGallery({
           operacao: 'handleFileUpload'
         });
         toast({
-          title: "Erro ao carregar foto",
-          description: "Não foi possível processar uma das fotos selecionadas.",
-          variant: "destructive"
+          title: "Erro ao processar foto",
+          description: `Não foi possível carregar "${file.name}". Tente outro arquivo`,
+          variant: "destructive",
+          duration: 5000
         });
         showToast.error("Erro ao carregar foto", "Não foi possível processar uma das fotos selecionadas.");
       }
@@ -123,17 +124,20 @@ export function PhotoGallery({
     }
 
     if (syncedCount > 0) {
+      const photoWord = syncedCount === 1 ? 'foto' : 'fotos';
       toast({
-        title: "Foto sincronizada",
-        description: `Foto da peça ${installationCode} adicionada ao álbum de mídias do projeto.`
+        title: `${syncedCount} ${photoWord} sincronizada${syncedCount === 1 ? '' : 's'}`,
+        description: `Peça ${installationCode}: ${photoWord} adicionada${syncedCount === 1 ? '' : 's'} ao álbum do projeto`,
+        duration: 3000
       });
     }
 
     if (syncFailed) {
       toast({
-        title: "Aviso",
-        description: "Foto adicionada à peça, mas não foi possível sincronizar com o álbum.",
-        variant: "destructive"
+        title: "Atenção: Sincronização pendente",
+        description: "Foto salva na peça, mas não sincronizada com o álbum. Tente sincronizar depois",
+        variant: "destructive",
+        duration: 5000
       });
     }
 

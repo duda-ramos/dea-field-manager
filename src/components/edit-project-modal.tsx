@@ -119,8 +119,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
         onProjectUpdated(updatedProject);
         onClose();
         toast({
-          title: "Projeto atualizado",
-          description: "As informações do projeto foram atualizadas com sucesso"
+          title: "Alterações salvas com sucesso",
+          description: `Projeto "${updatedProject.name}" foi atualizado`,
+          duration: 3000
         });
         showToast.success("Projeto atualizado", "As informações foram atualizadas com sucesso");
       }

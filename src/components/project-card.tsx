@@ -66,9 +66,10 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar logado para sincronizar",
-          variant: "destructive"
+          title: "Autenticação necessária",
+          description: "Faça login para sincronizar este projeto",
+          variant: "destructive",
+          duration: 4000
         });
         return;
       }
@@ -104,8 +105,9 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
       });
 
       toast({
-        title: "Projeto sincronizado",
-        description: "Projeto foi sincronizado com sucesso.",
+        title: "Projeto sincronizado com sucesso",
+        description: `"${project.name}" foi enviado para a nuvem`,
+        duration: 3000
       });
 
       onUpdate?.();

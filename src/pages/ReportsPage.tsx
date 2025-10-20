@@ -59,8 +59,9 @@ export default function ReportsPage() {
       );
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os dados dos relatórios. Por favor, tente novamente.",
-        variant: "destructive"
+        description: "Não foi possível carregar as informações. Verifique sua conexão e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsLoading(false);
@@ -99,8 +100,9 @@ export default function ReportsPage() {
       setIsExporting(true);
       
       toast({
-        title: "Gerando relatório...",
-        description: "Por favor, aguarde enquanto preparamos o arquivo CSV."
+        title: "Preparando relatório",
+        description: "Gerando arquivo CSV com seus dados...",
+        duration: 2000
       });
 
       let dataToExport = installations;
@@ -136,9 +138,15 @@ export default function ReportsPage() {
       link.click();
       document.body.removeChild(link);
 
+      const itemCount = dataToExport.length;
+      const projectName = selectedProject !== "all" 
+        ? projects.find(p => p.id === selectedProject)?.name || "projeto"
+        : "todos os projetos";
+      
       toast({
-        title: "Relatório exportado",
-        description: "O relatório foi baixado com sucesso em formato CSV."
+        title: "Relatório CSV gerado com sucesso",
+        description: `${itemCount} itens de ${projectName} exportados`,
+        duration: 3000
       });
     } catch (error) {
       console.error('[ReportsPage] Falha ao gerar relatório CSV:', error, {
@@ -153,9 +161,10 @@ export default function ReportsPage() {
         'medium'
       );
       toast({
-        title: "Erro ao exportar relatório",
-        description: "Não foi possível gerar o arquivo CSV. Por favor, tente novamente.",
-        variant: "destructive"
+        title: "Erro ao gerar relatório",
+        description: "Não foi possível criar o arquivo CSV. Verifique os dados e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsExporting(false);

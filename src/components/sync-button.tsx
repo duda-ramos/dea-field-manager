@@ -25,18 +25,20 @@ export function SyncButton() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         toast({
-          title: "Erro de Autenticação",
-          description: "Você precisa estar logado para sincronizar os dados.",
-          variant: "destructive"
+          title: "Autenticação necessária",
+          description: "Faça login para sincronizar seus dados",
+          variant: "destructive",
+          duration: 4000
         });
         return;
       }
 
       if (!syncState.isOnline) {
         toast({
-          title: "Sem Conexão",
-          description: "Conecte-se à internet para sincronizar os dados.",
-          variant: "destructive"
+          title: "Sem conexão com a internet",
+          description: "Conecte-se para sincronizar seus dados",
+          variant: "destructive",
+          duration: 4000
         });
         return;
       }
@@ -59,10 +61,27 @@ export function SyncButton() {
         return acc;
       }, { pulled: 0 });
 
-      toast({
-        title: "Sincronização Concluída",
-        description: `Enviados: ${pushTotals.pushed} | Recebidos: ${pullTotals.pulled} | Removidos: ${pushTotals.deleted}`
-      });
+      const totalItems = pushTotals.pushed + pullTotals.pulled;
+      const hasChanges = totalItems > 0 || pushTotals.deleted > 0;
+      
+      if (hasChanges) {
+        let details = [];
+        if (pushTotals.pushed > 0) details.push(`${pushTotals.pushed} enviados`);
+        if (pullTotals.pulled > 0) details.push(`${pullTotals.pulled} recebidos`);
+        if (pushTotals.deleted > 0) details.push(`${pushTotals.deleted} removidos`);
+        
+        toast({
+          title: "Sincronização concluída",
+          description: details.join(' • '),
+          duration: 3000
+        });
+      } else {
+        toast({
+          title: "Tudo sincronizado",
+          description: "Seus dados estão atualizados",
+          duration: 2000
+        });
+      }
     } catch (error) {
       logger.error('Erro na sincronização manual', {
         error,
@@ -70,9 +89,10 @@ export function SyncButton() {
         operacao: 'handleSync'
       });
       toast({
-        title: "Erro na Sincronização",
-        description: error instanceof Error ? error.message : "Erro desconhecido ao sincronizar dados.",
-        variant: "destructive"
+        title: "Erro na sincronização",
+        description: "Não foi possível sincronizar. Verifique sua conexão e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     }
   };

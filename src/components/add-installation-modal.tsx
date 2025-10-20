@@ -111,9 +111,10 @@ export function AddInstallationModal({
     // Validate required fields
     if (!formData.tipologia || !formData.codigo || !formData.descricao || !formData.quantidade || !formData.pavimento) {
       toast({
-        title: "Erro de validação",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive"
+        title: "Campos obrigatórios faltando",
+        description: "Preencha tipologia, código, descrição, quantidade e pavimento",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error("Erro de validação", "Preencha todos os campos obrigatórios");
       return;
@@ -122,9 +123,10 @@ export function AddInstallationModal({
     // Validate pendency fields
     if (formData.pendencia_tipo && !formData.pendencia_descricao.trim()) {
       toast({
-        title: "Erro de validação",
-        description: "Se há uma pendência, descreva-a no campo de descrição",
-        variant: "destructive"
+        title: "Descrição de pendência obrigatória",
+        description: "Descreva a pendência selecionada no campo de descrição",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error("Erro de validação", "Se há uma pendência, descreva-a no campo de descrição");
       return;
@@ -135,9 +137,10 @@ export function AddInstallationModal({
 
     if (isNaN(codigo) || isNaN(quantidade)) {
       toast({
-        title: "Erro de validação",
-        description: "Código e quantidade devem ser números válidos",
-        variant: "destructive"
+        title: "Valores inválidos",
+        description: "Código e quantidade devem ser números inteiros positivos",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error("Erro de validação", "Código e quantidade devem ser números válidos");
       return;
@@ -239,10 +242,11 @@ export function AddInstallationModal({
         );
         
         toast({
-          title: isRevision ? "Revisão criada" : "Peça atualizada",
+          title: isRevision ? "Revisão criada com sucesso" : "Peça atualizada",
           description: isRevision 
-            ? `Revisão ${savedInstallation.revisao} da peça ${savedInstallation.codigo} ${savedInstallation.descricao} criada com sucesso`
-            : `${savedInstallation.codigo} ${savedInstallation.descricao} foi atualizada${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
+            ? `Revisão ${savedInstallation.revisao} da peça ${savedInstallation.codigo} "${savedInstallation.descricao}" foi criada`
+            : `Peça ${savedInstallation.codigo} "${savedInstallation.descricao}" foi salva${savedInstallation.revisado ? ` (rev. ${savedInstallation.revisao})` : ""}`,
+          duration: 3000
         });
         showToast.success(
           isRevision ? "Revisão criada" : "Peça atualizada",
@@ -323,9 +327,10 @@ export function AddInstallationModal({
     } catch (error) {
       console.error("Error saving installation:", error);
       toast({
-        title: "Erro ao salvar",
-        description: error instanceof Error ? error.message : "Não foi possível salvar a instalação. Tente novamente.",
-        variant: "destructive"
+        title: "Erro ao salvar peça",
+        description: "Não foi possível salvar as informações. Verifique os dados e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error(
         "Erro ao salvar",

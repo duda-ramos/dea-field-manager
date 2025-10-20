@@ -474,13 +474,15 @@ export default function ProjectDetailNew() {
         toast({
           title: toastTitle,
           description: `${summaryText}\n\n${issueHeader}:\n${errorSummary}${moreErrors}`,
-          variant: "default"
+          variant: "default",
+          duration: 5000
         });
       } else {
         // Complete success
         toast({
-          title: "Planilha importada com sucesso!",
-          description: `${summaryText}\n${result.totalLinhas} linha(s) importada(s)`,
+          title: "Planilha importada com sucesso",
+          description: `${result.linhasImportadas} instalações processadas (${result.linhasRejeitadas} rejeitadas)`,
+          duration: 3000
         });
       }
     } catch (error) {
@@ -496,9 +498,10 @@ export default function ProjectDetailNew() {
         }
       });
       toast({
-        title: "Erro na importação",
-        description: "Erro ao processar arquivo Excel",
-        variant: "destructive"
+        title: "Erro ao importar planilha",
+        description: "Não foi possível processar o arquivo Excel. Verifique o formato e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsImporting(false);

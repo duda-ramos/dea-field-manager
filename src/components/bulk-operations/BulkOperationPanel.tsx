@@ -446,8 +446,9 @@ export function BulkOperationPanel({
     if (selectedItems.length === 0) {
       toast({
         title: 'Nenhum item selecionado',
-        description: 'Selecione pelo menos um item para continuar.',
-        variant: 'destructive'
+        description: 'Selecione ao menos um item antes de executar esta operação',
+        variant: 'destructive',
+        duration: 4000
       });
       showToast.error('Nenhum item selecionado', 'Selecione pelo menos um item para continuar.');
       return;
@@ -475,9 +476,11 @@ export function BulkOperationPanel({
 
       await operation.action(selectedItemsData);
 
+      const itemWord = selectedItemsData.length === 1 ? 'item' : 'itens';
       toast({
-        title: 'Operação concluída',
-        description: `${operation.label} executada com sucesso para ${selectedItemsData.length} item(ns).`
+        title: 'Operação concluída com sucesso',
+        description: `${operation.label} aplicada a ${selectedItemsData.length} ${itemWord}`,
+        duration: 3000
       });
       showToast.success(
         'Operação concluída',
@@ -501,9 +504,10 @@ export function BulkOperationPanel({
         operacao: 'executeOperation'
       });
       toast({
-        title: 'Erro na operação',
-        description: `Falha ao executar ${operation.label.toLowerCase()}.`,
-        variant: 'destructive'
+        title: 'Erro na operação em lote',
+        description: `Não foi possível executar "${operation.label}". Tente novamente`,
+        variant: 'destructive',
+        duration: 5000
       });
       showToast.error('Erro na operação', `Falha ao executar ${operation.label.toLowerCase()}.`);
     } finally {

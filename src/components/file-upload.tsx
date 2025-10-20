@@ -156,10 +156,11 @@ export function FileUpload({
         });
 
         toast({
-          title: uploadedFile.needsUpload ? 'Arquivo adicionado' : 'Arquivo enviado',
+          title: uploadedFile.needsUpload ? 'Arquivo adicionado offline' : 'Arquivo enviado com sucesso',
           description: uploadedFile.needsUpload
-            ? `${file.name} será enviado quando online.`
-            : `${file.name} foi enviado com sucesso.`
+            ? `"${file.name}" será sincronizado quando voltar online`
+            : `"${file.name}" (${formatFileSize(file.size)}) foi enviado para a nuvem`,
+          duration: 3000
         });
         showToast.success(
           uploadedFile.needsUpload ? 'Arquivo adicionado' : 'Arquivo enviado com sucesso',
@@ -231,8 +232,9 @@ export function FileUpload({
       toast({
         title: 'Arquivo removido',
         description: navigator.onLine
-          ? 'O arquivo foi removido com sucesso.'
-          : 'Arquivo marcado para remoção. Será removido quando online.'
+          ? `"${file.name}" foi excluído com sucesso`
+          : `"${file.name}" será removido quando voltar online`,
+        duration: 3000
       });
       showToast.success(
         'Arquivo removido',
@@ -250,8 +252,9 @@ export function FileUpload({
       });
       toast({
         title: 'Erro ao remover arquivo',
-        description: 'Não foi possível remover o arquivo após várias tentativas. Verifique sua conexão e tente novamente.',
-        variant: 'destructive'
+        description: `Não foi possível excluir "${file.name}". Verifique sua conexão e tente novamente`,
+        variant: 'destructive',
+        duration: 5000
       });
       showToast.error(
         'Erro ao remover arquivo',
@@ -380,8 +383,9 @@ export function FileUpload({
       });
       toast({
         title: 'Erro no download',
-        description: 'Não foi possível baixar o arquivo. Verifique sua conexão.',
-        variant: 'destructive'
+        description: `Não foi possível baixar "${file.name}". Verifique sua conexão`,
+        variant: 'destructive',
+        duration: 5000
       });
     }
   };
@@ -409,9 +413,10 @@ export function FileUpload({
         operacao: 'openPreview'
       });
       toast({
-        title: 'Erro na prévia',
-        description: 'Não foi possível carregar a prévia. Verifique sua conexão.',
-        variant: 'destructive'
+        title: 'Erro ao carregar prévia',
+        description: `Não foi possível visualizar "${file.name}". Tente fazer o download`,
+        variant: 'destructive',
+        duration: 5000
       });
       setPreviewUrl('');
     } finally {
