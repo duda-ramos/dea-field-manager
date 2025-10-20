@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
+import { logger } from '@/lib/logger';
 
 const now = () => Date.now();
 
@@ -29,9 +30,12 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
     return;
   }
 
+  let userId: string | undefined;
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    userId = user.id;
 
     syncStateManager.updateState({ status: 'syncing' });
 
@@ -70,7 +74,17 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
       pendingPush: syncQueue.length 
     });
   } catch (error) {
-    console.error('❌ Erro ao sincronizar após retries:', error);
+    logger.error('Falha na sincronização após retries', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        entityType,
+        dataId: (data as Record<string, unknown>)?.id,
+        userId,
+        operacao: 'syncToServerImmediate',
+        timestamp: new Date().toISOString()
+      }
+    });
     syncQueue.push({ type: entityType, data });
     syncStateManager.setError('Falha na sincronização - item adicionado à fila');
   }
@@ -188,9 +202,11 @@ export const StorageManagerDexie = {
 
     // ONLINE FIRST: Tentar salvar no servidor imediatamente
     if (isOnline()) {
+      let userId: string | undefined;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Usuário não autenticado');
+        userId = user.id;
 
         // Se é novo projeto, criar no Supabase
         if (!project.id || project.id === '' || project.id.startsWith('project_')) {
@@ -241,7 +257,18 @@ export const StorageManagerDexie = {
         syncStateManager.updateState({ lastSyncAt: Date.now() });
         return withDates;
       } catch (error) {
-        console.error('❌ Erro ao salvar projeto online após retries, salvando offline:', error);
+        logger.error('Falha ao salvar projeto online após retries', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          context: {
+            projectId: withDates.id,
+            projectName: withDates.name,
+            userId,
+            operacao: 'upsertProject',
+            isNewProject: !project.id || project.id === '' || project.id.startsWith('project_'),
+            timestamp: new Date().toISOString()
+          }
+        });
         withDates._dirty = 1;
         await db.projects.put(withDates);
         realtimeManager.trackLocalOperation('projects');
@@ -926,9 +953,12 @@ async function migrateLegacyReportHistory() {
 };
 
 (StorageManagerDexie as any).saveReport = async (report: ReportHistoryEntry) => {
+  let normalizedForLogging: ReturnType<typeof normalizeReportHistoryEntry> | undefined;
+
   try {
     await migrateLegacyReportHistory();
     const normalized = normalizeReportHistoryEntry(report);
+    normalizedForLogging = normalized;
 
     if (!normalized.projectId) {
       throw new Error('Report must include a projectId');
@@ -967,7 +997,17 @@ async function migrateLegacyReportHistory() {
     // Report saved successfully
     return normalized;
   } catch (error) {
-    console.error('❌ Error saving report:', error);
+    logger.error('Falha ao salvar relatório', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        reportId: normalizedForLogging?.id,
+        projectId: normalizedForLogging?.projectId,
+        format: normalizedForLogging?.format,
+        operacao: 'saveReport',
+        timestamp: new Date().toISOString()
+      }
+    });
     throw error;
   }
 };
@@ -1028,7 +1068,15 @@ async function migrateLegacyReportHistory() {
     });
     // Report deleted successfully
   } catch (error) {
-    console.error('❌ Error deleting report:', error);
+    logger.error('Falha ao deletar relatório', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        reportId,
+        operacao: 'deleteReport',
+        timestamp: new Date().toISOString()
+      }
+    });
     throw error;
   }
 };

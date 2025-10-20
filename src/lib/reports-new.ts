@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { Project, Installation, ItemVersion } from '@/types';
 import { storage } from './storage';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 
@@ -116,7 +117,18 @@ export async function saveReportToSupabase(
       fileName
     };
   } catch (error) {
-    console.error('[saveReportToSupabase] Critical error:', error);
+    logger.error('Falha ao salvar relatório no Supabase', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        projectId,
+        format,
+        blobSize: blob.size,
+        userId: undefined, // Will be logged in context above
+        operacao: 'saveReportToSupabase',
+        timestamp: new Date().toISOString()
+      }
+    });
     return null;
   }
 }
@@ -651,12 +663,17 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
   return new Blob([doc.output('blob')], { type: 'application/pdf' });
   } catch (error) {
     // Critical error - log detailed context and return empty blob
-    console.error('[generatePDFReport] Critical error generating PDF report:', {
-      error,
-      projectId: data?.project?.id,
-      projectName: data?.project?.name,
-      installationsCount: data?.installations?.length,
-      interlocutor: data?.interlocutor
+    logger.error('Falha crítica ao gerar relatório PDF', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        projectId: data?.project?.id,
+        projectName: data?.project?.name,
+        installationsCount: data?.installations?.length,
+        interlocutor: data?.interlocutor,
+        operacao: 'generatePDFReport',
+        timestamp: new Date().toISOString()
+      }
     });
     return new Blob([], { type: 'application/pdf' });
   }
@@ -1005,11 +1022,16 @@ async function uploadSinglePhotoWithRetry(
     } catch (error) {
       lastError = error;
       if (attempt === maxRetries - 1) {
-        console.error('[uploadSinglePhotoWithRetry] Failed to upload photo after attempts:', {
-          error,
-          itemId,
-          photoIndex: index,
-          attempts: maxRetries
+        logger.error('Falha ao fazer upload de foto após tentativas', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          context: {
+            itemId,
+            photoIndex: index,
+            attempts: maxRetries,
+            operacao: 'uploadSinglePhotoWithRetry',
+            timestamp: new Date().toISOString()
+          }
         });
         return null;
       }
@@ -1253,10 +1275,15 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     return htmlUrlData?.publicUrl || '';
     
   } catch (error) {
-    console.error('[uploadPhotosForReport] Critical error in photo upload process:', {
-      error,
-      itemId,
-      photoCount: photos?.length || 0
+    logger.error('Falha crítica no processo de upload de fotos', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        itemId,
+        photoCount: photos?.length || 0,
+        operacao: 'uploadPhotosForReport',
+        timestamp: new Date().toISOString()
+      }
     });
     return '';
   }
@@ -1323,10 +1350,15 @@ async function getPhotoPublicUrls(projectId: string, installationId: string): Pr
     
     return urls;
   } catch (error) {
-    console.error('[getPhotoPublicUrls] Critical error getting photo URLs:', {
-      error,
-      projectId,
-      installationId
+    logger.error('Falha crítica ao obter URLs públicas de fotos', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        projectId,
+        installationId,
+        operacao: 'getPhotoPublicUrls',
+        timestamp: new Date().toISOString()
+      }
     });
     return [];
   }
@@ -1884,12 +1916,17 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   } catch (error) {
     // Critical error - log detailed context and return empty blob
-    console.error('[generateXLSXReport] Critical error generating XLSX report:', {
-      error,
-      projectId: data?.project?.id,
-      projectName: data?.project?.name,
-      installationsCount: data?.installations?.length,
-      interlocutor: data?.interlocutor
+    logger.error('Falha crítica ao gerar relatório Excel', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: {
+        projectId: data?.project?.id,
+        projectName: data?.project?.name,
+        installationsCount: data?.installations?.length,
+        interlocutor: data?.interlocutor,
+        operacao: 'generateXLSXReport',
+        timestamp: new Date().toISOString()
+      }
     });
     return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }

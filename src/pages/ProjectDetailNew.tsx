@@ -21,6 +21,7 @@ import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuthContext';
+import { logger } from '@/lib/logger';
 import { EnhancedImageUpload } from "@/components/image-upload";
 import { importExcelFile, syncImportedPhotosToGallery } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
@@ -271,11 +272,18 @@ export default function ProjectDetailNew() {
                 });
               });
             } catch (_error) {
-              console.error('[ProjectDetail] Falha ao reverter estado da instalação:', _error, {
-                installationId: installationSnapshot.id,
-                installationCode: installationSnapshot.codigo,
-                previousState: previousInstalled,
-                newState: newInstalledState
+              logger.error('Falha ao reverter estado da instalação', {
+                error: _error instanceof Error ? _error.message : String(_error),
+                stack: _error instanceof Error ? _error.stack : undefined,
+                context: {
+                  installationId: installationSnapshot.id,
+                  installationCode: installationSnapshot.codigo,
+                  previousState: previousInstalled,
+                  newState: newInstalledState,
+                  userId: user?.id,
+                  operacao: 'undo_toggleInstallation',
+                  timestamp: new Date().toISOString()
+                }
               });
               setInstallations(prevInstallations =>
                 prevInstallations.map(inst =>
@@ -308,11 +316,19 @@ export default function ProjectDetailNew() {
           description: `${updated.descricao} foi ${updated.installed ? "marcado como instalado" : "desmarcado"}`,
         });
       } catch (error) {
-        console.error('[ProjectDetail] Falha ao alternar status de instalação:', error, {
-          installationId: installationSnapshot.id,
-          installationCode: installationSnapshot.codigo,
-          previousState: previousInstalled,
-          newState: newInstalledState
+        logger.error('Falha ao alternar status de instalação', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          context: {
+            installationId: installationSnapshot.id,
+            installationCode: installationSnapshot.codigo,
+            previousState: previousInstalled,
+            newState: newInstalledState,
+            userId: user?.id,
+            projectId: project.id,
+            operacao: 'toggleInstallation',
+            timestamp: new Date().toISOString()
+          }
         });
         setInstallations(prevInstallations =>
           prevInstallations.map(inst =>
@@ -416,9 +432,16 @@ export default function ProjectDetailNew() {
       try {
         await syncImportedPhotosToGallery(project.id, results);
       } catch (error) {
-        console.error('[ProjectDetail] Falha ao sincronizar fotos importadas com galeria:', error, {
-          projectId: project.id,
-          importedCount: results.length
+        logger.warn('Falha ao sincronizar fotos importadas com galeria', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          context: {
+            projectId: project.id,
+            importedCount: results.length,
+            userId: user?.id,
+            operacao: 'syncImportedPhotosToGallery',
+            timestamp: new Date().toISOString()
+          }
         });
         // Silently fail - photo sync is not critical
       }
@@ -461,9 +484,16 @@ export default function ProjectDetailNew() {
         });
       }
     } catch (error) {
-      console.error('[ProjectDetail] Falha na importação de planilha:', error, {
-        projectId: project.id,
-        projectName: project.name
+      logger.error('Falha na importação de planilha Excel', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          projectId: project.id,
+          projectName: project.name,
+          userId: user?.id,
+          operacao: 'handleFileUpload',
+          timestamp: new Date().toISOString()
+        }
       });
       toast({
         title: "Erro na importação",
