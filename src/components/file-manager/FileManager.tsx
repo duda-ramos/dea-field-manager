@@ -5,6 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,6 +54,8 @@ export function FileManager({ projectId }: FileManagerProps) {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadDescription, setUploadDescription] = useState("");
   const [uploadCategory, setUploadCategory] = useState("general");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<ProjectFile | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -178,8 +190,15 @@ export function FileManager({ projectId }: FileManagerProps) {
     }
   };
 
-  const handleDelete = async (file: ProjectFile) => {
-    if (!confirm(`Tem certeza que deseja excluir ${file.file_name}?`)) return;
+  const handleDeleteClick = (file: ProjectFile) => {
+    setFileToDelete(file);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!fileToDelete) return;
+
+    const file = fileToDelete;
 
     try {
       // Delete from storage
@@ -202,6 +221,8 @@ export function FileManager({ projectId }: FileManagerProps) {
         description: `${file.file_name} foi excluído com sucesso`
       });
 
+      setDeleteConfirmOpen(false);
+      setFileToDelete(null);
       loadFiles();
     } catch (error) {
       logger.error('Error deleting file', {
@@ -424,7 +445,7 @@ export function FileManager({ projectId }: FileManagerProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(file)}
+                      onClick={() => handleDeleteClick(file)}
                       className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 text-destructive hover:text-destructive"
                       title="Excluir"
                     >
@@ -438,6 +459,30 @@ export function FileManager({ projectId }: FileManagerProps) {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{fileToDelete?.file_name}</strong>?
+              <br />
+              <br />
+              Esta ação não pode ser desfeita e o arquivo será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFileToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
