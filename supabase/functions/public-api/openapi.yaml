@@ -27,7 +27,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [planning, in-progress, completed, on-hold, cancelled]
+            enum: [planning, in_progress, completed, on_hold]
       responses:
         200:
           description: Lista de projetos
@@ -67,7 +67,7 @@ paths:
                   example: "SHOP-001"
                 status:
                   type: string
-                  enum: [planning, in-progress]
+                  enum: [planning, in_progress]
       responses:
         201:
           description: Projeto criado
@@ -123,7 +123,7 @@ components:
           type: string
         status:
           type: string
-          enum: [planning, in-progress, completed, on-hold, cancelled]
+          enum: [planning, in_progress, completed, on_hold]
         created_at:
           type: string
           format: date-time
