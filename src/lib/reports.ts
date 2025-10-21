@@ -105,7 +105,9 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
       }
     });
     
-    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 20;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 20;
   }
   
   // Próximos Passos
@@ -133,7 +135,9 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
       headStyles: { fillColor: [255, 193, 7] }, // Yellow for warning
     });
     
-    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 20;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 20;
   }
   
   // Instaladas (sem observações)

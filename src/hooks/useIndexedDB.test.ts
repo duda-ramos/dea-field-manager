@@ -13,7 +13,7 @@ class FakeOpenRequest {
 
 // Simple in-memory map to emulate an object store
 class MemoryDB {
-  stores = new Map<string, Map<string, Record<string, unknown>>>>();
+  stores = new Map<string, Map<string, Record<string, unknown>>>();
 }
 
 function createMemoryDriver() {

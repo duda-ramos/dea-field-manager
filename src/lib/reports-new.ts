@@ -881,7 +881,9 @@ async function addEnhancedSectionToPDF(
       }
     });
 
-    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 10;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 10;
   } 
   // For aggregated sections (Concluidas, Em Andamento) - grouped by Pavimento and Tipologia
   else {
@@ -936,7 +938,9 @@ async function addEnhancedSectionToPDF(
       }
     });
 
-    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 10;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 10;
   }
 
   return yPosition;
@@ -1759,7 +1763,9 @@ async function addSectionToPDF(
     headStyles: { fillColor: [100, 100, 100] },
   });
 
-  return (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 0 + 20;
+  const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+  const finalY = docWithTable.lastAutoTable?.finalY ?? 0;
+  return finalY + 20;
 }
 
 function getMotivoPtBr(motivo: string): string {
