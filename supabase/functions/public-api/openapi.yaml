@@ -1,0 +1,291 @@
+openapi: 3.0.3
+info:
+  title: Public Project Management API
+  version: 1.0.0
+  description: |
+    API pública para gerenciamento de projetos e instalações.
+    Autenticação via chave de API (Bearer) emitida para cada usuário.
+servers:
+  - url: https://{project-ref}.supabase.co/functions/v1/public-api
+    variables:
+      project-ref:
+        default: YOUR_SUPABASE_PROJECT_REF
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+  schemas:
+    Project:
+      type: object
+      required: [id, name, client, city, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 200
+        client:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          nullable: true
+          maxLength: 50
+        status:
+          type: string
+          enum: [planning, in_progress, completed, on_hold]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Installation:
+      type: object
+      required: [id, project_id, codigo, descricao, tipologia, pavimento, quantidade, installed, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        codigo:
+          type: integer
+        descricao:
+          type: string
+        tipologia:
+          type: string
+        pavimento:
+          type: string
+        quantidade:
+          type: integer
+        installed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+paths:
+  /projects:
+    get:
+      summary: Lista projetos
+      description: Retorna a lista de projetos do usuário autenticado.
+      parameters:
+        - in: query
+          name: cliente
+          schema:
+            type: string
+          description: Filtra por nome do cliente (contains, case-insensitive)
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [planning, in_progress, completed, on_hold]
+          description: Filtra por status do projeto
+      responses:
+        '200':
+          description: Lista de projetos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: "b7b9e8e1-4a5a-4d8a-9d04-71a3e90fdb5b"
+                        name: "Residencial Aurora"
+                        client: "Construtora XYZ"
+                        city: "São Paulo"
+                        code: "AUR-001"
+                        status: "in_progress"
+                        created_at: "2025-09-01T12:00:00Z"
+                        updated_at: "2025-10-01T12:00:00Z"
+        '401': { description: Não autorizado }
+    post:
+      summary: Criar projeto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, client, city]
+              properties:
+                name: { type: string, maxLength: 200 }
+                client: { type: string, maxLength: 200 }
+                city: { type: string, maxLength: 100 }
+                code: { type: string, maxLength: 50 }
+                status: { type: string, enum: [planning, in_progress, completed, on_hold] }
+            examples:
+              example:
+                value:
+                  name: "Residencial Aurora"
+                  client: "Construtora XYZ"
+                  city: "São Paulo"
+                  code: "AUR-001"
+                  status: "planning"
+      responses:
+        '201':
+          description: Projeto criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '400': { description: Dados inválidos }
+        '401': { description: Não autorizado }
+  /projects/{id}:
+    get:
+      summary: Detalhes do projeto
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalhes do projeto com instalações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/Project'
+                      - type: object
+                        properties:
+                          installations:
+                            type: array
+                            items: { $ref: '#/components/schemas/Installation' }
+              examples:
+                success:
+                  value:
+                    data:
+                      id: "b7b9e8e1-4a5a-4d8a-9d04-71a3e90fdb5b"
+                      name: "Residencial Aurora"
+                      client: "Construtora XYZ"
+                      city: "São Paulo"
+                      code: "AUR-001"
+                      status: "in_progress"
+                      created_at: "2025-09-01T12:00:00Z"
+                      updated_at: "2025-10-01T12:00:00Z"
+                      installations:
+                        - id: "cc2d2d2d-1234-5678-aaaa-999999999999"
+                          project_id: "b7b9e8e1-4a5a-4d8a-9d04-71a3e90fdb5b"
+                          codigo: 101
+                          descricao: "Ponto de Tomada"
+                          tipologia: "Elétrica"
+                          pavimento: "Térreo"
+                          quantidade: 2
+                          installed: false
+                          created_at: "2025-10-10T12:00:00Z"
+                          updated_at: "2025-10-10T12:00:00Z"
+        '401': { description: Não autorizado }
+        '404': { description: Projeto não encontrado }
+    put:
+      summary: Atualizar projeto
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 200 }
+                client: { type: string, maxLength: 200 }
+                city: { type: string, maxLength: 100 }
+                code: { type: string, maxLength: 50 }
+                status: { type: string, enum: [planning, in_progress, completed, on_hold] }
+      responses:
+        '200':
+          description: Projeto atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '400': { description: Dados inválidos }
+        '401': { description: Não autorizado }
+        '404': { description: Projeto não encontrado }
+  /projects/{id}/installations:
+    post:
+      summary: Adicionar instalação
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigo, descricao, tipologia, pavimento, quantidade]
+              properties:
+                codigo: { type: integer }
+                descricao: { type: string }
+                tipologia: { type: string }
+                pavimento: { type: string }
+                quantidade: { type: integer }
+                installed: { type: boolean }
+                photos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url: { type: string, format: uri }
+                      type: { type: string }
+                      size: { type: integer }
+            examples:
+              example:
+                value:
+                  codigo: 101
+                  descricao: "Ponto de Tomada"
+                  tipologia: "Elétrica"
+                  pavimento: "Térreo"
+                  quantidade: 2
+                  installed: false
+                  photos:
+                    - url: "https://storage.supabase.co/path/to/photo.jpg"
+                      type: "image/jpeg"
+                      size: 123456
+      responses:
+        '201':
+          description: Instalação criada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Installation' }
+        '400': { description: Dados inválidos }
+        '401': { description: Não autorizado }
+        '404': { description: Projeto não encontrado }

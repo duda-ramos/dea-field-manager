@@ -131,7 +131,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
     
     const reader = new FileReader();
     
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -225,7 +225,14 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
             continue;
           }
           
-          validRows.forEach((row, rowIndex) => {
+          // Process rows in small chunks to avoid blocking the UI for large files
+          for (let rowIndex = 0; rowIndex < validRows.length; rowIndex++) {
+            // Yield to event loop every 400 rows
+            if (rowIndex > 0 && rowIndex % 400 === 0) {
+              await new Promise<void>((r) => setTimeout(r, 0));
+            }
+
+            const row = validRows[rowIndex];
             const lineNumber = rowIndex + 2; // +2 because: +1 for 0-index, +1 for header row
             totalLinhas++;
             
@@ -235,7 +242,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
             
             if (!tipologia && !descricao) {
               totalLinhas--; // Don't count completely empty rows
-              return;
+              continue;
             }
             
             // Parse all values
@@ -293,7 +300,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
                 });
               });
               linhasRejeitadas++;
-              return; // Skip invalid row
+              continue; // Skip invalid row
             }
             
             // Create installation object with validated data
@@ -325,7 +332,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
             
             allInstallations.push(installation);
             linhasImportadas++;
-          });
+          }
         }
 
         // Final validation: check if we have any data
