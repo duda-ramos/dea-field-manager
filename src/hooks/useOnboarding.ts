@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuthContext';
 
-const ONBOARDING_STORAGE_KEY = 'dea-onboarding-completed';
+const ONBOARDING_STORAGE_KEY_PREFIX = 'dea-onboarding-completed';
 
 // Hook to manage onboarding state
 export function useOnboarding() {
@@ -9,9 +9,18 @@ export function useOnboarding() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { user } = useAuth();
 
+  // Generate user-specific storage key
+  const getStorageKey = () => {
+    if (!user?.id) return null;
+    return `${ONBOARDING_STORAGE_KEY_PREFIX}-${user.id}`;
+  };
+
   useEffect(() => {
     if (user) {
-      const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+      const storageKey = getStorageKey();
+      if (!storageKey) return;
+      
+      const completed = localStorage.getItem(storageKey);
       const hasCompleted = completed === 'true';
       setHasCompletedOnboarding(hasCompleted);
       
@@ -26,13 +35,19 @@ export function useOnboarding() {
   }, [user]);
 
   const markOnboardingComplete = () => {
-    localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    const storageKey = getStorageKey();
+    if (!storageKey) return;
+    
+    localStorage.setItem(storageKey, 'true');
     setHasCompletedOnboarding(true);
     setShowOnboarding(false);
   };
 
   const resetOnboarding = () => {
-    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    const storageKey = getStorageKey();
+    if (!storageKey) return;
+    
+    localStorage.removeItem(storageKey);
     setHasCompletedOnboarding(false);
   };
 
