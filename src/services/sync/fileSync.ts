@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy file sync with complex typing
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/db/indexedDb';
 import { storageService } from '@/services/storage';

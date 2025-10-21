@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy storage manager with complex typing
 import { db } from '@/db/indexedDb';
 import type {
   Project,
@@ -15,8 +14,10 @@ import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 import { logger } from '@/lib/logger';
+import { getStorageBucket, normalizeStorageReference } from '@/utils/storagePath';
 
 const now = () => Date.now();
+const storageBucket = getStorageBucket();
 
 // Verificar se está online
 const isOnline = () => navigator.onLine;
@@ -1035,15 +1036,13 @@ async function migrateLegacyReportHistory() {
           // Extract file path from URL
           const fileUrl = report.file_url;
           if (fileUrl) {
-            // Parse the URL to get the file path
-            const urlParts = fileUrl.split('/storage/v1/object/public/reports/');
-            if (urlParts.length > 1) {
-              const filePath = urlParts[1];
-              
-              // Delete file from storage
+            const reference = normalizeStorageReference(fileUrl, storageBucket);
+            if (reference?.kind === 'path') {
               await supabase.storage
-                .from('reports')
-                .remove([filePath]);
+                .from(storageBucket)
+                .remove([reference.path]);
+            } else if (reference?.kind === 'publicUrl') {
+              console.warn('[StorageManagerDexie] Unable to extract storage path for report deletion');
             }
           }
           

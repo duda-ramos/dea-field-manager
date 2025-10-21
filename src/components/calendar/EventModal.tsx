@@ -118,6 +118,7 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
       const projectsData = await storage.getProjects();
       setProjects(projectsData);
     } catch (error) {
+      console.error('Erro ao carregar projetos para o calendário', error);
       // Error já tratado pelo toast
     }
   };
@@ -160,6 +161,7 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
       onEventSaved();
       onClose();
     } catch (error) {
+      console.error('Erro ao salvar evento de calendário', error);
       // Error já tratado pelo toast
       toast({
         title: 'Erro ao salvar evento',
@@ -186,6 +188,7 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
       onEventSaved();
       onClose();
     } catch (error) {
+      console.error('Erro ao excluir evento de calendário', error);
       // Error já tratado pelo toast
       toast({
         title: 'Erro ao excluir evento',

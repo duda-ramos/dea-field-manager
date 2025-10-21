@@ -8,13 +8,14 @@ import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ReportHistoryEntry, Installation } from '@/types';
+import type { ReportHistoryEntry } from '@/types';
 
 interface SupabaseReportEntry extends ReportHistoryEntry {
   source?: 'supabase' | 'local';
   storagePath?: string;
 }
 import { useToast } from '@/hooks/use-toast';
+import { getStorageBucket, normalizeStorageReference } from '@/utils/storagePath';
 
 interface ReportHistoryProps {
   projectId: string;
@@ -24,6 +25,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
   const [reports, setReports] = useState<SupabaseReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const storageBucket = getStorageBucket();
 
   useEffect(() => {
     loadReports();
@@ -130,9 +132,23 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       if (report.source === 'supabase' && report.storagePath) {
         const storagePath = report.storagePath;
 
+        const reference = normalizeStorageReference(storagePath, storageBucket);
+        if (!reference) {
+          throw new Error('Caminho do relatório inválido');
+        }
+
+        if (reference.kind === 'publicUrl') {
+          window.open(reference.url, '_blank', 'noopener,noreferrer');
+          toast({
+            title: 'Download realizado',
+            description: 'Relatório aberto em nova aba'
+          });
+          return;
+        }
+
         const { data, error } = await supabase.storage
-          .from('reports')
-          .download(storagePath);
+          .from(storageBucket)
+          .download(reference.path);
 
         if (error || !data) {
           throw new Error('Falha ao baixar arquivo do servidor');
@@ -187,10 +203,19 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
 
     try {
-      const storagePath = report.storagePath;
+      const reference = normalizeStorageReference(report.storagePath, storageBucket);
+      if (!reference) {
+        throw new Error('Caminho do relatório inválido');
+      }
+
+      if (reference.kind === 'publicUrl') {
+        window.open(reference.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
       const { data, error } = await supabase.storage
-        .from('reports')
-        .createSignedUrl(storagePath, 60);
+        .from(storageBucket)
+        .createSignedUrl(reference.path, 60);
 
       if (error || !data?.signedUrl) {
         throw new Error('Não foi possível gerar o link do relatório');
@@ -228,12 +253,17 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
 
         // Delete from storage
         if (report.storagePath && user) {
-          const { error: storageError } = await supabase.storage
-            .from('reports')
-            .remove([report.storagePath]);
+          const reference = normalizeStorageReference(report.storagePath, storageBucket);
+          if (reference?.kind === 'path') {
+            const { error: storageError } = await supabase.storage
+              .from(storageBucket)
+              .remove([reference.path]);
 
-          if (storageError) {
-            console.error('Error deleting from Supabase storage:', storageError);
+            if (storageError) {
+              console.error('Error deleting from Supabase storage:', storageError);
+            }
+          } else if (reference?.kind === 'publicUrl') {
+            console.warn('[ReportHistory] Unable to determine storage path for deletion');
           }
         }
       }
@@ -242,6 +272,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       try {
         await storage.deleteReport(reportId);
       } catch (error) {
+        console.error('Erro ao remover relatório localmente:', error);
         // Error já tratado
       }
 

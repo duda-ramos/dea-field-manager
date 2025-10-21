@@ -27,6 +27,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ReportHistoryEntry } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { getStorageBucket, normalizeStorageReference } from '@/utils/storagePath';
 
 interface ReportHistoryPanelProps {
   projectId: string;
@@ -51,6 +53,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
   const [interlocutorFilter, setInterlocutorFilter] = useState<'all' | 'cliente' | 'fornecedor'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | 'week' | 'month' | '3months'>('all');
   const { toast } = useToast();
+  const storageBucket = getStorageBucket();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -111,22 +114,45 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
       // Check if report has a file URL (from Supabase)
       if (report.file_url || report.fileUrl) {
         const fileUrl = report.file_url || report.fileUrl;
-        
-        // Download from URL
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
-          throw new Error('Failed to download file from URL');
+        const reference = normalizeStorageReference(fileUrl, storageBucket);
+
+        if (!reference) {
+          throw new Error('Caminho do relatório inválido');
         }
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = report.fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        if (reference.kind === 'publicUrl') {
+          const response = await fetch(reference.url);
+          if (!response.ok) {
+            throw new Error('Failed to download file from URL');
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = report.fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else {
+          const { data, error } = await supabase.storage
+            .from(storageBucket)
+            .download(reference.path);
+
+          if (error || !data) {
+            throw new Error('Falha ao baixar arquivo do servidor');
+          }
+
+          const url = URL.createObjectURL(data);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = report.fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
       } else {
         // Fallback to local blob
         const blob = resolveReportBlob(report);

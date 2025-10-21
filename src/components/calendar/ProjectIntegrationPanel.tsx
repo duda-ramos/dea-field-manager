@@ -24,6 +24,7 @@ export function ProjectIntegrationPanel() {
         description: 'Os eventos de instalação foram sincronizados com os projetos.'
       });
     } catch (error) {
+      console.error('Erro ao sincronizar instalações com o calendário', error);
       // Error já tratado pelo toast
       toast({
         title: 'Erro na sincronização',
@@ -45,6 +46,7 @@ export function ProjectIntegrationPanel() {
         description: 'Os eventos de prazo foram criados para os projetos.'
       });
     } catch (error) {
+      console.error('Erro ao criar prazos no calendário', error);
       // Error já tratado pelo toast
       toast({
         title: 'Erro ao criar prazos',

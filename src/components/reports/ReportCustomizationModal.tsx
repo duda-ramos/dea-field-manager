@@ -56,6 +56,7 @@ export function ReportCustomizationModal({
         setConfig(savedConfig);
       }
     } catch (error) {
+      console.warn('Não foi possível carregar configurações salvas do relatório', error);
       // Error já tratado com valores padrão
     }
   }, []);
@@ -65,6 +66,7 @@ export function ReportCustomizationModal({
     try {
       localStorage.setItem(REPORT_CONFIG_STORAGE_KEY, JSON.stringify(config));
     } catch (error) {
+      console.warn('Não foi possível persistir configurações de relatório', error);
       // Error ignorado: não-crítico
     }
   }, [config]);
@@ -97,6 +99,7 @@ export function ReportCustomizationModal({
         },
       });
     } catch (error) {
+      console.error('Erro ao calcular prévia do relatório', error);
       // Error ignorado: não-crítico
       toast({
         title: 'Erro ao atualizar prévia',
@@ -185,6 +188,7 @@ export function ReportCustomizationModal({
       );
       onClose();
     } catch (error) {
+      console.error('Erro ao gerar relatório personalizado', error);
       // Error já tratado pelo toast
       toast({
         title: 'Erro ao gerar relatório',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback, memo } from "react";
-import { FixedSizeList as VirtualList, type ListChildComponentProps } from 'react-window';
+import { FixedSizeList as VirtualList } from 'react-window';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -168,9 +168,6 @@ export default function ProjectDetailNew() {
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
-  const [itemStatusFilter, setItemStatusFilter] = useState<
-    "all" | "ativo" | "on hold" | "cancelado" | "pendente"
-  >("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -192,8 +189,7 @@ export default function ProjectDetailNew() {
     const queue = installationToggleQueue.current;
     const previous = queue.get(installationId) ?? Promise.resolve();
     const next = previous.catch(() => {}).then(operation);
-    let cleanupPromise: Promise<void>;
-    cleanupPromise = next.finally(() => {
+    const cleanupPromise = next.finally(() => {
       if (queue.get(installationId) === cleanupPromise) {
         queue.delete(installationId);
       }
@@ -298,14 +294,11 @@ export default function ProjectDetailNew() {
                             (statusFilter === "installed" && installation.installed) ||
                             (statusFilter === "pending" && !installation.installed);
       
-      const matchesItemStatus = itemStatusFilter === "all" || 
-                               installation.status === itemStatusFilter;
-                            
       const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
-      
-      return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
+
+      return matchesSearch && matchesStatus && matchesPavimento;
     });
-  }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
+  }, [installations, searchTerm, statusFilter, pavimentoFilter]);
 
   const isOwner = project?.user_id ? project.user_id === user?.id : true;
 

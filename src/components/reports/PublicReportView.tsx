@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Installation, PublicReportData } from '@/types';
 import type { Tables } from '@/integrations/supabase/types';
+import { getStorageBucket, normalizeStorageReference } from '@/utils/storagePath';
 
 const toInstallation = (installation: Tables<'installations'>): Installation => ({
   ...installation,
@@ -85,6 +86,7 @@ export function PublicReportView() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const storageBucket = getStorageBucket();
 
   // Validar token e buscar dados do relatório
   useEffect(() => {
@@ -179,6 +181,7 @@ export function PublicReportView() {
 
       setReportData(reportData);
     } catch (err) {
+      console.error('Erro ao carregar dados do relatório público', err);
       // Error já exibido na UI
       setError('Erro ao carregar relatório. Tente novamente.');
     } finally {
@@ -209,16 +212,25 @@ export function PublicReportView() {
   const handleDownload = async () => {
     if (!reportData?.file_url) return;
 
+    const reference = normalizeStorageReference(reportData.file_url, storageBucket);
+    if (!reference) return;
+
+    if (reference.kind === 'publicUrl') {
+      window.open(reference.url, '_blank');
+      return;
+    }
+
     try {
       // Obter URL pública do arquivo
       const { data } = supabase.storage
-        .from('reports')
-        .getPublicUrl(reportData.file_url);
+        .from(storageBucket)
+        .getPublicUrl(reference.path);
 
       if (data?.publicUrl) {
         window.open(data.publicUrl, '_blank');
       }
     } catch (err) {
+      console.error('Erro ao gerar link público para download do relatório', err);
       // Error já tratado pelo toast
     }
   };

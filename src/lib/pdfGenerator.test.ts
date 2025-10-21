@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateReportSections, calculatePavimentoSummary, generateFileName, type ReportData } from './reports-new';
-import type { Installation, Project, ItemVersion } from '@/types';
+import type { Installation, Project } from '@/types';
 
 function makeProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -34,18 +34,6 @@ function makeInstallation(overrides: Partial<Installation> = {}): Installation {
     revisao: 0,
     ...overrides,
   } as Installation;
-}
-
-function makeVersion(installationId: string, overrides: Partial<ItemVersion> = {}): ItemVersion {
-  return {
-    id: crypto.randomUUID(),
-    installationId,
-    snapshot: {},
-    revisao: 1,
-    motivo: 'created',
-    criadoEm: new Date().toISOString(),
-    ...overrides,
-  } as ItemVersion;
 }
 
 function makeReportData(overrides: Partial<ReportData> = {}): ReportData {

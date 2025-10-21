@@ -115,8 +115,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           // Initialize auto-sync when user logs in (only once globally)
           setTimeout(() => {
-            initializeAutoSyncOnce().catch(error => {
-              // Error already logged in initializeAutoSyncOnce
+            initializeAutoSyncOnce().catch((error) => {
+              console.error('[useAuth] Falha ao iniciar auto-sync após login', error);
             });
           }, 100);
         } else {
@@ -146,8 +146,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // Initialize auto-sync for existing session (only once globally)
         setTimeout(() => {
-          initializeAutoSyncOnce().catch(error => {
-            // Error already logged in initializeAutoSyncOnce
+          initializeAutoSyncOnce().catch((error) => {
+            console.error('[useAuth] Falha ao iniciar auto-sync na sessão existente', error);
           });
         }, 100);
       }

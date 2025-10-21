@@ -43,6 +43,7 @@ export function ConflictManager() {
       // Move to next conflict
       resolveCurrentConflict();
     } catch (error) {
+      console.error('Falha ao resolver conflito de edição', error);
       // Error já tratado pelo toast
     } finally {
       setIsResolving(false);

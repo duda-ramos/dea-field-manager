@@ -186,7 +186,7 @@ function isApiKeyData(value: unknown): value is ApiKeyData {
 
 // Using runtime validation via type guards for api_keys rows
 
-const supabase = createClient(
+const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )

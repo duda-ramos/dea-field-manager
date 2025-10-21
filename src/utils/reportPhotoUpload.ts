@@ -40,23 +40,19 @@ export async function uploadPhotoForReport(
     // Convert data URL to Blob
     const response = await fetch(photoDataUrl);
     const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
     
     // Create unique filename with timestamp
     const timestamp = Date.now();
     const filename = `report-photos/${installationId}-${timestamp}.jpg`;
     
     // Upload to Supabase Storage in project-files bucket
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filename, blob, {
         contentType: 'image/jpeg',
         upsert: true
       });
-    
-    // Cleanup object URL to prevent memory leak
-    URL.revokeObjectURL(objectUrl);
-    
+
     if (uploadError) {
       console.error('[uploadPhotoForReport] Error uploading photo:', {
         error: uploadError,

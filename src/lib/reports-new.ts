@@ -1,4 +1,3 @@
-// @ts-nocheck - Complex PDF generation with type assertion needs
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -7,8 +6,9 @@ import type { ReportConfig } from '@/components/reports/ReportCustomizationModal
 import { storage } from './storage';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
+import { getStorageBucket } from '@/utils/storagePath';
 
-const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
+const bucketName = getStorageBucket();
 
 /**
  * Upload report file to Supabase Storage and save metadata to database
@@ -27,13 +27,22 @@ export async function saveReportToSupabase(
   config: ReportConfig,
   data?: ReportData
 ): Promise<{ fileUrl: string; fileName: string } | null> {
+  let userId: string | undefined;
   try {
+    // Ensure storage bucket is available
+    if (!bucketName) {
+      console.error('[saveReportToSupabase] Supabase bucket not configured');
+      return null;
+    }
+
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       console.error('[saveReportToSupabase] User not authenticated');
       return null;
     }
+
+    userId = user.id;
 
     // Generate unique filename
     const timestamp = Date.now();
@@ -42,11 +51,12 @@ export async function saveReportToSupabase(
     const filePath = `${user.id}/${projectId}/${fileName}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('reports')
+    const storageClient = supabase.storage.from(bucketName);
+
+    const { data: uploadData, error: uploadError } = await storageClient
       .upload(filePath, blob, {
-        contentType: format === 'pdf' 
-          ? 'application/pdf' 
+        contentType: format === 'pdf'
+          ? 'application/pdf'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         upsert: false
       });
@@ -56,10 +66,10 @@ export async function saveReportToSupabase(
       return null;
     }
 
+    const storagePath = uploadData?.path ?? filePath;
+
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('reports')
-      .getPublicUrl(filePath);
+    const { data: urlData } = storageClient.getPublicUrl(storagePath);
 
     if (!urlData?.publicUrl) {
       console.error('[saveReportToSupabase] Failed to get public URL');
@@ -89,7 +99,7 @@ export async function saveReportToSupabase(
           user_id: user.id,
           format,
           config: config || {},
-          file_url: urlData.publicUrl,
+          file_url: storagePath,
           file_name: fileName,
           interlocutor: config?.interlocutor || 'cliente',
           generated_by: user.id,
@@ -118,7 +128,8 @@ export async function saveReportToSupabase(
         projectId,
         format,
         blobSize: blob.size,
-        userId: undefined, // Will be logged in context above
+        userId,
+        bucket: bucketName,
         operacao: 'saveReportToSupabase',
         timestamp: new Date().toISOString()
       }
@@ -791,13 +802,11 @@ async function addEnhancedSectionToPDF(
     // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
     const galleryUrlsMap = new Map<string, { url: string, count: number }>();
     if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
-      let processedCount = 0;
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
           const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
           if (galleryUrl) {
             galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
-            processedCount++;
           }
         }
       }
@@ -969,12 +978,12 @@ async function uploadSinglePhotoWithRetry(
   timestamp: number,
   maxRetries = 3
 ): Promise<string | null> {
-  const _lastError: Error | unknown = null;  
-  
+  let lastError: unknown = null;
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       // Validate bucket is configured
-      if (!bucket) {
+      if (!bucketName) {
         console.error('[uploadSinglePhotoWithRetry] Error: Supabase bucket not configured');
         return null;
       }
@@ -982,24 +991,20 @@ async function uploadSinglePhotoWithRetry(
       // Convert data URL to blob
       const response = await fetch(photo);
       const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      
+
       // Create unique filename
       const filename = `reports/temp_${itemId}_${index}_${timestamp}.jpg`;
-      
+
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
         .upload(filename, blob, {
           contentType: 'image/jpeg',
           upsert: true
         });
-      
-      // Cleanup object URL to prevent memory leak
-      URL.revokeObjectURL(objectUrl);
-      
+
       if (uploadError) {
-        const _lastError = uploadError;
+        lastError = uploadError;
         if (attempt < maxRetries - 1) {
           // Wait before retrying (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
@@ -1009,11 +1014,11 @@ async function uploadSinglePhotoWithRetry(
       }
       
       // Get public URL
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filename);
+      const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filename);
       return urlData?.publicUrl || null;
-      
+
     } catch (error) {
-      const _lastError = error;
+      lastError = error;
       if (attempt === maxRetries - 1) {
         logger.error('Falha ao fazer upload de foto após tentativas', {
           error: error instanceof Error ? error.message : String(error),
@@ -1072,7 +1077,7 @@ async function uploadPhotosInChunks<T, R>(
 async function uploadPhotosForReport(photos: string[], itemId: string): Promise<string> {
   try {
     // Input validation
-    if (!bucket) {
+    if (!bucketName) {
       console.error('[uploadPhotosForReport] Error: Supabase bucket not configured');
       return '';
     }
@@ -1248,7 +1253,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     const htmlFilename = `reports/gallery_${itemId}_${timestamp}.html`;
     
     const { error: htmlUploadError } = await supabase.storage
-      .from(bucket)
+      .from(bucketName)
       .upload(htmlFilename, htmlBlob, {
         contentType: 'text/html',
         upsert: true
@@ -1264,7 +1269,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     }
     
     // Get public URL for the HTML page
-    const { data: htmlUrlData } = supabase.storage.from(bucket).getPublicUrl(htmlFilename);
+    const { data: htmlUrlData } = supabase.storage.from(bucketName).getPublicUrl(htmlFilename);
     return htmlUrlData?.publicUrl || '';
     
   } catch (error) {
@@ -1279,81 +1284,6 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
       }
     });
     return '';
-  }
-}
-
-/**
- * Get public URLs for photos from Supabase Storage
- * 
- * @param projectId - Project ID
- * @param installationId - Installation ID
- * @returns Promise<string[]> - Array of public URLs, or empty array if errors occur
- * 
- * Error Handling:
- * - Validates bucket configuration
- * - Continues processing remaining files if some fail
- * - Returns empty array on critical errors (doesn't break report)
- * - Logs detailed context for debugging
- */
-async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
-  try {
-    // Input validation
-    if (!bucket) {
-      console.error('[getPhotoPublicUrls] Error: Supabase bucket not configured');
-      return [];
-    }
-
-    if (!projectId) {
-      console.error('[getPhotoPublicUrls] Error: projectId is missing');
-      return [];
-    }
-
-    if (!installationId) {
-      console.error('[getPhotoPublicUrls] Error: installationId is missing');
-      return [];
-    }
-    
-    // Get files for this installation from the database
-    const files = await storage.getFilesByProject(projectId);
-    const installationFiles = files.filter(f =>
-      f.installationId === installationId &&
-      (f.type === 'image' || (typeof f.type === 'string' && f.type.startsWith('image/'))) &&
-      f.storagePath
-    );
-    
-    // Get public URLs for each file
-    const urls: string[] = [];
-    for (const file of installationFiles) {
-      try {
-        if (file.storagePath) {
-          const { data } = supabase.storage.from(bucket).getPublicUrl(file.storagePath);
-          if (data?.publicUrl) {
-            urls.push(data.publicUrl);
-          }
-        }
-      } catch (fileError) {
-        // Log error but continue with other files
-        console.error('[getPhotoPublicUrls] Error getting URL for file, continuing:', {
-          error: fileError,
-          fileId: file.id,
-          storagePath: file.storagePath
-        });
-      }
-    }
-    
-    return urls;
-  } catch (error) {
-    logger.error('Falha crítica ao obter URLs públicas de fotos', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      context: {
-        projectId,
-        installationId,
-        operacao: 'getPhotoPublicUrls',
-        timestamp: new Date().toISOString()
-      }
-    });
-    return [];
   }
 }
 
@@ -1600,18 +1530,6 @@ function getAggregatedColumnStyles(): Record<number, { halign: string; cellWidth
 
 // Prepare compact table data (without Pavimento and Tipologia columns)
 // PERFORMANCE: Now uses optimized prepareDynamicTableData with batch version fetching
-async function prepareCompactTableData(
-  items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectId?: string
-): Promise<{ columns: string[], rows: unknown[][] }> {
-  return prepareDynamicTableData(items, interlocutor, sectionType, {
-    includePavimento: false,
-    includeTipologia: false
-  }, projectId);
-}
-
 // COMMENTED OUT - Function not currently used
 // function getColumnStyles(
 //   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
@@ -1671,102 +1589,6 @@ function _getCompactColumnStyles(columns: string[]): Record<number, { halign: st
   return styles;
 }
 
-async function addSectionToPDF(
-  doc: jsPDF, 
-  title: string, 
-  items: Installation[], 
-  yPosition: number, 
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-): Promise<number> {
-  // Add new page if needed
-  if (yPosition > 250) {
-    doc.addPage();
-    yPosition = 20;
-  }
-
-  doc.setFontSize(14);
-  doc.text(title, 20, yPosition);
-  yPosition += 10;
-
-  // Prepare table data based on section type and interlocutor
-  let columns: string[] = [];
-  let rows: unknown[][] = [];
-
-  // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
-  const sortedItems = [...items].sort((a, b) => {
-    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
-    if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-    return a.codigo - b.codigo;
-  });
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      rows = sortedItems.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    } else {
-      columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      rows = sortedItems.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-      ]);
-    }
-  } else if (sectionType === 'revisao') {
-    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    
-    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
-    const itemIds = sortedItems.map(item => item.id);
-    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
-    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
-    
-    rows = sortedItems.map(item => {
-      const versions = versionsMap.get(item.id) || [];
-      const latestVersion = versions[versions.length - 1];
-      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      return [
-        item.pavimento,
-        item.tipologia,
-        item.codigo.toString(),
-        item.descricao,
-        item.revisao.toString(),
-        motivo
-      ];
-    });
-  } else {
-    columns = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
-    rows = sortedItems.map(item => [
-      item.pavimento,
-      item.tipologia,
-      item.codigo.toString(),
-      item.descricao
-    ]);
-  }
-
-  autoTable(doc, {
-    head: [columns],
-    body: rows,
-    startY: yPosition,
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [100, 100, 100] },
-  });
-
-  const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-  const finalY = docWithTable.lastAutoTable?.finalY ?? 0;
-  return finalY + 20;
-}
 
 function getMotivoPtBr(motivo: string): string {
   const motivosMap: Record<string, string> = {
@@ -1882,7 +1704,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
 
   if (sections.concluidas.length > 0) {
     try {
-      addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
+      addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas);
     } catch (error) {
       console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
     }
@@ -1899,7 +1721,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   if (sections.emAndamento.length > 0) {
     try {
       const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-      addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
+      addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento);
     } catch (error) {
       console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
     }
@@ -1925,210 +1747,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   }
 }
 
-async function addSectionToXLSX(
-  workbook: XLSX.WorkBook,
-  sheetName: string,
-  items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
-) {
-  let headers: string[] = [];
-  let data: (string | number)[][] = [];
-
-  // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
-  const sortedItems = [...items].sort((a, b) => {
-    if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
-    if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-    return a.codigo - b.codigo;
-  });
-
-  if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Foto'];
-      data = sortedItems.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo,
-        item.descricao,
-        item.observacoes || '',
-        (item.photos && item.photos.length > 0) ? 'Arquivo de foto disponível' : ''
-      ]);
-    } else {
-      headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      data = sortedItems.map(item => [
-        item.pavimento,
-        item.tipologia,
-        item.codigo,
-        item.descricao,
-        item.observacoes || '',
-        item.comentarios_fornecedor || '',
-        (item.photos && item.photos.length > 0) ? 'Arquivo de foto disponível' : ''
-      ]);
-    }
-  } else if (sectionType === 'revisao') {
-    headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Versão', 'Motivo'];
-    
-    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
-    const itemIds = sortedItems.map(item => item.id);
-    const revisionHints = new Map(sortedItems.map(item => [item.id, item.revisao ?? 0]));
-    const versionsMap = await batchFetchVersions(itemIds, revisionHints);
-    
-    data = sortedItems.map(item => {
-      const versions = versionsMap.get(item.id) || [];
-      const latestVersion = versions[versions.length - 1];
-      const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      return [
-        item.pavimento,
-        item.tipologia,
-        item.codigo,
-        item.descricao,
-        item.revisao,
-        motivo
-      ];
-    });
-  } else {
-    headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição'];
-    data = sortedItems.map(item => [
-      item.pavimento,
-      item.tipologia,
-      item.codigo,
-      item.descricao
-    ]);
-  }
-
-  const wsData = [headers, ...data];
-  const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-}
-
 // Enhanced XLSX section with hierarchical structure (Pavimento → Tipologia → Items)
-async function addEnhancedSectionToXLSX(
-  workbook: XLSX.WorkBook,
-  sheetName: string,
-  items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectId?: string
-) {
-  // Use compact columns (without Pavimento and Tipologia)
-  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, projectId);
-  const allData: (string | number)[][] = [compactColumns]; // Headers
-
-  // Group by pavimento
-  const pavimentoGroups = new Map<string, Installation[]>();
-  items.forEach(item => {
-    const pavimento = item.pavimento || 'Sem Pavimento';
-    if (!pavimentoGroups.has(pavimento)) {
-      pavimentoGroups.set(pavimento, []);
-    }
-    pavimentoGroups.get(pavimento)!.push(item);
-  });
-
-  // Sort pavimentos naturally
-  const sortedPavimentos = Array.from(pavimentoGroups.keys()).sort((a, b) => {
-    if (a === 'Sem Pavimento') return 1;
-    if (b === 'Sem Pavimento') return -1;
-    return a.localeCompare(b, 'pt-BR', { numeric: true });
-  });
-
-  // Process each pavimento
-  for (const pavimento of sortedPavimentos) {
-    const pavimentoItems = pavimentoGroups.get(pavimento)!;
-
-    // Add pavimento title row (merged across all columns)
-    const pavimentoTitle = [`Pavimento ${pavimento} • ${pavimentoItems.length} itens`];
-    while (pavimentoTitle.length < compactColumns.length) {
-      pavimentoTitle.push('');
-    }
-    allData.push(pavimentoTitle);
-
-    // Group by tipologia within this pavimento
-    const tipologiaGroups = new Map<string, Installation[]>();
-    pavimentoItems.forEach(item => {
-      const tipologia = item.tipologia || 'Sem Tipologia';
-      if (!tipologiaGroups.has(tipologia)) {
-        tipologiaGroups.set(tipologia, []);
-      }
-      tipologiaGroups.get(tipologia)!.push(item);
-    });
-
-    // Sort tipologias A-Z
-    const sortedTipologias = Array.from(tipologiaGroups.keys()).sort();
-
-    // Process each tipologia
-    for (const tipologia of sortedTipologias) {
-      const tipologiaItems = tipologiaGroups.get(tipologia)!;
-
-      // Add tipologia title row
-      const tipologiaTitle = [`${tipologia} • ${tipologiaItems.length} itens`];
-      while (tipologiaTitle.length < compactColumns.length) {
-        tipologiaTitle.push('');
-      }
-      allData.push(tipologiaTitle);
-
-      // Sort items by código (numeric)
-      const sortedItems = tipologiaItems.sort((a, b) => {
-        const codeA = parseInt(a.codigo?.toString().replace(/\D/g, '') || '0');
-        const codeB = parseInt(b.codigo?.toString().replace(/\D/g, '') || '0');
-        return codeA - codeB;
-      });
-
-      // Add items data (compact format)
-      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, projectId);
-      allData.push(...rows);
-    }
-
-    // Add spacing between pavimentos
-    const emptyRow = new Array(compactColumns.length).fill('');
-    allData.push(emptyRow);
-  }
-
-  const worksheet = XLSX.utils.aoa_to_sheet(allData);
-  // Freeze top row (header)
-  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-  // Auto filter on header row
-  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + compactColumns.length - 1)}1` };
-  
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-}
-
-// Convert data URL to base64 string for Excel
-function dataUrlToBase64(dataUrl: string): string {
-  if (dataUrl.startsWith('data:')) {
-    return dataUrl.split(',')[1];
-  }
-  return dataUrl;
-}
-
-/**
- * Create hyperlink cell for XLSX with clickable link
- * 
- * @param url - Target URL
- * @param text - Display text (default: 'Ver Foto')
- * @returns Cell object with hyperlink and styling
- */
-function createHyperlinkCell(url: string, text: string = 'Ver Foto'): { content: string; styles: { textColor: number[]; fontStyle: string } } {
-  return {
-    v: text,
-    l: {
-      Target: url,
-      Tooltip: 'Clique para ver a foto'
-    },
-    s: {
-      font: {
-        color: { rgb: '0000FF' },
-        underline: true
-      },
-      alignment: {
-        horizontal: 'center',
-        vertical: 'center'
-      }
-    }
-  };
-}
-
-// Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
 async function addFlatSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
@@ -2149,13 +1768,11 @@ async function addFlatSectionToXLSX(
   // Pre-upload photos and create galleries for pendencias section
   const galleryUrlsMap = new Map<string, { url: string, count: number }>();
   if (sectionType === 'pendencias' && projectId) {
-    let processedCount = 0;
     for (const item of sortedItems) {
       if (item.photos && item.photos.length > 0) {
         const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
         if (galleryUrl) {
           galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
-          processedCount++;
         }
       }
     }
@@ -2171,7 +1788,7 @@ async function addFlatSectionToXLSX(
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
   
   // Set column widths
-  const colWidths = columns.map((col, idx) => {
+  const colWidths = columns.map((col) => {
     if (col === 'Foto') return { wch: 15 };
     if (col === 'Pavimento') return { wch: 15 };
     if (col === 'Tipologia') return { wch: 20 };
@@ -2243,9 +1860,7 @@ async function addFlatSectionToXLSX(
 function addAggregatedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
-  items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'concluidas' | 'andamento'
+  items: Installation[]
 ) {
   const aggregatedData = aggregateByPavimentoTipologia(items);
   

@@ -65,7 +65,7 @@ export function SyncButton() {
       const hasChanges = totalItems > 0 || pushTotals.deleted > 0;
       
       if (hasChanges) {
-        let details = [];
+        const details: string[] = [];
         if (pushTotals.pushed > 0) details.push(`${pushTotals.pushed} enviados`);
         if (pullTotals.pulled > 0) details.push(`${pullTotals.pulled} recebidos`);
         if (pushTotals.deleted > 0) details.push(`${pushTotals.deleted} removidos`);

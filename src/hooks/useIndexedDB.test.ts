@@ -35,7 +35,9 @@ function createMemoryDriver() {
                 const req: { result?: unknown; onsuccess?: ((ev: Event) => unknown) | null } = {};
                 setTimeout(() => {
                   req.result = store.get(id);
-                  req.onsuccess && req.onsuccess({} as Event);
+                  if (req.onsuccess) {
+                    req.onsuccess({} as Event);
+                  }
                 }, 0);
                 return req;
               },
@@ -43,7 +45,9 @@ function createMemoryDriver() {
                 const req: { result?: unknown; onsuccess?: ((ev: Event) => unknown) | null } = {};
                 setTimeout(() => {
                   req.result = store.size;
-                  req.onsuccess && req.onsuccess({} as Event);
+                  if (req.onsuccess) {
+                    req.onsuccess({} as Event);
+                  }
                 }, 0);
                 return req;
               },
@@ -51,7 +55,11 @@ function createMemoryDriver() {
             oncomplete: null as ((ev: Event) => unknown) | null,
             onerror: null as ((ev: Event) => unknown) | null,
           };
-          setTimeout(() => tx.oncomplete && tx.oncomplete({} as Event), 0);
+          setTimeout(() => {
+            if (tx.oncomplete) {
+              tx.oncomplete({} as Event);
+            }
+          }, 0);
           return tx as IDBTransaction;
         },
       };
