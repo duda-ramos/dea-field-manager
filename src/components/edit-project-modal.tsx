@@ -237,7 +237,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 value={formData.status} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as Project['status'] }))}
               >
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -328,14 +328,16 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
           </div>
 
           <div>
-            <Label>Fornecedores</Label>
+            <Label htmlFor="suppliers-0">Fornecedores</Label>
             <div className="space-y-2">
               {formData.suppliers.map((supplier, index) => (
                 <div key={index} className="flex gap-2">
                   <Input 
+                    id={`suppliers-${index}`}
                     value={supplier} 
                     onChange={(e) => updateSupplier(index, e.target.value)} 
-                    placeholder={`Fornecedor ${index + 1}`} 
+                    placeholder={`Fornecedor ${index + 1}`}
+                    aria-label={`Fornecedor ${index + 1}`}
                   />
                   {formData.suppliers.length > 1 && (
                     <Button 
