@@ -43,7 +43,7 @@ export function FileMigrationModal({
         setMigratedCount(completed);
         setMigrationProgress((completed / totalFiles) * 100);
       } catch (error) {
-        console.error(`Failed to migrate file ${file.name}:`, error);
+        // Error já tratado individualmente
         setFailedFiles(prev => [...prev, file.name]);
       }
     }

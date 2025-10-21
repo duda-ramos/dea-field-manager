@@ -86,39 +86,42 @@ async function _hashKey(key: string): Promise<string> {
   return await bcrypt.hash(key, "12")
 }
 
-// Verify API key against hash
+/**
+ * Verifies API key against bcrypt hash
+ * Returns false on any error to fail securely
+ */
 async function verifyKey(key: string, hash: string): Promise<boolean> {
   try {
     return await bcrypt.compare(key, hash)
-  } catch (error) {
-    console.error('Error verifying API key:', error)
+  } catch (_error) {
     return false
   }
 }
 
-// Authenticate API key
+/**
+ * Authenticates API key from Authorization header
+ * Uses bcrypt to securely compare keys against hashed values
+ * Updates last_used_at timestamp for valid keys
+ */
 async function authenticateApiKey(authHeader: string | null): Promise<{ user_id: string; permissions: any; api_key_id: string } | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.warn('Missing or invalid Authorization header')
     return null
   }
 
   const apiKey = authHeader.substring(7)
   
-  // Validate API key format (should be at least 32 characters)
+  // Validate API key format (minimum 32 characters for security)
   if (apiKey.length < 32) {
-    console.warn('API key too short')
     return null
   }
 
-  // Get all active API keys for comparison (with rate limiting)
+  // Get all active API keys for comparison
   const { data: apiKeys, error } = await supabase
     .from('api_keys')
     .select('id, user_id, key_hash, permissions, is_active, expires_at')
     .eq('is_active', true)
 
   if (error || !apiKeys || apiKeys.length === 0) {
-    console.error('Error fetching API keys:', error)
     return null
   }
 
@@ -132,18 +135,17 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
       // Check if key is expired
       const expiresAt = (keyData as any).expires_at;
       if (expiresAt && new Date(expiresAt) < new Date()) {
-        console.warn('API key expired')
         return null
       }
 
-      // Update last used timestamp (fire and forget)
       const keyId = (keyData as any).id;
+      
+      // Update last used timestamp asynchronously (no need to await)
       supabase
         .from('api_keys')
-        .update({ last_used_at: new Date().toISOString() })
+        .update({ last_used_at: new Date().toISOString() } as any)
         .eq('id', keyId)
-        .then(() => console.log('API key last_used_at updated'))
-        .catch((err: Error) => console.error('Error updating last_used_at:', err))
+        .then()
 
       return {
         user_id: (keyData as any).user_id,
@@ -153,7 +155,6 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
     }
   }
 
-  console.warn('No matching API key found')
   return null
 }
 
@@ -269,20 +270,18 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([{
+        .insert({
           name,
           client,
           city,
           code: code || '',
           status: status || 'planning',
           user_id: auth.user_id
-        }])
+        } as any)
         .select()
         .maybeSingle()
 
       if (error) throw error
-
-      console.log(`Project created: ${data?.id} by user ${auth.user_id}`)
 
       return new Response(
         JSON.stringify({ data }),
@@ -381,8 +380,7 @@ serve(async (req) => {
       }
     )
 
-  } catch (error) {
-    console.error('API Error:', error)
+  } catch (_error) {
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 

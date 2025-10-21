@@ -113,7 +113,7 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
       onUpdate?.();
 
     } catch (error) {
-      console.error('Sync error:', error);
+      // Error já tratado pelo toast
       toast({
         title: "Erro na sincronização",
         description: error instanceof Error ? error.message : "Erro desconhecido",

@@ -216,7 +216,7 @@ export function EnhancedImageUpload({
           operacao: 'uploadImage'
         });
 
-        console.log(`📦 Comprimiu ${file.name} de ${originalSizeMB.toFixed(2)}MB para ${compressedSizeMB.toFixed(2)}MB (${reductionPercent.toFixed(1)}% redução) em ${compressionTime}ms`);
+        // Compressão bem-sucedida
         
         fileToUpload = compressedFile;
       } else if (!disableCompression) {

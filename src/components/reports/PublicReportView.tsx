@@ -129,7 +129,7 @@ export function PublicReportView() {
         .single();
 
       if (projectError) {
-        console.error('Erro ao buscar projeto:', projectError);
+        // Error já exibido na UI
       }
 
       // Buscar instalações se incluídas no relatório
@@ -146,7 +146,7 @@ export function PublicReportView() {
           .order('codigo', { ascending: true });
 
         if (installError) {
-          console.error('Erro ao buscar instalações:', installError);
+          // Error já exibido na UI
         } else {
           installations = (installData || []).map(toInstallation);
         }
@@ -179,7 +179,7 @@ export function PublicReportView() {
 
       setReportData(reportData);
     } catch (err) {
-      console.error('Erro ao validar token:', err);
+      // Error já exibido na UI
       setError('Erro ao carregar relatório. Tente novamente.');
     } finally {
       setLoading(false);
@@ -219,7 +219,7 @@ export function PublicReportView() {
         window.open(data.publicUrl, '_blank');
       }
     } catch (err) {
-      console.error('Erro ao baixar arquivo:', err);
+      // Error já tratado pelo toast
     }
   };
 

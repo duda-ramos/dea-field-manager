@@ -51,7 +51,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
       setEvents(eventsData);
       setBlocks(blocksData);
     } catch (error) {
-      console.error('Error loading calendar data:', error);
+      // Error já tratado pelo toast
       toast({
         title: 'Erro ao carregar agenda',
         description: 'Não foi possível carregar os dados da agenda.',

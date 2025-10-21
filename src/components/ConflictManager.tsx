@@ -43,7 +43,7 @@ export function ConflictManager() {
       // Move to next conflict
       resolveCurrentConflict();
     } catch (error) {
-      console.error('Error resolving conflict:', error);
+      // Error já tratado pelo toast
     } finally {
       setIsResolving(false);
     }

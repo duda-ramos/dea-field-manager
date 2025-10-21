@@ -325,7 +325,7 @@ export function AddInstallationModal({
       handleClose();
       onUpdate();
     } catch (error) {
-      console.error("Error saving installation:", error);
+      // Error já tratado pelo toast
       toast({
         title: "Erro ao salvar peça",
         description: "Não foi possível salvar as informações. Verifique os dados e tente novamente",

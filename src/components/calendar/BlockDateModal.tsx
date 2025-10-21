@@ -77,7 +77,7 @@ export function BlockDateModal({ isOpen, onClose, selectedDate, onBlockSaved }: 
         block_type: 'unavailable'
       });
     } catch (error) {
-      console.error('Error blocking date:', error);
+      // Error já tratado pelo toast
       toast({
         title: 'Erro ao bloquear data',
         description: 'Não foi possível salvar o bloqueio. Tente novamente',
