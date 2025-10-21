@@ -29,7 +29,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       setLoading(true);
       
       // Load from local storage
-      const localReports = (await (storage as any).getReports?.(projectId)) || [];
+      const localReports = await storage.getReports(projectId);
       
       // Load from Supabase
       const supabaseReports: any[] = [];
@@ -235,7 +235,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       
       // Delete from local storage
       try {
-        await (storage as any).deleteReport?.(reportId);
+        await storage.deleteReport(reportId);
       } catch (error) {
         // Error já tratado
       }
