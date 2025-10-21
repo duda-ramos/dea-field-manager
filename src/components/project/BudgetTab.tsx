@@ -53,10 +53,16 @@ export function BudgetTab({ projectId, projectName }: BudgetTabProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [proposalToDelete, setProposalToDelete] = useState<{ id: string; filePath?: string; name: string } | null>(null);
-  const [newProposal, setNewProposal] = useState({
+  const [newProposal, setNewProposal] = useState<{
+    supplier: string;
+    status: 'pending' | 'approved' | 'rejected';
+    file: File | null;
+    value: string;
+    proposal_date: string;
+  }>({
     supplier: "",
-    status: "pending" as const,
-    file: null as File | null,
+    status: "pending",
+    file: null,
     value: "",
     proposal_date: ""
   });

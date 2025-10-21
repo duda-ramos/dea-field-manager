@@ -277,7 +277,7 @@ export function BulkOperationPanel({
             for (const item of projectItems) {
               await storage.upsertProject({
                 ...item,
-                status: 'archived',
+                status: 'archived' as any,
                 updated_at: new Date().toISOString()
               });
             }

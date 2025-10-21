@@ -82,33 +82,33 @@ export function getRecordPreview(recordType: string, record: Record<string, unkn
   switch (recordType) {
     case 'installation':
       return {
-        'Código': record.codigo || '—',
-        'Descrição': record.descricao || '—',
+        'Código': String(record.codigo || '—'),
+        'Descrição': String(record.descricao || '—'),
         'Quantidade': record.quantidade?.toString() || '—',
         'Status': record.installed ? 'Instalado' : 'Pendente'
       };
     
     case 'project':
       return {
-        'Nome': record.name || '—',
-        'Cliente': record.client || '—',
-        'Status': record.status || '—',
-        'Cidade': record.city || '—'
+        'Nome': String(record.name || '—'),
+        'Cliente': String(record.client || '—'),
+        'Status': String(record.status || '—'),
+        'Cidade': String(record.city || '—')
       };
     
     case 'contact':
       return {
-        'Nome': record.name || '—',
-        'Função': record.role || '—',
-        'Telefone': record.phone || '—',
-        'Email': record.email || '—'
+        'Nome': String(record.name || '—'),
+        'Função': String(record.role || '—'),
+        'Telefone': String(record.phone || '—'),
+        'Email': String(record.email || '—')
       };
     
     case 'budget':
       return {
-        'Fornecedor': record.supplier || '—',
-        'Status': record.status || '—',
-        'Arquivo': record.fileName || '—'
+        'Fornecedor': String(record.supplier || '—'),
+        'Status': String(record.status || '—'),
+        'Arquivo': String(record.fileName || '—')
       };
     
     default:
@@ -129,13 +129,13 @@ export function getRecordPreview(recordType: string, record: Record<string, unkn
 export function getRecordDisplayName(recordType: string, record: Record<string, unknown>): string {
   switch (recordType) {
     case 'installation':
-      return `Instalação ${record.codigo || 'sem código'}`;
+      return `Instalação ${String(record.codigo || 'sem código')}`;
     
     case 'project':
-      return record.name || 'Projeto sem nome';
+      return String(record.name || 'Projeto sem nome');
     
     case 'contact':
-      return record.name || 'Contato sem nome';
+      return String(record.name || 'Contato sem nome');
     
     case 'budget':
       return `Orçamento de ${record.supplier || 'fornecedor'}`;

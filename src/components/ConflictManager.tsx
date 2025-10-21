@@ -33,7 +33,7 @@ export function ConflictManager() {
     setIsResolving(true);
     try {
       await resolveEditConflict(
-        localVersion.id,
+        String(localVersion.id),
         recordType as any,
         useLocal,
         localVersion,

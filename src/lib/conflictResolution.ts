@@ -81,16 +81,16 @@ async function keepLocalVersion(
   // Update in database based on type
   switch (recordType) {
     case 'project':
-      await StorageManagerDexie.upsertProject(markedRecord);
+      await StorageManagerDexie.upsertProject(markedRecord as any);
       break;
     case 'installation':
-      await StorageManagerDexie.upsertInstallation(markedRecord);
+      await StorageManagerDexie.upsertInstallation(markedRecord as any);
       break;
     case 'contact':
-      await StorageManagerDexie.upsertContact(markedRecord);
+      await StorageManagerDexie.upsertContact(markedRecord as any);
       break;
     case 'budget':
-      await StorageManagerDexie.upsertBudget(markedRecord);
+      await StorageManagerDexie.upsertBudget(markedRecord as any);
       break;
   }
 
@@ -123,16 +123,16 @@ async function useRemoteVersion(
   // Update in database based on type
   switch (recordType) {
     case 'project':
-      await db.projects.put(cleanedRecord);
+      await db.projects.put(cleanedRecord as any);
       break;
     case 'installation':
-      await db.installations.put(cleanedRecord);
+      await db.installations.put(cleanedRecord as any);
       break;
     case 'contact':
-      await db.contacts.put(cleanedRecord);
+      await db.contacts.put(cleanedRecord as any);
       break;
     case 'budget':
-      await db.budgets.put(cleanedRecord);
+      await db.budgets.put(cleanedRecord as any);
       break;
   }
 
