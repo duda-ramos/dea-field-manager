@@ -25,6 +25,8 @@ interface StorageLike {
 
   // Contacts
   getContacts(projectId?: string): Promise<ProjectContact[]>;
+  upsertContact(contact: ProjectContact): Promise<ProjectContact>;
+  deleteContact(id: string): Promise<void>;
 
   // Budgets
   getBudgetsByProject(projectId: string): Promise<ProjectBudget[]>;
