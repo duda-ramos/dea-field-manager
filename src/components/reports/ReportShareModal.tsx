@@ -104,7 +104,7 @@ export function ReportShareModal({
         createdAt: Date.now(),
       };
 
-      await (storage as any).saveReport?.(reportEntry);
+      await storage.saveReport(reportEntry as any);
 
       if (!supabaseResult) {
         console.warn('[ReportShareModal] Failed to save to Supabase, but saved locally');

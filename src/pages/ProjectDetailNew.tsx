@@ -138,7 +138,7 @@ export default function ProjectDetailNew() {
     if (!id) return;
     
     try {
-      const reports = (await (storage as any).getReports?.(id)) || [];
+      const reports = await storage.getReports(id);
       if (reports.length > 0) {
         // Reports are already sorted by date (most recent first)
         const lastReport = reports[0];
@@ -597,18 +597,19 @@ export default function ProjectDetailNew() {
               )}
             </div>
 
-            {((project as any).address || (project as any).access_notes) && (
+            {(('address' in project && (project as unknown as { address?: string | null }).address) ||
+              ('access_notes' in project && (project as unknown as { access_notes?: string | null }).access_notes)) && (
               <div className="grid grid-cols-1 gap-4 pt-2 border-t">
-                {(project as any).address && (
+                {(project as unknown as { address?: string | null }).address && (
                   <div>
                     <Label className="text-sm font-medium">Endereço</Label>
-                    <p className="text-sm text-muted-foreground">{(project as any).address}</p>
+                    <p className="text-sm text-muted-foreground">{(project as unknown as { address?: string | null }).address}</p>
                   </div>
                 )}
-                {(project as any).access_notes && (
+                {(project as unknown as { access_notes?: string | null }).access_notes && (
                   <div>
                     <Label className="text-sm font-medium">Observações de Acesso</Label>
-                    <p className="text-sm text-muted-foreground">{(project as any).access_notes}</p>
+                    <p className="text-sm text-muted-foreground">{(project as unknown as { access_notes?: string | null }).access_notes}</p>
                   </div>
                 )}
               </div>
