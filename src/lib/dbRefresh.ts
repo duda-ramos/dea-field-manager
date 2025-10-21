@@ -20,5 +20,5 @@ export async function refreshDatabase() {
 
 // Add to window for debugging in development
 if (import.meta.env.DEV) {
-  (window as any).refreshDatabase = refreshDatabase;
+  (window as { refreshDatabase?: typeof refreshDatabase }).refreshDatabase = refreshDatabase;
 }

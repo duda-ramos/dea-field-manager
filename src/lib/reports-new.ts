@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Project, Installation, ItemVersion } from '@/types';
+import type { ReportConfig } from '@/components/reports/ReportCustomizationModal.types';
 import { storage } from './storage';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
@@ -23,7 +24,7 @@ export async function saveReportToSupabase(
   blob: Blob,
   projectId: string,
   format: 'pdf' | 'xlsx',
-  config: any,
+  config: ReportConfig,
   data?: ReportData
 ): Promise<{ fileUrl: string; fileName: string } | null> {
   try {
@@ -607,7 +608,7 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add pavimento summary
   if (pavimentoSummary.length > 0) {
-    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor as any);
+    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
   }
 
   // Add sections only if they have items - each section wrapped in try/catch
@@ -830,7 +831,7 @@ async function addEnhancedSectionToPDF(
       alternateRowStyles: { 
         fillColor: [250, 250, 251] // #FAFAFB
       },
-      columnStyles: getFlatColumnStyles(sectionType, interlocutor) as any,
+      columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
       didDrawCell: (data) => {
         // Add clickable photo gallery links in the "Foto" column for pendencias and revisao
@@ -880,7 +881,9 @@ async function addEnhancedSectionToPDF(
       }
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 10;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 10;
   } 
   // For aggregated sections (Concluidas, Em Andamento) - grouped by Pavimento and Tipologia
   else {
@@ -924,7 +927,7 @@ async function addEnhancedSectionToPDF(
       alternateRowStyles: { 
         fillColor: [250, 250, 251] // #FAFAFB
       },
-      columnStyles: getAggregatedColumnStyles() as any,
+      columnStyles: getAggregatedColumnStyles(),
       theme: 'grid',
       didDrawPage: () => {
         const pageHeight = doc.internal.pageSize.height;
@@ -935,7 +938,9 @@ async function addEnhancedSectionToPDF(
       }
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 10;
+    const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    yPosition = lastY + 10;
   }
 
   return yPosition;
@@ -1758,7 +1763,9 @@ async function addSectionToPDF(
     headStyles: { fillColor: [100, 100, 100] },
   });
 
-  return (doc as any).lastAutoTable.finalY + 20;
+  const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+  const finalY = docWithTable.lastAutoTable?.finalY ?? 0;
+  return finalY + 20;
 }
 
 function getMotivoPtBr(motivo: string): string {
@@ -1926,7 +1933,7 @@ async function addSectionToXLSX(
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
 ) {
   let headers: string[] = [];
-  let data: any[][] = [];
+  let data: (string | number)[][] = [];
 
   // Sort items: Pavimento (natural), Tipologia (alphabetic), Código (numeric)
   const sortedItems = [...items].sort((a, b) => {
@@ -2006,7 +2013,7 @@ async function addEnhancedSectionToXLSX(
 ) {
   // Use compact columns (without Pavimento and Tipologia)
   const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, projectId);
-  const allData: any[][] = [compactColumns]; // Headers
+  const allData: (string | number)[][] = [compactColumns]; // Headers
 
   // Group by pavimento
   const pavimentoGroups = new Map<string, Installation[]>();
@@ -2101,7 +2108,7 @@ function dataUrlToBase64(dataUrl: string): string {
  * @param text - Display text (default: 'Ver Foto')
  * @returns Cell object with hyperlink and styling
  */
-function createHyperlinkCell(url: string, text: string = 'Ver Foto'): any {
+function createHyperlinkCell(url: string, text: string = 'Ver Foto'): { content: string; styles: { textColor: number[]; fontStyle: string } } {
   return {
     v: text,
     l: {

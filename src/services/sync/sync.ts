@@ -67,7 +67,7 @@ const normalizeTimestamps = (obj: Record<string, unknown>) => ({
 const denormalizeTimestamps = (obj: Record<string, unknown>) => ({
   ...obj,
   createdAt: obj.created_at,
-  updatedAt: obj.updated_at ? new Date(obj.updated_at as any).getTime() : Date.now()
+  updatedAt: obj.updated_at ? new Date(obj.updated_at as string).getTime() : Date.now()
 });
 
 // Check if record should be force uploaded
@@ -108,9 +108,9 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
       const operations = batch.map(async (record: Record<string, unknown>) => {
         try {
           if (record._deleted) {
-            await supabase.from(remote as any).delete().eq('id', record.id);
+            await supabase.from(remote).delete().eq('id', record.id);
             deleted++;
-            await localTable.delete(record.id as any);
+            await localTable.delete(record.id as string);
           } else {
             // Transform record for Supabase
             const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
@@ -121,7 +121,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
               logger.debug(`[Force Upload] ${entityName} ${record.id}`);
             }
             
-            await supabase.from(remote as any).upsert(normalizedRecord);
+            await supabase.from(remote).upsert(normalizedRecord);
             pushed++;
             
             // Clear both _dirty and _forceUpload flags after successful push
@@ -173,7 +173,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
     try {
       const { data, error } = await withRetry(async () => {
         return await supabase
-          .from(remote as any)
+          .from(remote)
           .select('*')
           .eq('user_id', user.id)
           .gt('updated_at', lastPulledDate)
@@ -183,7 +183,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
       });
 
       if (error) {
-        if ((error as any)?.code === 'PGRST301' || (error as any)?.status === 404) {
+        if ((error as { code?: string; status?: number })?.code === 'PGRST301' || (error as { code?: string; status?: number })?.status === 404) {
           throw new Error(`Tabela remota "${remote}" não encontrada. Verifique se as migrações Supabase foram aplicadas.`);
         }
         throw error;
@@ -212,7 +212,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
           // Process batch in parallel
           await Promise.all(batch.map(async (rawRecord) => {
             // Type assertion: after filtering, we know these are valid records with properties
-            const remoteRecord = rawRecord as any;
+            const remoteRecord = rawRecord as Record<string, unknown>;
             
             try {
               // Ensure remoteRecord has an id property
@@ -290,11 +290,11 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
   });
   
   // Remove local-only fields
-  delete (base as any)._dirty;
-  delete (base as any)._deleted;
-  delete (base as any)._forceUpload;
-  delete (base as any).updatedAt;
-  delete (base as any).createdAt;
+  delete base._dirty;
+  delete base._deleted;
+  delete base._forceUpload;
+  delete base.updatedAt;
+  delete base.createdAt;
 
   switch (entityName) {
     case 'projects':
@@ -369,7 +369,7 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
     _deleted: 0
   });
   
-  delete (base as any).user_id;
+  delete base.user_id;
 
   switch (entityName) {
     case 'projects':
@@ -391,10 +391,10 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
         _deleted: 0
       };
     case 'budgets': {
-      const fileName = record.file_name ?? (record as any).fileName;
-      const filePath = record.file_path ?? (record as any).filePath;
-      const fileSize = record.file_size ?? (record as any).fileSize;
-      const uploadedAt = record.uploaded_at ?? (record as any).uploadedAt;
+      const fileName = record.file_name ?? (record as Record<string, unknown>).fileName;
+      const filePath = record.file_path ?? (record as Record<string, unknown>).filePath;
+      const fileSize = record.file_size ?? (record as Record<string, unknown>).fileSize;
+      const uploadedAt = record.uploaded_at ?? (record as Record<string, unknown>).uploadedAt;
 
       return {
         ...base,
@@ -475,7 +475,7 @@ async function uploadSingleFile(
       needsUpload: undefined,
       _dirty: 1,
       _deleted: 0
-    } as any);
+    } as ProjectFile);
 
     if (file.url && file.url.startsWith('blob:')) {
       URL.revokeObjectURL(file.url);

@@ -32,7 +32,7 @@ const ENTITY_ORDER: EntityName[] = [
   'files'
 ];
 
-const getLocalTable = (table: LocalTableName) => (db as unknown as Record<string, any>)[table];
+const getLocalTable = (table: LocalTableName) => (db as unknown as Record<string, unknown>)[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
@@ -57,7 +57,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
   if (!session?.user) throw new Error('User not authenticated');
   const user = session.user;
 
-  const localTable = getLocalTable(local) as any;
+  const localTable = getLocalTable(local);
   const dirtyRecords = await localTable.where('_dirty').equals(1).toArray();
   if (dirtyRecords.length === 0) return { pushed: 0, deleted: 0, errors: [] };
 
@@ -75,13 +75,13 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
       const operations = batch.map(async (record: Record<string, unknown>) => {
         try {
           if (record._deleted) {
-            await supabase.from(remote as any).delete().eq('id', record.id);
+            await supabase.from(remote).delete().eq('id', record.id);
             deleted++;
             await localTable.delete(record.id);
           } else {
             // Transform record for Supabase
             const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
-            await supabase.from(remote as any).upsert(normalizedRecord);
+            await supabase.from(remote).upsert(normalizedRecord);
             pushed++;
             await localTable.update(record.id, { _dirty: 0 });
           }
@@ -111,13 +111,13 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   const errors: string[] = [];
   const lastPulledDate = new Date(lastPulledAt).toISOString();
 
-  const localTable = getLocalTable(local) as any;
+  const localTable = getLocalTable(local);
 
   while (hasMore) {
     try {
       const { data: records, error } = await withRetry(async () => {
         return await supabase
-          .from(remote as any)
+          .from(remote)
           .select('*')
           .eq('user_id', user.id)
           .gt('updated_at', lastPulledDate)
@@ -127,7 +127,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
       });
 
       if (error) {
-        if ((error as any)?.code === 'PGRST301' || (error as any)?.status === 404) {
+        if ((error as { code?: string; status?: number })?.code === 'PGRST301' || (error as { code?: string; status?: number })?.status === 404) {
           throw new Error(`Tabela remota "${remote}" não encontrada. Verifique se as migrações Supabase foram aplicadas.`);
         }
         throw error;
@@ -138,12 +138,12 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 
         for (const record of records) {
           try {
-            const localRecord = transformRecordForLocal(record as any, entityName);
+            const localRecord = transformRecordForLocal(record as Record<string, unknown>, entityName);
             await localTable.put(localRecord);
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            errors.push(`${entityName}_${(record as any).id || 'unknown'}: ${errorMsg}`);
+            errors.push(`${entityName}_${(record as Record<string, unknown>).id || 'unknown'}: ${errorMsg}`);
           }
         }
 
@@ -163,7 +163,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 }
 
 function transformRecordForSupabase(record: Record<string, unknown>, entityName: string, userId: string): Record<string, unknown> {
-  const base: any = normalizeTimestamps({
+  const base = normalizeTimestamps({
     ...record,
     user_id: userId
   });
@@ -241,7 +241,7 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
 }
 
 function transformRecordForLocal(record: Record<string, unknown>, entityName: string): Record<string, unknown> {
-  const base: any = denormalizeTimestamps({
+  const base = denormalizeTimestamps({
     ...record,
     _dirty: 0,
     _deleted: 0
@@ -269,10 +269,10 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
         _deleted: 0
       };
     case 'budgets': {
-      const fileName = record.file_name ?? (record as any).fileName;
-      const filePath = record.file_path ?? (record as any).filePath;
-      const fileSize = record.file_size ?? (record as any).fileSize;
-      const uploadedAt = record.uploaded_at ?? (record as any).uploadedAt;
+      const fileName = record.file_name ?? (record as Record<string, unknown>).fileName;
+      const filePath = record.file_path ?? (record as Record<string, unknown>).filePath;
+      const fileSize = record.file_size ?? (record as Record<string, unknown>).fileSize;
+      const uploadedAt = record.uploaded_at ?? (record as Record<string, unknown>).uploadedAt;
 
       return {
         ...base,
@@ -359,7 +359,7 @@ async function prePushFiles(): Promise<{ tentados: number; sucesso: number; falh
         needsUpload: undefined,
         _dirty: 1,
         _deleted: 0
-      } as any);
+      } as Partial<ProjectFile>);
 
       if (file.url && file.url.startsWith('blob:')) {
         URL.revokeObjectURL(file.url);

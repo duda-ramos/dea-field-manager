@@ -35,7 +35,7 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   return response;
 }
 
-export async function apiJson<T = any>(path: string, init?: RequestInit): Promise<T> {
+export async function apiJson<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const response = await apiFetch(path, init);
   return response.json();
 }
@@ -52,7 +52,7 @@ export async function getToken({
   username: string; 
   password: string; 
   clientId?: string;
-}): Promise<any> {
+}): Promise<{ access_token: string; token_type: string; expires_in?: number }> {
   const body = new URLSearchParams({
     grant_type: "password",
     username,

@@ -40,7 +40,7 @@ function makeVersion(installationId: string, overrides: Partial<ItemVersion> = {
   return {
     id: crypto.randomUUID(),
     installationId,
-    snapshot: {} as any,
+    snapshot: {},
     revisao: 1,
     motivo: 'created',
     criadoEm: new Date().toISOString(),

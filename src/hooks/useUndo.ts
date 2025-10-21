@@ -117,7 +117,7 @@ function generateActionId(): string {
  * Deve ser usado pelos componentes que implementam operações com undo
  */
 export function useRegisterUndoFunctions(
-  functions: Array<{ type: ActionType; undoFn: (data: any) => Promise<void> }>
+  functions: Array<{ type: ActionType; undoFn: (data: unknown) => Promise<void> }>
 ): void {
   const undoManager = getUndoManager();
 

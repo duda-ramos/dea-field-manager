@@ -32,6 +32,11 @@ interface ReportHistoryPanelProps {
   projectId: string;
 }
 
+interface ExtendedReportHistoryEntry extends ReportHistoryEntry {
+  file_url?: string;
+  fileUrl?: string;
+}
+
 interface ReportStats {
   pendentes: number;
   concluidos: number;
@@ -39,7 +44,7 @@ interface ReportStats {
 }
 
 export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
-  const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
+  const [reports, setReports] = useState<ExtendedReportHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [formatFilter, setFormatFilter] = useState<'all' | 'pdf' | 'xlsx'>('all');
@@ -101,11 +106,11 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
     return undefined;
   };
 
-  const handleDownload = async (report: ReportHistoryEntry) => {
+  const handleDownload = async (report: ExtendedReportHistoryEntry) => {
     try {
       // Check if report has a file URL (from Supabase)
-      if ((report as any).file_url || (report as any).fileUrl) {
-        const fileUrl = (report as any).file_url || (report as any).fileUrl;
+      if (report.file_url || report.fileUrl) {
+        const fileUrl = report.file_url || report.fileUrl;
         
         // Download from URL
         const response = await fetch(fileUrl);
@@ -308,7 +313,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
 
           <div className="space-y-2">
             <Label htmlFor="period" className="text-sm">Período</Label>
-            <Select value={periodFilter} onValueChange={(value: any) => setPeriodFilter(value)}>
+            <Select value={periodFilter} onValueChange={(value: 'all' | 'week' | 'month' | '3months') => setPeriodFilter(value)}>
               <SelectTrigger id="period">
                 <SelectValue placeholder="Selecione o período" />
               </SelectTrigger>
@@ -323,7 +328,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
 
           <div className="space-y-2">
             <Label htmlFor="format" className="text-sm">Formato</Label>
-            <Select value={formatFilter} onValueChange={(value: any) => setFormatFilter(value)}>
+            <Select value={formatFilter} onValueChange={(value: 'all' | 'pdf' | 'xlsx') => setFormatFilter(value)}>
               <SelectTrigger id="format">
                 <SelectValue placeholder="Selecione o formato" />
               </SelectTrigger>
@@ -337,7 +342,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
 
           <div className="space-y-2">
             <Label htmlFor="interlocutor" className="text-sm">Interlocutor</Label>
-            <Select value={interlocutorFilter} onValueChange={(value: any) => setInterlocutorFilter(value)}>
+            <Select value={interlocutorFilter} onValueChange={(value: 'all' | 'cliente' | 'fornecedor') => setInterlocutorFilter(value)}>
               <SelectTrigger id="interlocutor">
                 <SelectValue placeholder="Selecione o interlocutor" />
               </SelectTrigger>

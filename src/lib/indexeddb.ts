@@ -192,7 +192,7 @@ class IndexedDBManager {
   }
 
   // Bulk import installations from Excel data with floor/pavimento support
-  async importInstallations(projectId: string, data: { pavimento: string; items: any[] }[]): Promise<{ summary: Record<string, number>; installations: Installation[] }> {
+  async importInstallations(projectId: string, data: { pavimento: string; items: Installation[] }[]): Promise<{ summary: Record<string, number>; installations: Installation[] }> {
     const allInstallations: Installation[] = [];
     const summary: Record<string, number> = {};
 
