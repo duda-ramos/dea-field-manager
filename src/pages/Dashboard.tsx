@@ -81,8 +81,9 @@ export default function Dashboard() {
       
       toast({
         title: "Erro ao carregar projetos",
-        description: "Tente novamente em alguns instantes",
-        variant: "destructive"
+        description: "Não foi possível carregar seus projetos. Verifique sua conexão e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     } finally {
       setLoading(false);
@@ -195,8 +196,9 @@ export default function Dashboard() {
       setErrors({});
 
       toast({
-        title: "Projeto criado",
-        description: `Projeto "${createdProject.name}" foi criado com sucesso.`,
+        title: "Projeto criado com sucesso",
+        description: `"${createdProject.name}" foi adicionado aos seus projetos`,
+        duration: 3000
       });
 
     } catch (error) {
@@ -208,8 +210,9 @@ export default function Dashboard() {
       
       toast({
         title: "Erro ao criar projeto",
-        description: "Tente novamente em alguns instantes",
-        variant: "destructive"
+        description: "Não foi possível criar o projeto. Verifique os dados e tente novamente",
+        variant: "destructive",
+        duration: 5000
       });
     } finally {
       setCreating(false);

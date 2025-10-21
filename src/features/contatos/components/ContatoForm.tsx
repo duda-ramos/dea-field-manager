@@ -134,9 +134,11 @@ export function ContatoForm({
 
       await onSave(novoContato);
       
+      const action = contato ? 'atualizado' : 'adicionado';
       toast({
-        title: "Contato salvo",
-        description: `${nome} foi ${contato ? 'atualizado' : 'criado'} com sucesso.`
+        title: `Contato ${action} com sucesso`,
+        description: `"${nome}" foi ${action} aos seus contatos`,
+        duration: 3000
       });
       
       onClose();

@@ -136,8 +136,9 @@ export function InstallationDetailModalNew({
         onUpdate();
         onClose();
         toast({
-          title: "Instalação atualizada",
-          description: "As informações foram salvas com sucesso.",
+          title: "Peça atualizada com sucesso",
+          description: `Peça ${installation.codigo} "${installation.descricao}" foi salva`,
+          duration: 3000
         });
         showToast.success("Instalação atualizada", "As informações foram salvas com sucesso.");
       }
@@ -150,9 +151,10 @@ export function InstallationDetailModalNew({
       });
       // Erro já é tratado com toast
       toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar as alterações. Tente novamente.",
+        title: "Erro ao salvar peça",
+        description: `Não foi possível salvar a peça ${installation.codigo}. Tente novamente`,
         variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsSaving(false);
@@ -182,9 +184,10 @@ export function InstallationDetailModalNew({
   const handleRevisionMotiveConfirm = () => {
     if (!revisionMotivo) {
       toast({
-        title: "Erro",
-        description: "Selecione um motivo para a revisão",
-        variant: "destructive"
+        title: "Motivo de revisão obrigatório",
+        description: "Selecione o motivo para criar a revisão desta peça",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error("Erro", "Selecione um motivo para a revisão");
       return;
@@ -192,9 +195,10 @@ export function InstallationDetailModalNew({
 
     if (revisionMotivo === 'outros' && !revisionDescricao.trim()) {
       toast({
-        title: "Erro", 
-        description: "Descreva o motivo da revisão",
-        variant: "destructive"
+        title: "Descrição obrigatória",
+        description: "Descreva o motivo da revisão no campo indicado",
+        variant: "destructive",
+        duration: 5000
       });
       showToast.error("Erro", "Descreva o motivo da revisão");
       return;

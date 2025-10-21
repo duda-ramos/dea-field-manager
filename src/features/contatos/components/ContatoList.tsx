@@ -50,16 +50,19 @@ export function ContatoList({
     onDelete(contato);
     setDeleteContato(null);
     toast({
-      title: "Contato excluído",
-      description: `${contato.nome} foi removido com sucesso.`
+      title: "Contato excluído com sucesso",
+      description: `"${contato.nome}" foi removido dos seus contatos`,
+      duration: 3000
     });
   };
 
   const exportCSV = () => {
     if (filteredContatos.length === 0) {
       toast({
-        title: "Nenhum contato para exportar",
-        variant: "destructive"
+        title: "Nenhum contato disponível",
+        description: "Adicione contatos antes de exportar para CSV",
+        variant: "destructive",
+        duration: 4000
       });
       return;
     }
@@ -87,8 +90,9 @@ export function ContatoList({
     URL.revokeObjectURL(url);
 
     toast({
-      title: "CSV exportado",
-      description: `Lista de contatos ${tipoLabel[tipo]} exportada com sucesso.`
+      title: "CSV exportado com sucesso",
+      description: `${filteredContatos.length} contatos ${tipoLabel[tipo]} exportados`,
+      duration: 3000
     });
   };
 

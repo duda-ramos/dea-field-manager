@@ -183,8 +183,9 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
     if (!emailRegex.test(inviteEmail)) {
       toast({
         title: 'Email inválido',
-        description: 'Por favor, insira um email válido',
-        variant: 'destructive'
+        description: 'Verifique o endereço de email e tente novamente',
+        variant: 'destructive',
+        duration: 4000
       });
       return;
     }
@@ -203,9 +204,10 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
           operacao: 'get_user_by_email'
         });
         toast({
-          title: 'Erro',
-          description: 'Erro ao buscar usuário',
-          variant: 'destructive'
+          title: 'Erro ao buscar usuário',
+          description: 'Não foi possível verificar o email. Tente novamente',
+          variant: 'destructive',
+          duration: 5000
         });
         return;
       }
@@ -213,8 +215,9 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (!foundUserId) {
         toast({
           title: 'Usuário não encontrado',
-          description: 'O email fornecido não está cadastrado. O usuário precisa criar uma conta primeiro.',
-          variant: 'destructive'
+          description: `"${inviteEmail}" não possui conta. Convide-o a se cadastrar primeiro`,
+          variant: 'destructive',
+          duration: 5000
         });
         return;
       }
@@ -222,9 +225,10 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       // Check if user is the project owner
       if (foundUserId === user.id) {
         toast({
-          title: 'Erro',
-          description: 'Você não pode adicionar a si mesmo como colaborador',
-          variant: 'destructive'
+          title: 'Operação inválida',
+          description: 'Você já é o proprietário deste projeto',
+          variant: 'destructive',
+          duration: 4000
         });
         return;
       }
@@ -240,8 +244,9 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (existingCollaborator) {
         toast({
           title: 'Colaborador já existe',
-          description: 'Este usuário já é um colaborador do projeto',
-          variant: 'destructive'
+          description: `"${inviteEmail}" já tem acesso a este projeto`,
+          variant: 'destructive',
+          duration: 4000
         });
         return;
       }
@@ -277,9 +282,11 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       // Publish collaboration event
       await publishEvent('collaborator_added', { email: inviteEmail, role: inviteRole });
 
+      const roleLabel = inviteRole === 'admin' ? 'administrador' : inviteRole === 'editor' ? 'editor' : 'visualizador';
       toast({
-        title: 'Sucesso',
-        description: `${inviteEmail} foi adicionado como colaborador`
+        title: 'Colaborador adicionado com sucesso',
+        description: `"${inviteEmail}" agora tem acesso como ${roleLabel}`,
+        duration: 3000
       });
 
       setIsInviteModalOpen(false);
@@ -302,9 +309,10 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         operacao: 'handleInviteUser'
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao adicionar colaborador',
-        variant: 'destructive'
+        title: 'Erro ao adicionar colaborador',
+        description: 'Não foi possível adicionar o colaborador. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setInviting(false);
@@ -321,8 +329,9 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (error) throw error;
 
       toast({
-        title: 'Colaborador removido',
-        description: 'Colaborador removido do projeto'
+        title: 'Colaborador removido com sucesso',
+        description: 'O acesso ao projeto foi revogado',
+        duration: 3000
       });
 
       loadCollaborators();
@@ -338,9 +347,10 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         operacao: 'handleRemoveCollaborator'
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao remover colaborador',
-        variant: 'destructive'
+        title: 'Erro ao remover colaborador',
+        description: 'Não foi possível revogar o acesso. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     }
   };

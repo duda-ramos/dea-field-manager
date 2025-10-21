@@ -99,8 +99,9 @@ export function ReportCustomizationModal({
       console.error('Error updating preview:', error);
       toast({
         title: 'Erro ao atualizar prévia',
-        description: 'Não foi possível calcular a prévia do relatório.',
+        description: 'Não foi possível calcular a prévia. As configurações serão mantidas',
         variant: 'destructive',
+        duration: 4000
       });
       showToast.error('Erro ao atualizar prévia', 'Não foi possível calcular a prévia do relatório.');
     } finally {
@@ -147,8 +148,9 @@ export function ReportCustomizationModal({
   const handleRestoreDefaults = useCallback(() => {
     setConfig(DEFAULT_REPORT_CONFIG);
     toast({
-      title: 'Preferências restauradas',
-      description: 'As configurações padrão foram restauradas.',
+      title: 'Configurações restauradas',
+      description: 'As preferências padrão do relatório foram aplicadas',
+      duration: 2000
     });
     showToast.success('Preferências restauradas', 'As configurações padrão foram restauradas.');
   }, [toast]);
@@ -156,9 +158,10 @@ export function ReportCustomizationModal({
   const handleGenerate = useCallback(async (format: 'pdf' | 'xlsx') => {
     if (!hasSelectedSections) {
       toast({
-        title: 'Seleção necessária',
-        description: 'Selecione pelo menos uma seção para gerar o relatório.',
+        title: 'Selecione ao menos uma seção',
+        description: 'Escolha as seções que deseja incluir no relatório',
         variant: 'destructive',
+        duration: 4000
       });
       showToast.error('Seleção necessária', 'Selecione pelo menos uma seção para gerar o relatório.');
       return;
@@ -169,9 +172,11 @@ export function ReportCustomizationModal({
     try {
       const blob = await onGenerate(config, format);
       onShare(blob, format, config);
+      const formatName = format === 'pdf' ? 'PDF' : 'Excel';
       toast({
-        title: 'Relatório gerado com sucesso',
-        description: `O relatório ${format.toUpperCase()} foi gerado.`,
+        title: `Relatório ${formatName} gerado com sucesso`,
+        description: `"${project.name}" pronto para download`,
+        duration: 3000
       });
       showToast.success(
         'Relatório gerado com sucesso',
@@ -182,8 +187,9 @@ export function ReportCustomizationModal({
       console.error('Error generating report:', error);
       toast({
         title: 'Erro ao gerar relatório',
-        description: error instanceof Error ? error.message : 'Não foi possível gerar o relatório. Tente novamente.',
+        description: 'Não foi possível criar o relatório. Verifique as configurações e tente novamente',
         variant: 'destructive',
+        duration: 5000
       });
       showToast.error(
         'Erro ao gerar relatório',

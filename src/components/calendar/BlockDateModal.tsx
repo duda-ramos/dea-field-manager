@@ -46,9 +46,10 @@ export function BlockDateModal({ isOpen, onClose, selectedDate, onBlockSaved }: 
   const handleSave = async () => {
     if (!formData.blocked_date) {
       toast({
-        title: 'Erro',
-        description: 'A data é obrigatória.',
-        variant: 'destructive'
+        title: 'Data obrigatória',
+        description: 'Selecione uma data para bloquear',
+        variant: 'destructive',
+        duration: 4000
       });
       return;
     }
@@ -57,9 +58,13 @@ export function BlockDateModal({ isOpen, onClose, selectedDate, onBlockSaved }: 
       setLoading(true);
       await calendarService.createBlock(formData);
       
+      const formattedDate = new Date(formData.blocked_date).toLocaleDateString('pt-BR');
+      const typeLabel = blockTypeOptions.find(opt => opt.value === formData.block_type)?.label || 'bloqueio';
+      
       toast({
-        title: 'Data bloqueada',
-        description: 'A data foi bloqueada com sucesso.'
+        title: 'Data bloqueada com sucesso',
+        description: `${formattedDate} marcada como "${typeLabel}"`,
+        duration: 3000
       });
 
       onBlockSaved();
@@ -74,9 +79,10 @@ export function BlockDateModal({ isOpen, onClose, selectedDate, onBlockSaved }: 
     } catch (error) {
       console.error('Error blocking date:', error);
       toast({
-        title: 'Erro ao bloquear',
-        description: 'Não foi possível bloquear a data.',
-        variant: 'destructive'
+        title: 'Erro ao bloquear data',
+        description: 'Não foi possível salvar o bloqueio. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setLoading(false);

@@ -74,9 +74,10 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
         operacao: 'loadBackups'
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao carregar lista de backups',
-        variant: 'destructive'
+        title: 'Erro ao carregar backups',
+        description: 'Não foi possível carregar a lista de backups. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setLoading(false);
@@ -111,8 +112,9 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
       if (error) throw error;
 
       toast({
-        title: 'Backup criado',
-        description: 'Backup manual criado com sucesso'
+        title: 'Backup criado com sucesso',
+        description: `Backup manual de "${project.name}" foi salvo`,
+        duration: 3000
       });
 
       loadBackups();
@@ -125,9 +127,10 @@ export function AutomaticBackup({ project }: AutomaticBackupProps) {
         operacao: 'createManualBackup'
       });
       toast({
-        title: 'Erro',
-        description: 'Erro ao criar backup manual',
-        variant: 'destructive'
+        title: 'Erro ao criar backup',
+        description: 'Não foi possível criar o backup manual. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setCreating(false);

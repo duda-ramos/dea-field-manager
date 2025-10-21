@@ -125,9 +125,10 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
   const handleSave = async () => {
     if (!formData.title.trim()) {
       toast({
-        title: 'Erro',
-        description: 'O título é obrigatório.',
-        variant: 'destructive'
+        title: 'Título obrigatório',
+        description: 'Informe um título para o evento',
+        variant: 'destructive',
+        duration: 4000
       });
       return;
     }
@@ -143,14 +144,16 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
       if (event) {
         await calendarService.updateEvent(event.id, eventData);
         toast({
-          title: 'Evento atualizado',
-          description: 'O evento foi atualizado com sucesso.'
+          title: 'Evento atualizado com sucesso',
+          description: `"${formData.title}" foi salvo no calendário`,
+          duration: 3000
         });
       } else {
         await calendarService.createEvent(eventData);
         toast({
-          title: 'Evento criado',
-          description: 'O evento foi criado com sucesso.'
+          title: 'Evento criado com sucesso',
+          description: `"${formData.title}" foi adicionado ao calendário`,
+          duration: 3000
         });
       }
 
@@ -159,9 +162,10 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
     } catch (error) {
       console.error('Error saving event:', error);
       toast({
-        title: 'Erro ao salvar',
-        description: 'Não foi possível salvar o evento.',
-        variant: 'destructive'
+        title: 'Erro ao salvar evento',
+        description: 'Não foi possível salvar as informações. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setLoading(false);
@@ -175,17 +179,19 @@ export function EventModal({ isOpen, onClose, event, selectedDate, onEventSaved 
       setLoading(true);
       await calendarService.deleteEvent(event.id);
       toast({
-        title: 'Evento excluído',
-        description: 'O evento foi excluído com sucesso.'
+        title: 'Evento excluído com sucesso',
+        description: `"${event.title}" foi removido do calendário`,
+        duration: 3000
       });
       onEventSaved();
       onClose();
     } catch (error) {
       console.error('Error deleting event:', error);
       toast({
-        title: 'Erro ao excluir',
-        description: 'Não foi possível excluir o evento.',
-        variant: 'destructive'
+        title: 'Erro ao excluir evento',
+        description: 'Não foi possível remover o evento. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
     } finally {
       setLoading(false);

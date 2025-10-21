@@ -481,11 +481,13 @@ export function EnhancedImageUpload({
       });
       setFilePreviews([]);
       
+      const photoWord = uploadedImages.length === 1 ? 'foto' : 'fotos';
       toast({
-        title: 'Sucesso',
+        title: `${uploadedImages.length} ${photoWord} ${uploadedImages.length === 1 ? 'enviada' : 'enviadas'} com sucesso`,
         description: installationId 
-          ? `${uploadedImages.length} foto(s) salva(s) no item e sincronizada(s) com a galeria.`
-          : `${uploadedImages.length} imagem(ns) enviada(s) com sucesso.`
+          ? `${photoWord.charAt(0).toUpperCase() + photoWord.slice(1)} ${uploadedImages.length === 1 ? 'adicionada' : 'adicionadas'} à instalação e sincronizada com a galeria`
+          : `Upload concluído: ${uploadedImages.length} ${uploadedImages.length === 1 ? 'imagem processada' : 'imagens processadas'}`,
+        duration: 3000
       });
       showToast.success(
         'Imagens enviadas com sucesso',
@@ -507,9 +509,10 @@ export function EnhancedImageUpload({
         operacao: 'confirmUpload'
       });
       toast({
-        title: 'Erro',
-        description: 'Não foi possível enviar as imagens após várias tentativas. Verifique sua conexão e tente novamente.',
-        variant: 'destructive'
+        title: 'Erro no upload de imagens',
+        description: `Falha ao enviar ${filePreviews.length} ${filePreviews.length === 1 ? 'imagem' : 'imagens'}. Verifique sua conexão e tente novamente`,
+        variant: 'destructive',
+        duration: 5000
       });
       showToast.error(
         'Erro ao enviar imagens',
@@ -621,8 +624,9 @@ export function EnhancedImageUpload({
       setEditingImage(null);
       
       toast({
-        title: 'Sucesso',
-        description: 'Imagem editada salva com sucesso.'
+        title: 'Imagem editada com sucesso',
+        description: 'A versão editada foi salva na galeria',
+        duration: 3000
       });
       showToast.success('Imagem editada salva com sucesso');
     } catch (error) {
@@ -641,9 +645,10 @@ export function EnhancedImageUpload({
         operacao: 'handleImageEdited'
       });
       toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar a imagem editada após várias tentativas. Verifique sua conexão e tente novamente.',
-        variant: 'destructive'
+        title: 'Erro ao salvar imagem editada',
+        description: 'Não foi possível salvar as edições. Tente novamente',
+        variant: 'destructive',
+        duration: 5000
       });
       showToast.error(
         'Erro ao salvar imagem editada',
