@@ -50,6 +50,7 @@ export function AddInstallationModal({
     pendencia_descricao: ""
   });
   
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export function AddInstallationModal({
       pendencia_tipo: "",
       pendencia_descricao: ""
     });
+    setErrors({});
   };
 
   const handleClose = () => {
@@ -108,41 +110,51 @@ export function AddInstallationModal({
   // Removed duplicate code check - codes can be duplicated
 
   const handleSubmit = async () => {
+    const newErrors: Record<string, string> = {};
+
     // Validate required fields
-    if (!formData.tipologia || !formData.codigo || !formData.descricao || !formData.quantidade || !formData.pavimento) {
-      toast({
-        title: "Campos obrigatórios faltando",
-        description: "Preencha tipologia, código, descrição, quantidade e pavimento",
-        variant: "destructive",
-        duration: 5000
-      });
-      showToast.error("Erro de validação", "Preencha todos os campos obrigatórios");
-      return;
+    if (!formData.tipologia.trim()) {
+      newErrors.tipologia = 'Tipologia é obrigatória';
+    }
+    if (!formData.codigo.trim()) {
+      newErrors.codigo = 'Código é obrigatório';
+    }
+    if (!formData.descricao.trim()) {
+      newErrors.descricao = 'Descrição é obrigatória';
+    }
+    if (!formData.quantidade.trim()) {
+      newErrors.quantidade = 'Quantidade é obrigatória';
+    }
+    if (!formData.pavimento.trim()) {
+      newErrors.pavimento = 'Pavimento é obrigatório';
     }
 
     // Validate pendency fields
     if (formData.pendencia_tipo && !formData.pendencia_descricao.trim()) {
-      toast({
-        title: "Descrição de pendência obrigatória",
-        description: "Descreva a pendência selecionada no campo de descrição",
-        variant: "destructive",
-        duration: 5000
-      });
-      showToast.error("Erro de validação", "Se há uma pendência, descreva-a no campo de descrição");
-      return;
+      newErrors.pendencia_descricao = 'Descrição da pendência é obrigatória quando há uma pendência selecionada';
     }
 
+    // Validate numeric fields
     const codigo = parseInt(formData.codigo);
     const quantidade = parseInt(formData.quantidade);
 
-    if (isNaN(codigo) || isNaN(quantidade)) {
+    if (formData.codigo && isNaN(codigo)) {
+      newErrors.codigo = 'Código deve ser um número válido';
+    }
+    if (formData.quantidade && isNaN(quantidade)) {
+      newErrors.quantidade = 'Quantidade deve ser um número válido';
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
       toast({
-        title: "Valores inválidos",
-        description: "Código e quantidade devem ser números inteiros positivos",
+        title: "Campos obrigatórios faltando",
+        description: "Preencha todos os campos obrigatórios corretamente",
         variant: "destructive",
         duration: 5000
       });
-      showToast.error("Erro de validação", "Código e quantidade devem ser números válidos");
+      showToast.error("Erro de validação", "Preencha todos os campos obrigatórios");
       return;
     }
 
@@ -363,60 +375,115 @@ export function AddInstallationModal({
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Tipologia *</Label>
+              <Label htmlFor="tipologia">Tipologia *</Label>
               <Input
+                id="tipologia"
                 value={formData.tipologia}
-                onChange={(e) => setFormData(prev => ({ ...prev, tipologia: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, tipologia: e.target.value }));
+                  if (errors.tipologia) setErrors(prev => ({ ...prev, tipologia: '' }));
+                }}
                 placeholder="Ex: Escada, Sanitário"
+                aria-required="true"
+                aria-invalid={Boolean(errors.tipologia)}
+                aria-describedby={errors.tipologia ? 'tipologia-error' : undefined}
+                className={errors.tipologia ? 'border-destructive' : ''}
               />
+              {errors.tipologia && (
+                <p id="tipologia-error" className="text-sm text-destructive mt-1">{errors.tipologia}</p>
+              )}
             </div>
             
             <div>
-              <Label>Código *</Label>
+              <Label htmlFor="codigo">Código *</Label>
               <Input
+                id="codigo"
                 type="number"
                 value={formData.codigo}
-                onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, codigo: e.target.value }));
+                  if (errors.codigo) setErrors(prev => ({ ...prev, codigo: '' }));
+                }}
                 placeholder="Ex: 1, 2, 3"
+                aria-required="true"
+                aria-invalid={Boolean(errors.codigo)}
+                aria-describedby={errors.codigo ? 'codigo-error' : undefined}
+                className={errors.codigo ? 'border-destructive' : ''}
               />
+              {errors.codigo && (
+                <p id="codigo-error" className="text-sm text-destructive mt-1">{errors.codigo}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <Label>Descrição *</Label>
+            <Label htmlFor="descricao">Descrição *</Label>
             <Textarea
+              id="descricao"
               value={formData.descricao}
-              onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+              onChange={(e) => {
+                setFormData(prev => ({ ...prev, descricao: e.target.value }));
+                if (errors.descricao) setErrors(prev => ({ ...prev, descricao: '' }));
+              }}
               placeholder="Descrição detalhada da peça..."
-              className="min-h-[80px]"
+              className={`min-h-[80px] ${errors.descricao ? 'border-destructive' : ''}`}
+              aria-required="true"
+              aria-invalid={Boolean(errors.descricao)}
+              aria-describedby={errors.descricao ? 'descricao-error' : undefined}
             />
+            {errors.descricao && (
+              <p id="descricao-error" className="text-sm text-destructive mt-1">{errors.descricao}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Quantidade *</Label>
+              <Label htmlFor="quantidade">Quantidade *</Label>
               <Input
+                id="quantidade"
                 type="number"
                 value={formData.quantidade}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantidade: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, quantidade: e.target.value }));
+                  if (errors.quantidade) setErrors(prev => ({ ...prev, quantidade: '' }));
+                }}
                 placeholder="Ex: 1, 2, 5"
+                aria-required="true"
+                aria-invalid={Boolean(errors.quantidade)}
+                aria-describedby={errors.quantidade ? 'quantidade-error' : undefined}
+                className={errors.quantidade ? 'border-destructive' : ''}
               />
+              {errors.quantidade && (
+                <p id="quantidade-error" className="text-sm text-destructive mt-1">{errors.quantidade}</p>
+              )}
             </div>
             
             <div>
-              <Label>Pavimento *</Label>
+              <Label htmlFor="pavimento">Pavimento *</Label>
               <Input
+                id="pavimento"
                 value={formData.pavimento}
-                onChange={(e) => setFormData(prev => ({ ...prev, pavimento: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, pavimento: e.target.value }));
+                  if (errors.pavimento) setErrors(prev => ({ ...prev, pavimento: '' }));
+                }}
                 placeholder="Ex: Térreo, 1º Andar"
+                aria-required="true"
+                aria-invalid={Boolean(errors.pavimento)}
+                aria-describedby={errors.pavimento ? 'pavimento-error' : undefined}
+                className={errors.pavimento ? 'border-destructive' : ''}
               />
+              {errors.pavimento && (
+                <p id="pavimento-error" className="text-sm text-destructive mt-1">{errors.pavimento}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Altura da Diretriz (cm)</Label>
+              <Label htmlFor="diretriz_altura_cm">Altura da Diretriz (cm)</Label>
               <Input
+                id="diretriz_altura_cm"
                 type="number"
                 value={formData.diretriz_altura_cm}
                 onChange={(e) => setFormData(prev => ({ ...prev, diretriz_altura_cm: e.target.value }))}
@@ -425,8 +492,9 @@ export function AddInstallationModal({
             </div>
             
             <div>
-              <Label>Distância do Batente (cm)</Label>
+              <Label htmlFor="diretriz_dist_batente_cm">Distância do Batente (cm)</Label>
               <Input
+                id="diretriz_dist_batente_cm"
                 type="number"
                 value={formData.diretriz_dist_batente_cm}
                 onChange={(e) => setFormData(prev => ({ ...prev, diretriz_dist_batente_cm: e.target.value }))}
@@ -436,8 +504,9 @@ export function AddInstallationModal({
           </div>
 
           <div>
-            <Label>Observações</Label>
+            <Label htmlFor="observacoes">Observações</Label>
             <Textarea
+              id="observacoes"
               value={formData.observacoes}
               onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
               placeholder="Observações adicionais sobre a instalação..."
@@ -446,8 +515,9 @@ export function AddInstallationModal({
           </div>
 
           <div>
-            <Label>Comentários para o Fornecedor</Label>
+            <Label htmlFor="comentarios_fornecedor">Comentários para o Fornecedor</Label>
             <Textarea
+              id="comentarios_fornecedor"
               value={formData.comentarios_fornecedor}
               onChange={(e) => setFormData(prev => ({ ...prev, comentarios_fornecedor: e.target.value }))}
               placeholder="Comentários específicos para o fornecedor..."
@@ -457,12 +527,12 @@ export function AddInstallationModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Tipo de Pendência</Label>
+              <Label htmlFor="pendencia_tipo">Tipo de Pendência</Label>
               <Select 
                 value={formData.pendencia_tipo} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, pendencia_tipo: value, pendencia_descricao: value ? prev.pendencia_descricao : "" }))}
               >
-                <SelectTrigger>
+                <SelectTrigger id="pendencia_tipo">
                   <SelectValue placeholder="Selecione o tipo (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -476,13 +546,23 @@ export function AddInstallationModal({
 
           {formData.pendencia_tipo && (
             <div>
-              <Label>Descrição da Pendência *</Label>
+              <Label htmlFor="pendencia_descricao">Descrição da Pendência *</Label>
               <Textarea
+                id="pendencia_descricao"
                 value={formData.pendencia_descricao}
-                onChange={(e) => setFormData(prev => ({ ...prev, pendencia_descricao: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, pendencia_descricao: e.target.value }));
+                  if (errors.pendencia_descricao) setErrors(prev => ({ ...prev, pendencia_descricao: '' }));
+                }}
                 placeholder="Descreva detalhadamente a pendência..."
-                className="min-h-[100px]"
+                className={`min-h-[100px] ${errors.pendencia_descricao ? 'border-destructive' : ''}`}
+                aria-required="true"
+                aria-invalid={Boolean(errors.pendencia_descricao)}
+                aria-describedby={errors.pendencia_descricao ? 'pendencia_descricao-error' : undefined}
               />
+              {errors.pendencia_descricao && (
+                <p id="pendencia_descricao-error" className="text-sm text-destructive mt-1">{errors.pendencia_descricao}</p>
+              )}
             </div>
           )}
 
