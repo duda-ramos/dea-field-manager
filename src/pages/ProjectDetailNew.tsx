@@ -235,6 +235,11 @@ export default function ProjectDetailNew() {
       const projects = await storage.getProjects();
       const projectData = projects.find(p => p.id === id);
       if (!projectData) {
+        toast({
+          title: "Projeto não encontrado",
+          description: "O projeto que você está tentando acessar não existe.",
+          variant: "destructive"
+        });
         navigate('/');
         return;
       }
@@ -242,6 +247,23 @@ export default function ProjectDetailNew() {
       setProject(projectData);
       const projectInstallations = await storage.getInstallationsByProject(id);
       setInstallations(projectInstallations);
+    } catch (error) {
+      logger.error('Erro ao carregar dados do projeto', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          projectId: id,
+          userId: user?.id,
+          operacao: 'loadProjectData',
+          timestamp: new Date().toISOString()
+        }
+      });
+      toast({
+        title: "Erro ao carregar projeto",
+        description: "Não foi possível carregar os dados do projeto. Tente novamente.",
+        variant: "destructive"
+      });
+      navigate('/');
     } finally {
       setIsLoadingData(false);
     }
@@ -325,6 +347,15 @@ export default function ProjectDetailNew() {
 
 
   const toggleInstallation = useCallback(async (installationId: string) => {
+    if (!project) {
+      toast({
+        title: "Erro",
+        description: "Projeto não carregado. Tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     let targetInstallation: Installation | undefined;
     let previousInstalled = false;
     let newInstalledState = false;
@@ -481,6 +512,15 @@ export default function ProjectDetailNew() {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!project) {
+      toast({
+        title: "Erro",
+        description: "Projeto não carregado. Tente recarregar a página.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsImporting(true);
     
