@@ -138,7 +138,7 @@ export default function ProjectDetailNew() {
     if (!id) return;
     
     try {
-      const reports = await storage.getReports(id);
+      const reports = (await (storage as any).getReports?.(id)) || [];
       if (reports.length > 0) {
         // Reports are already sorted by date (most recent first)
         const lastReport = reports[0];

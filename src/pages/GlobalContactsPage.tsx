@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
+import { BulkOperationPanel } from '@/components/bulk-operations';
 
 interface GlobalContact {
   id: string;

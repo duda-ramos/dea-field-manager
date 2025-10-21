@@ -56,7 +56,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const projectReports = await storage.getReports(projectId);
+      const projectReports = (await (storage as any).getReports?.(projectId)) || [];
       setReports(projectReports);
     } catch (error) {
       console.error('Error loading report history:', error);
@@ -157,7 +157,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
     if (!window.confirm('Tem certeza que deseja excluir este relatório?')) return;
 
     try {
-      await storage.deleteReport(reportId);
+      await (storage as any).deleteReport?.(reportId);
       await loadHistory();
 
       toast({

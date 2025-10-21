@@ -16,7 +16,8 @@ import { ImageEditor } from './ImageEditor';
 import { BulkDownloader } from './BulkDownloader';
 import type { ProjectFile } from '@/types';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
-import { storage } from '@/lib/storage';
+import { db } from '@/db/indexedDb';
+import { storage as storageLib } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/logger';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
@@ -266,7 +267,8 @@ export function EnhancedImageUpload({
       // Sincronizar foto com álbum do projeto (se for de uma instalação)
       if (installationId) {
         try {
-          const installation = await storage.getInstallation(installationId);
+          const installations = await db.installations.where({ project_id: projectId }).toArray();
+          const installation = installations.find((i) => i.id === installationId);
           if (installation) {
             await syncPhotoToProjectAlbum(
               projectId,

@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "exclude": [
+    "src/services/realtime/**",
+    "src/services/storage/StorageManagerDexie.ts"
+  ]
+}

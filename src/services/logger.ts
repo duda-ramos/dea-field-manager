@@ -159,11 +159,11 @@ class Logger {
     
     if (this.logLevel === 'minimal') {
       // Production: single line summary
-      const summary = `${operation}: ${metrics.success ? 'OK' : 'FAIL'} ${duration}ms`;
+      const summary = `${operation}: ${(metrics as any)?.success ? 'OK' : 'FAIL'} ${duration}ms`;
       this.info(summary, {
-        pushed: metrics.push?.total || 0,
-        pulled: metrics.pull?.total || 0,
-        errors: metrics.errors?.length || 0
+        pushed: (metrics as any).push?.total || 0,
+        pulled: (metrics as any).pull?.total || 0,
+        errors: (metrics as any).errors?.length || 0
       });
     } else {
       // Development: detailed logging

@@ -134,7 +134,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         .eq('project_id', projectId);
 
       if (error) throw error;
-      setCollaborators(data || []);
+      setCollaborators((data as any) || []);
     } catch (error) {
       console.error('[CollaborationPanel] Falha ao carregar colaboradores:', error, {
         projectId
@@ -158,7 +158,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       .limit(10);
 
     if (data) {
-      setEvents(data);
+      setEvents(data as any);
     }
   };
 
@@ -171,7 +171,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         project_id: projectId,
         user_id: user.id,
         event_type: eventType,
-        event_data: eventData
+        event_data: eventData as any
       }]);
   };
 

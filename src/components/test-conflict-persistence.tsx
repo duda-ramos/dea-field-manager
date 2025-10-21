@@ -53,7 +53,7 @@ export function TestConflictPersistence() {
       <CardContent className="space-y-4">
         <div className="p-4 bg-muted rounded-lg space-y-2">
           <p className="text-sm">
-            <strong>Conflito Atual:</strong> {state.currentConflict ? state.currentConflict.localVersion.id : 'Nenhum'}
+            <strong>Conflito Atual:</strong> {state.currentConflict ? String(state.currentConflict.localVersion.id) : 'Nenhum'}
           </p>
           <p className="text-sm">
             <strong>Conflitos Pendentes:</strong> {state.pendingConflicts.length}

@@ -164,12 +164,12 @@ export async function migrateLocalToIndexedIfNeeded() {
     'rw',
     [db.projects, db.installations, db.contacts, db.budgets, db.itemVersions, db.files],
     async () => {
-      if (projects.length) await db.projects.bulkPut(projects);
-      if (installations.length) await db.installations.bulkPut(installations);
-      if (contacts.length) await db.contacts.bulkPut(contacts);
-      if (budgets.length) await db.budgets.bulkPut(budgets);
-      if (itemVersions.length) await db.itemVersions.bulkPut(itemVersions);
-      if (files.length) await db.files.bulkPut(files);
+      if (projects.length) await db.projects.bulkPut(projects as any);
+      if (installations.length) await db.installations.bulkPut(installations as any);
+      if (contacts.length) await db.contacts.bulkPut(contacts as any);
+      if (budgets.length) await db.budgets.bulkPut(budgets as any);
+      if (itemVersions.length) await db.itemVersions.bulkPut(itemVersions as any);
+      if (files.length) await db.files.bulkPut(files as any);
     },
   );
 

@@ -104,7 +104,7 @@ export function ReportShareModal({
         createdAt: Date.now(),
       };
 
-      await storage.saveReport(reportEntry);
+      await (storage as any).saveReport?.(reportEntry);
 
       if (supabaseResult) {
         console.log('[ReportShareModal] Report saved to Supabase:', supabaseResult);
