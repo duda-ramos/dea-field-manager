@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback, memo } from "react";
-import { FixedSizeList as VirtualList, type ListChildComponentProps } from 'react-window';
+import { FixedSizeList as VirtualList } from 'react-window';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -48,6 +48,15 @@ const ReportShareModal = lazy(() => import("@/components/reports/ReportShareModa
 const ReportHistoryPanel = lazy(() => import("@/components/reports/ReportHistoryPanel").then(mod => ({ default: mod.ReportHistoryPanel })));
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+type ItemStatusFilterValue = 'all' | NonNullable<Installation['status']>;
+
+const ITEM_STATUS_OPTIONS: Array<{ value: NonNullable<Installation['status']>; label: string }> = [
+  { value: 'ativo', label: 'Ativo' },
+  { value: 'on hold', label: 'Em espera' },
+  { value: 'cancelado', label: 'Cancelado' },
+  { value: 'pendente', label: 'Pendente' },
+];
 
 type InstallationCardProps = {
   installation: Installation;
@@ -168,9 +177,6 @@ export default function ProjectDetailNew() {
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
-  const [itemStatusFilter, setItemStatusFilter] = useState<
-    "all" | "ativo" | "on hold" | "cancelado" | "pendente"
-  >("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -183,6 +189,7 @@ export default function ProjectDetailNew() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [contadores, setContadores] = useState({ cliente: 0, obra: 0, fornecedor: 0, total: 0 });
   const [lastReportDate, setLastReportDate] = useState<string | null>(null);
+  const [itemStatusFilter, setItemStatusFilter] = useState<ItemStatusFilterValue>('all');
   const installationToggleQueue = useRef<Map<string, Promise<void>>>(new Map());
 
   const enqueueInstallationUpdate = (
@@ -192,8 +199,7 @@ export default function ProjectDetailNew() {
     const queue = installationToggleQueue.current;
     const previous = queue.get(installationId) ?? Promise.resolve();
     const next = previous.catch(() => {}).then(operation);
-    let cleanupPromise: Promise<void>;
-    cleanupPromise = next.finally(() => {
+    const cleanupPromise: Promise<void> = next.finally(() => {
       if (queue.get(installationId) === cleanupPromise) {
         queue.delete(installationId);
       }
@@ -294,11 +300,11 @@ export default function ProjectDetailNew() {
                             installation.tipologia.toLowerCase().includes(searchLower) ||
                             String(installation.codigo).toLowerCase().includes(searchLower);
       
-      const matchesStatus = statusFilter === "all" || 
+      const matchesStatus = statusFilter === "all" ||
                             (statusFilter === "installed" && installation.installed) ||
                             (statusFilter === "pending" && !installation.installed);
-      
-      const matchesItemStatus = itemStatusFilter === "all" || 
+
+      const matchesItemStatus = itemStatusFilter === "all" ||
                                installation.status === itemStatusFilter;
                             
       const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
@@ -1229,12 +1235,25 @@ export default function ProjectDetailNew() {
                     <label className="text-xs font-medium text-muted-foreground">Status</label>
                     <select
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
+                      onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
                       className="w-full mt-1 px-2 py-1 border border-input bg-background rounded text-sm"
                     >
                       <option value="all">Todos</option>
                       <option value="installed">Instalados</option>
                       <option value="pending">Pendentes</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Situação do item</label>
+                    <select
+                      value={itemStatusFilter}
+                      onChange={(e) => setItemStatusFilter(e.target.value as ItemStatusFilterValue)}
+                      className="w-full mt-1 px-2 py-1 border border-input bg-background rounded text-sm"
+                    >
+                      <option value="all">Todas</option>
+                      {ITEM_STATUS_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

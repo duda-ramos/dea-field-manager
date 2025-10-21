@@ -36,7 +36,7 @@ function makeInstallation(overrides: Partial<Installation> = {}): Installation {
   } as Installation;
 }
 
-function makeVersion(installationId: string, overrides: Partial<ItemVersion> = {}): ItemVersion {
+function _makeVersion(installationId: string, overrides: Partial<ItemVersion> = {}): ItemVersion {
   return {
     id: crypto.randomUUID(),
     installationId,

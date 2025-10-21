@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           // Initialize auto-sync when user logs in (only once globally)
           setTimeout(() => {
-            initializeAutoSyncOnce().catch(error => {
+            initializeAutoSyncOnce().catch(_error => {
               // Error already logged in initializeAutoSyncOnce
             });
           }, 100);
@@ -146,7 +146,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // Initialize auto-sync for existing session (only once globally)
         setTimeout(() => {
-          initializeAutoSyncOnce().catch(error => {
+          initializeAutoSyncOnce().catch(_error => {
             // Error already logged in initializeAutoSyncOnce
           });
         }, 100);

@@ -178,7 +178,7 @@ export function PublicReportView() {
       };
 
       setReportData(reportData);
-    } catch (err) {
+    } catch (_err) {
       // Error já exibido na UI
       setError('Erro ao carregar relatório. Tente novamente.');
     } finally {
@@ -218,7 +218,7 @@ export function PublicReportView() {
       if (data?.publicUrl) {
         window.open(data.publicUrl, '_blank');
       }
-    } catch (err) {
+    } catch (_err) {
       // Error já tratado pelo toast
     }
   };

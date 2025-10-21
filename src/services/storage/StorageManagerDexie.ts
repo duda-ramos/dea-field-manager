@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy storage manager with complex typing
 import { db } from '@/db/indexedDb';
 import type {
   Project,

@@ -26,7 +26,7 @@ const _CreateInstallationSchema = z.object({
   installed: z.boolean().optional(),
 })
 
-interface Database {
+type _Database = {
   public: {
     Tables: {
       projects: {

@@ -8,7 +8,7 @@ import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ReportHistoryEntry, Installation } from '@/types';
+import type { ReportHistoryEntry } from '@/types';
 
 interface SupabaseReportEntry extends ReportHistoryEntry {
   source?: 'supabase' | 'local';
@@ -241,7 +241,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       // Delete from local storage
       try {
         await storage.deleteReport(reportId);
-      } catch (error) {
+      } catch (_error) {
         // Error já tratado
       }
 

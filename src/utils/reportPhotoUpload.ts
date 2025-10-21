@@ -47,7 +47,7 @@ export async function uploadPhotoForReport(
     const filename = `report-photos/${installationId}-${timestamp}.jpg`;
     
     // Upload to Supabase Storage in project-files bucket
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filename, blob, {
         contentType: 'image/jpeg',

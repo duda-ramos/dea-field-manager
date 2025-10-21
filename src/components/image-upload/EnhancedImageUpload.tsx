@@ -17,7 +17,6 @@ import { BulkDownloader } from './BulkDownloader';
 import type { ProjectFile } from '@/types';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
 import { db } from '@/db/indexedDb';
-import { storage as storageLib } from '@/lib/storage';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/logger';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';

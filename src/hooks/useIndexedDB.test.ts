@@ -35,7 +35,7 @@ function createMemoryDriver() {
                 const req: { result?: unknown; onsuccess?: ((ev: Event) => unknown) | null } = {};
                 setTimeout(() => {
                   req.result = store.get(id);
-                  req.onsuccess && req.onsuccess({} as Event);
+                  req.onsuccess?.({} as Event);
                 }, 0);
                 return req;
               },
@@ -43,7 +43,7 @@ function createMemoryDriver() {
                 const req: { result?: unknown; onsuccess?: ((ev: Event) => unknown) | null } = {};
                 setTimeout(() => {
                   req.result = store.size;
-                  req.onsuccess && req.onsuccess({} as Event);
+                  req.onsuccess?.({} as Event);
                 }, 0);
                 return req;
               },

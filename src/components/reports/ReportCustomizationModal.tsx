@@ -55,7 +55,7 @@ export function ReportCustomizationModal({
         const savedConfig = JSON.parse(saved);
         setConfig(savedConfig);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error já tratado com valores padrão
     }
   }, []);
@@ -64,7 +64,7 @@ export function ReportCustomizationModal({
   useEffect(() => {
     try {
       localStorage.setItem(REPORT_CONFIG_STORAGE_KEY, JSON.stringify(config));
-    } catch (error) {
+    } catch (_error) {
       // Error ignorado: não-crítico
     }
   }, [config]);
@@ -96,7 +96,7 @@ export function ReportCustomizationModal({
           emAndamento: sections.emAndamento.length,
         },
       });
-    } catch (error) {
+    } catch (_error) {
       // Error ignorado: não-crítico
       toast({
         title: 'Erro ao atualizar prévia',

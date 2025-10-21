@@ -48,7 +48,7 @@ export async function exampleMigrateAllProjects() {
   let totalSuccess = 0;
   let totalErrors = 0;
   
-  results.forEach((stats, projectId) => {
+  results.forEach((stats, _projectId) => {
     if (stats.errors.length === 0) {
       totalSuccess++;
     } else {

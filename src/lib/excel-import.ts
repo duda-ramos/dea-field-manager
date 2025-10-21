@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { z } from 'zod';
-import { syncAllInstallationPhotos, type PhotoMetadata } from '@/utils/photoSync';
+import { syncAllInstallationPhotos } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
 import type { Installation } from '@/types';
 
