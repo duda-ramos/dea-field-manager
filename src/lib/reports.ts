@@ -105,7 +105,7 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
       }
     });
     
-    yPosition = (doc as any).lastAutoTable.finalY + 20;
+    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 20;
   }
   
   // Próximos Passos
@@ -133,7 +133,7 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
       headStyles: { fillColor: [255, 193, 7] }, // Yellow for warning
     });
     
-    yPosition = (doc as any).lastAutoTable.finalY + 20;
+    yPosition = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yPosition + 20;
   }
   
   // Instaladas (sem observações)
@@ -162,12 +162,13 @@ export async function generatePDFReport(data: ReportData): Promise<void> {
   }
   
   // Campo de assinatura
-  const finalY = (doc as any).lastAutoTable?.finalY || yPosition;
+  const docWithTable = (doc as jsPDF & { lastAutoTable?: { finalY: number } });
+  const finalY = docWithTable.lastAutoTable?.finalY || yPosition;
   if (finalY > 220) {
     doc.addPage();
   }
   
-  const signatureY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 40 : yPosition + 40;
+  const signatureY = docWithTable.lastAutoTable?.finalY ? docWithTable.lastAutoTable.finalY + 40 : yPosition + 40;
   doc.setFontSize(12);
   doc.text('Assinatura do Responsável:', 20, signatureY);
   doc.line(20, signatureY + 20, 100, signatureY + 20);

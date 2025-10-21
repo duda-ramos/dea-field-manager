@@ -8,7 +8,12 @@ import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ReportHistoryEntry } from '@/types';
+import type { ReportHistoryEntry, Installation } from '@/types';
+
+interface SupabaseReportEntry extends ReportHistoryEntry {
+  source?: 'supabase' | 'local';
+  storagePath?: string;
+}
 import { useToast } from '@/hooks/use-toast';
 
 interface ReportHistoryProps {
@@ -16,7 +21,7 @@ interface ReportHistoryProps {
 }
 
 export function ReportHistory({ projectId }: ReportHistoryProps) {
-  const [reports, setReports] = useState<ReportHistoryEntry[]>([]);
+  const [reports, setReports] = useState<SupabaseReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -32,7 +37,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const localReports = await storage.getReports(projectId);
       
       // Load from Supabase
-      const supabaseReports: any[] = [];
+      const supabaseReports: SupabaseReportEntry[] = [];
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
@@ -122,8 +127,8 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
   const handleDownload = async (report: ReportHistoryEntry) => {
     try {
       // If report is from Supabase, download directly from storage
-      if ((report as any).source === 'supabase' && (report as any).storagePath) {
-        const storagePath = (report as any).storagePath as string;
+      if (report.source === 'supabase' && report.storagePath) {
+        const storagePath = report.storagePath;
 
         const { data, error } = await supabase.storage
           .from('reports')
@@ -176,13 +181,13 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
     }
   };
 
-  const handleOpenInBrowser = async (report: ReportHistoryEntry) => {
-    if (!((report as any).source === 'supabase' && (report as any).storagePath)) {
+  const handleOpenInBrowser = async (report: SupabaseReportEntry) => {
+    if (!(report.source === 'supabase' && report.storagePath)) {
       return;
     }
 
     try {
-      const storagePath = (report as any).storagePath as string;
+      const storagePath = report.storagePath;
       const { data, error } = await supabase.storage
         .from('reports')
         .createSignedUrl(storagePath, 60);
@@ -210,7 +215,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const { data: { user } } = await supabase.auth.getUser();
       
       // Delete from Supabase if it's a Supabase report
-      if (report && (report as any).source === 'supabase') {
+      if (report && report.source === 'supabase') {
         // Delete from database
         const { error: dbError } = await supabase
           .from('report_history')
@@ -222,10 +227,10 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
         }
 
         // Delete from storage
-        if ((report as any).storagePath && user) {
+        if (report.storagePath && user) {
           const { error: storageError } = await supabase.storage
             .from('reports')
-            .remove([(report as any).storagePath]);
+            .remove([report.storagePath]);
 
           if (storageError) {
             console.error('Error deleting from Supabase storage:', storageError);
@@ -351,7 +356,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                           {report.interlocutor || 'N/A'}
                         </Badge>
 
-                        {(report as any).source === 'supabase' && (
+                        {report.source === 'supabase' && (
                           <Badge variant="default" className="text-xs">
                             ☁️ Cloud
                           </Badge>
@@ -365,7 +370,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
                   </div>
 
                   <div className="flex gap-2 shrink-0">
-                    {(report as any).source === 'supabase' && (report as any).storagePath && (
+                    {report.source === 'supabase' && report.storagePath && (
                       <Button
                         variant="outline"
                         size="sm"

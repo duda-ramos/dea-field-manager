@@ -8,7 +8,7 @@ function makeFile(name: string, content: ArrayBuffer): File {
 describe('excel-import basic validation', () => {
   it('rejects non-xlsx files', async () => {
     const file = new File([new Uint8Array([1,2,3])], 'data.csv', { type: 'text/csv' });
-    const res = await importExcelFile(file as any);
+    const res = await importExcelFile(file as File);
     expect(res.success).toBe(false);
     expect(res.errors.length).toBeGreaterThan(0);
   });

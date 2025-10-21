@@ -20,7 +20,7 @@ interface ImportError {
   linha: number;
   campo: string;
   mensagem: string;
-  valorEncontrado?: any;
+  valorEncontrado?: unknown;
 }
 
 export interface ExcelImportResult {
@@ -165,7 +165,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
           
           // Assume first row is headers
           const headers = jsonData[0] as string[];
-          const rows = jsonData.slice(1) as any[][];
+          const rows = jsonData.slice(1) as unknown[][];
           
           // 2. Validate required columns
           const headerMap: Record<string, string> = {};
@@ -271,7 +271,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
               : undefined;
             
             // Build validation object
-            const rowData: any = {
+            const rowData: Record<string, unknown> = {
               tipologia,
               codigo,
               descricao,

@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Loader2 } from 'lucide-react';
-import { Project, ReportHistoryEntry } from '@/types';
+import { Project, ReportHistoryEntry, Installation } from '@/types';
 import type { ReportConfig } from './ReportCustomizationModal.types';
 import { saveReportToSupabase } from '@/lib/reports-new';
 import { storage } from '@/lib/storage';
@@ -28,7 +28,7 @@ interface ReportShareModalProps {
   config: ReportConfig;
   project: Project;
   interlocutor: 'cliente' | 'fornecedor';
-  installations?: any[]; // Optional for stats calculation
+  installations?: Installation[]; // Optional for stats calculation
 }
 
 export function ReportShareModal({
@@ -104,7 +104,7 @@ export function ReportShareModal({
         createdAt: Date.now(),
       };
 
-      await storage.saveReport(reportEntry as any);
+      await storage.saveReport(reportEntry);
 
       if (!supabaseResult) {
         console.warn('[ReportShareModal] Failed to save to Supabase, but saved locally');

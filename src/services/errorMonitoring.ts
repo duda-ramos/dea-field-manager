@@ -8,7 +8,7 @@ export interface ErrorContext {
   url?: string;
   userAgent?: string;
   timestamp?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ErrorReport {
@@ -147,7 +147,7 @@ class ErrorMonitoring {
     endpoint: string, 
     method: string = 'GET',
     statusCode?: number,
-    responseData?: any
+    responseData?: unknown
   ): string {
     return this.captureError(error, {
       action: 'api_error',
@@ -165,7 +165,7 @@ class ErrorMonitoring {
   captureComponentError(
     error: Error,
     componentName: string,
-    props?: any,
+    props?: Record<string, unknown>,
     action?: string
   ): string {
     return this.captureError(error, {

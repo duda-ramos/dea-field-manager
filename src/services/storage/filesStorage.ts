@@ -9,7 +9,7 @@ export interface UploadResult {
 
 function offlineError(): Error & { code: string } {
   const err = new Error('Offline: unable to upload to storage');
-  (err as any).code = 'OFFLINE';
+  (err as { code?: string }).code = 'OFFLINE';
   return err as Error & { code: string };
 }
 

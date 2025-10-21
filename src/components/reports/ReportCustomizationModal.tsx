@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { showToast } from '@/lib/toast';
 import { ReportErrorBoundary } from './report-error-boundary';
 import type { ReportCustomizationModalProps, ReportConfig } from './ReportCustomizationModal.types';
+import type { ItemVersion } from '@/types';
 import { DEFAULT_REPORT_CONFIG, REPORT_CONFIG_STORAGE_KEY } from './ReportCustomizationModal.constants';
 
 export function ReportCustomizationModal({
@@ -72,7 +73,7 @@ export function ReportCustomizationModal({
   const calculatePreview = useCallback((currentConfig: ReportConfig) => {
     setIsLoadingPreview(true);
     try {
-      const versions: any[] = []; // Simplified for preview
+      const versions: ItemVersion[] = []; // Simplified for preview
       const reportData = {
         project,
         installations,
@@ -342,7 +343,7 @@ export function ReportCustomizationModal({
                                 key={option.value}
                                 variant={config.groupBy === option.value ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setConfig(prev => ({ ...prev, groupBy: option.value as any }))}
+                                onClick={() => setConfig(prev => ({ ...prev, groupBy: option.value as 'none' | 'pavimento' | 'tipologia' }))}
                                 className="text-xs"
                               >
                                 {option.label}
@@ -364,7 +365,7 @@ export function ReportCustomizationModal({
                                 key={option.value}
                                 variant={config.sortBy === option.value ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setConfig(prev => ({ ...prev, sortBy: option.value as any }))}
+                                onClick={() => setConfig(prev => ({ ...prev, sortBy: option.value as 'codigo' | 'pavimento' | 'tipologia' | 'updated_at' }))}
                                 className="text-xs"
                               >
                                 {option.label}

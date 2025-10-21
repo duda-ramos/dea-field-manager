@@ -35,7 +35,7 @@ export class FileSyncService {
         await db.files.update(file.id, { _dirty: 0 });
         pushed++;
       } catch (error) {
-        logger.error('fileSync', `Failed to sync file ${file.id}`, error as any, { fileId: file.id, fileName: file.name } as any);
+        logger.error('fileSync', `Failed to sync file ${file.id}`, error as Error, { fileId: file.id, fileName: file.name });
         errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
@@ -48,7 +48,7 @@ export class FileSyncService {
    */
   async pullFiles(lastPulledAt: number): Promise<{ pulled: number; errors: string[] }> {
     const errors: string[] = [];
-    const allRemoteFiles: any[] = [];
+    const allRemoteFiles: ProjectFile[] = [];
     let page = 0;
     let hasMore = true;
 
@@ -141,7 +141,7 @@ export class FileSyncService {
           }
         } else {
           const remoteFile = batch[index];
-          logger.error('fileSync', `Failed to process remote file`, result.reason as any, { fileId: remoteFile.id, fileName: remoteFile.name } as any);
+          logger.error('fileSync', `Failed to process remote file`, result.reason as Error, { fileId: remoteFile.id, fileName: remoteFile.name });
           errors.push(`${remoteFile.name}: ${result.reason instanceof Error ? result.reason.message : 'Unknown error'}`);
         }
       }
@@ -270,7 +270,7 @@ export class FileSyncService {
     }
   }
 
-  private shouldUpdateLocal(localFile: ProjectFile, remoteFile: any): boolean {
+  private shouldUpdateLocal(localFile: ProjectFile, remoteFile: ProjectFile): boolean {
     const localTimestamp = localFile.updatedAt || 0;
     const remoteTimestamp = new Date(remoteFile.updated_at).getTime();
     

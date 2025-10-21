@@ -45,19 +45,19 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
       async () => {
         switch (entityType) {
           case 'project':
-            await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id) as any);
+            await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
             break;
           case 'installation':
-            await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id) as any);
+            await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
             break;
           case 'contact':
-            await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id) as any);
+            await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
             break;
           case 'budget':
-            await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id) as any);
+            await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
             break;
           case 'file':
-            await supabase.from('files').upsert(transformFileForSupabase(data, user.id) as any);
+            await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
             break;
         }
       },
@@ -179,7 +179,7 @@ export async function processSyncQueue() {
   syncQueue.length = 0;
 
     for (const item of itemsToSync) {
-      await syncToServerImmediate(item.type, item.data as any);
+      await syncToServerImmediate(item.type, item.data as Record<string, unknown>);
     }
 }
 
@@ -196,7 +196,7 @@ export const StorageManagerDexie = {
     const withDates = { 
       ...project, 
       updatedAt: now(), 
-      createdAt: (project as any)?.createdAt ?? now(),
+      createdAt: (project as Partial<Project>)?.createdAt ?? now(),
       _dirty: 0,
       _deleted: 0
     };
@@ -215,7 +215,7 @@ export const StorageManagerDexie = {
             async () => {
               const { data, error } = await supabase
                 .from('projects')
-                .insert([transformProjectForSupabase({ ...withDates, id: undefined }, user.id) as any])
+                .insert([transformProjectForSupabase({ ...withDates, id: undefined }, user.id)])
                 .select()
                 .single();
 
@@ -382,7 +382,7 @@ export const StorageManagerDexie = {
 
         Object.entries(snapshotData).forEach(([key, value]) => {
           if (value !== undefined) {
-            (mergedInstallation as any)[key] = value;
+            (mergedInstallation as Record<string, unknown>)[key] = value;
           }
         });
 
@@ -430,7 +430,7 @@ export const StorageManagerDexie = {
     const withDates = { 
       ...installation, 
       updatedAt: now(), 
-      createdAt: (installation as any)?.createdAt ?? now(),
+      createdAt: (installation as Partial<Installation>)?.createdAt ?? now(),
       _dirty: 0,
       _deleted: 0
     };
@@ -473,7 +473,7 @@ export const StorageManagerDexie = {
   async upsertItemVersion(version: ItemVersion) {
     const withDates = { 
       ...version, 
-      createdAt: (version as any)?.createdAt ?? now(),
+      createdAt: (version as Partial<ItemVersion>)?.createdAt ?? now(),
       _dirty: 1,
       _deleted: 0
     };
@@ -518,7 +518,7 @@ export const StorageManagerDexie = {
     const withDates = { 
       ...budget, 
       updatedAt: now(), 
-      createdAt: (budget as any)?.createdAt ?? now(),
+      createdAt: (budget as Partial<ProjectBudget>)?.createdAt ?? now(),
       _dirty: 0,
       _deleted: 0
     };
@@ -567,28 +567,28 @@ export const StorageManagerDexie = {
     };
     
     // ONLINE FIRST: Sincronizar imediatamente
-    await syncToServerImmediate('file', metaAtualizado as any);
+    await syncToServerImmediate('file', metaAtualizado as Record<string, unknown>);
     await db.files.put(metaAtualizado);
     autoSyncManager.triggerDebouncedSync();
 
     return metaAtualizado;
   },
   async deleteFile(id: string) {
-    await db.files.put({ id, _deleted: 1, _dirty: 1, updatedAt: Date.now() } as any);
+    await db.files.put({ id, _deleted: 1, _dirty: 1, updatedAt: Date.now() } as Partial<ProjectFile>);
     syncStateManager.incrementPending('files', 1);
   }
 };
 
 // Compatibility aliases
-(StorageManagerDexie as any).saveProject = StorageManagerDexie.upsertProject;
-(StorageManagerDexie as any).updateProject = StorageManagerDexie.upsertProject;
-(StorageManagerDexie as any).getProject = StorageManagerDexie.getProjectById;
+(StorageManagerDexie as Record<string, unknown>).saveProject = StorageManagerDexie.upsertProject;
+(StorageManagerDexie as Record<string, unknown>).updateProject = StorageManagerDexie.upsertProject;
+(StorageManagerDexie as Record<string, unknown>).getProject = StorageManagerDexie.getProjectById;
 
 // Installations
-(StorageManagerDexie as any).getInstallations = StorageManagerDexie.getInstallationsByProject;
-(StorageManagerDexie as any).saveInstallation = StorageManagerDexie.upsertInstallation;
-(StorageManagerDexie as any).updateInstallation = StorageManagerDexie.upsertInstallation;
-(StorageManagerDexie as any).overwriteInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as Record<string, unknown>).getInstallations = StorageManagerDexie.getInstallationsByProject;
+(StorageManagerDexie as Record<string, unknown>).saveInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as Record<string, unknown>).updateInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as Record<string, unknown>).overwriteInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as Record<string, unknown>).importInstallations = async (projectId: string, installations: Installation[]) => {
   const results = [];
   for (const installation of installations) {
@@ -599,31 +599,31 @@ export const StorageManagerDexie = {
 };
 
 // Item Versions
-(StorageManagerDexie as any).getInstallationVersions = StorageManagerDexie.getItemVersions;
-(StorageManagerDexie as any).saveItemVersion = StorageManagerDexie.upsertItemVersion;
+(StorageManagerDexie as Record<string, unknown>).getInstallationVersions = StorageManagerDexie.getItemVersions;
+(StorageManagerDexie as Record<string, unknown>).saveItemVersion = StorageManagerDexie.upsertItemVersion;
 
 // Contacts - with projectId filter support
-(StorageManagerDexie as any).getProjectContacts = StorageManagerDexie.getContacts;
-(StorageManagerDexie as any).getContacts = async (projectId?: string) => {
+(StorageManagerDexie as Record<string, unknown>).getProjectContacts = StorageManagerDexie.getContacts;
+(StorageManagerDexie as Record<string, unknown>).getContacts = async (projectId?: string) => {
   const allContacts = await db.contacts.toArray();
   return projectId ? allContacts.filter(c => c.projetoId === projectId) : allContacts;
 };
-(StorageManagerDexie as any).saveProjectContact = StorageManagerDexie.upsertContact;
+(StorageManagerDexie as Record<string, unknown>).saveProjectContact = StorageManagerDexie.upsertContact;
 (StorageManagerDexie as Record<string, unknown>).saveContact = async (projectId: string, contact: ProjectContact) => {
   return StorageManagerDexie.upsertContact({ ...contact, projetoId: projectId });
 };
 (StorageManagerDexie as Record<string, unknown>).updateContact = async (id: string, contact: Partial<ProjectContact>) => {
   return StorageManagerDexie.upsertContact({ ...contact, id });
 };
-(StorageManagerDexie as any).deleteProjectContact = StorageManagerDexie.deleteContact;
-(StorageManagerDexie as any).deleteContact = StorageManagerDexie.deleteContact;
+(StorageManagerDexie as Record<string, unknown>).deleteProjectContact = StorageManagerDexie.deleteContact;
+(StorageManagerDexie as Record<string, unknown>).deleteContact = StorageManagerDexie.deleteContact;
 
 // Budgets
-(StorageManagerDexie as any).getBudgets = StorageManagerDexie.getBudgetsByProject;
-(StorageManagerDexie as any).saveBudget = StorageManagerDexie.upsertBudget;
+(StorageManagerDexie as Record<string, unknown>).getBudgets = StorageManagerDexie.getBudgetsByProject;
+(StorageManagerDexie as Record<string, unknown>).saveBudget = StorageManagerDexie.upsertBudget;
 
 // Files
-(StorageManagerDexie as any).saveFile = StorageManagerDexie.upsertFile;
+(StorageManagerDexie as Record<string, unknown>).saveFile = StorageManagerDexie.upsertFile;
 
 // Reports - IndexedDB implementation
 const LEGACY_REPORT_HISTORY_STORAGE_KEY = 'dea_manager_reports-new';
@@ -650,8 +650,8 @@ function inferReportMimeType(format?: string, fallback?: string) {
 }
 
 function decodeBase64ToUint8Array(base64: string) {
-  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).atob === 'function') {
-    const binaryString = (globalThis as any).atob(base64);
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as { atob?: (str: string) => string }).atob === 'function') {
+    const binaryString = (globalThis as { atob: (str: string) => string }).atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
@@ -660,8 +660,8 @@ function decodeBase64ToUint8Array(base64: string) {
     return bytes;
   }
 
-  if (typeof globalThis !== 'undefined' && (globalThis as any).Buffer) {
-    const buffer = (globalThis as any).Buffer.from(base64, 'base64');
+  if (typeof globalThis !== 'undefined' && (globalThis as { Buffer?: { from: (str: string, encoding: string) => { buffer: ArrayBuffer; byteOffset: number; byteLength: number } } }).Buffer) {
+    const buffer = (globalThis as { Buffer: { from: (str: string, encoding: string) => { buffer: ArrayBuffer; byteOffset: number; byteLength: number } } }).Buffer.from(base64, 'base64');
     return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   }
 
@@ -793,8 +793,8 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
   const createdAt =
     typeof createdAtCandidate === 'number'
       ? createdAtCandidate
-      : Number.isFinite(Date.parse(generatedAt as any))
-        ? Date.parse(generatedAt as any)
+      : Number.isFinite(Date.parse(generatedAt as string))
+        ? Date.parse(generatedAt as string)
         : Date.now();
 
   const generatedBy = String(rest.generatedBy ?? rest.generated_by ?? 'Sistema');
@@ -812,7 +812,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
     generatedBy: String(generatedBy),
     generated_by: String(generatedBy),
     size: Number(size),
-    mimeType: inferReportMimeType(rest.format as any, mimeType as any),
+    mimeType: inferReportMimeType(rest.format as 'pdf' | 'xlsx', mimeType),
     blob: storedBlob,
     createdAt,
     payloadId: String(payloadId),
@@ -870,7 +870,7 @@ async function migrateLegacyReportHistory() {
   }
 }
 
-(StorageManagerDexie as any).getReports = async (projectId?: string) => {
+(StorageManagerDexie as Record<string, unknown>).getReports = async (projectId?: string) => {
   try {
     await migrateLegacyReportHistory();
 
@@ -879,7 +879,7 @@ async function migrateLegacyReportHistory() {
       ? await db.reports.where('projectId').equals(projectId).toArray()
       : await db.reports.toArray();
 
-    const payloadIds = localReports.map((report) => (report as any).payloadId ?? report.id);
+    const payloadIds = localReports.map((report) => (report as { payloadId?: string; id: string }).payloadId ?? report.id);
     const payloads = payloadIds.length > 0 ? await db.reportPayloads.bulkGet(payloadIds) : [];
     const payloadMap = new Map<string, ReportPayloadRecord>();
 
@@ -890,11 +890,11 @@ async function migrateLegacyReportHistory() {
     });
 
     const normalizedLocalReports = localReports.map((report) => 
-      normalizeReportHistoryEntry(report, payloadMap.get((report as any).payloadId ?? report.id))
+      normalizeReportHistoryEntry(report, payloadMap.get((report as { payloadId?: string; id: string }).payloadId ?? report.id))
     );
 
     // Fetch reports from Supabase
-    let supabaseReports: any[] = [];
+    let supabaseReports: ReportHistoryEntry[] = [];
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       const { data: { user } } = await supabase.auth.getUser();
@@ -913,7 +913,7 @@ async function migrateLegacyReportHistory() {
         const { data, error } = await query;
         
         if (!error && data) {
-          supabaseReports = data.map((report: any) => ({
+          supabaseReports = data.map((report: Record<string, unknown>) => ({
             id: report.id,
             projectId: report.project_id,
             fileName: report.file_name,
@@ -953,7 +953,7 @@ async function migrateLegacyReportHistory() {
   }
 };
 
-(StorageManagerDexie as any).saveReport = async (report: ReportHistoryEntry) => {
+(StorageManagerDexie as Record<string, unknown>).saveReport = async (report: ReportHistoryEntry) => {
   let normalizedForLogging: ReturnType<typeof normalizeReportHistoryEntry> | undefined;
 
   try {
@@ -990,7 +990,7 @@ async function migrateLegacyReportHistory() {
 
         if (sorted.length > 0) {
           await db.reports.bulkDelete(sorted.map((entry) => entry.id));
-          await db.reportPayloads.bulkDelete(sorted.map((entry) => (entry as any).payloadId ?? entry.id));
+          await db.reportPayloads.bulkDelete(sorted.map((entry) => (entry as { payloadId?: string; id: string }).payloadId ?? entry.id));
         }
       }
     });
@@ -1013,7 +1013,7 @@ async function migrateLegacyReportHistory() {
   }
 };
 
-(StorageManagerDexie as any).deleteReport = async (reportId: string) => {
+(StorageManagerDexie as Record<string, unknown>).deleteReport = async (reportId: string) => {
   try {
     await migrateLegacyReportHistory();
     
@@ -1064,7 +1064,7 @@ async function migrateLegacyReportHistory() {
       const existing = await db.reports.get(reportId);
       await db.reports.delete(reportId);
 
-      const payloadId = existing ? ((existing as any).payloadId ?? reportId) : reportId;
+      const payloadId = existing ? ((existing as { payloadId?: string }).payloadId ?? reportId) : reportId;
       await db.reportPayloads.delete(payloadId);
     });
     // Report deleted successfully
