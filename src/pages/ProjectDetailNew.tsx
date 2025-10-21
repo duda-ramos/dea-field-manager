@@ -893,9 +893,6 @@ export default function ProjectDetailNew() {
               <EnhancedImageUpload 
               projectId={project.id}
               context="projeto"
-              onImagesChange={(images) => {
-                console.log('Images updated:', images);
-              }}
             />
             </LoadingBoundary>
           </CardContent>

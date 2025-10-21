@@ -99,19 +99,11 @@ export async function saveReportToSupabase(
 
       if (dbError) {
         console.warn('⚠️ Failed to save metadata (file is safe):', dbError);
-      } else {
-        console.log('✅ Report metadata saved to Supabase database');
       }
     } catch (metadataError) {
       // Don't break the flow if metadata save fails
       console.warn('⚠️ Failed to save metadata (file is safe):', metadataError);
     }
-
-    console.log('[saveReportToSupabase] Report file uploaded successfully:', {
-      fileName,
-      fileUrl: urlData.publicUrl,
-      fileSize: blob.size
-    });
 
     return {
       fileUrl: urlData.publicUrl,
@@ -509,8 +501,6 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
  */
 export async function generatePDFReport(data: ReportData): Promise<Blob> {
   try {
-    console.log('[generatePDFReport] Processando fotos para hyperlinks...');
-    
     // Input validation
     if (!data) {
       console.error('[generatePDFReport] Error: data is null or undefined');
@@ -809,9 +799,6 @@ async function addEnhancedSectionToPDF(
             processedCount++;
           }
         }
-      }
-      if (processedCount > 0) {
-        console.log(`[generatePDFReport] ${processedCount} fotos processadas com sucesso`);
       }
     }
 
@@ -1804,8 +1791,6 @@ function getMotivoPtBr(motivo: string): string {
  */
 export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   try {
-    console.log('[generateXLSXReport] Processando fotos para hyperlinks...');
-    
     // Input validation
     if (!data) {
       console.error('[generateXLSXReport] Error: data is null or undefined');
@@ -2166,9 +2151,6 @@ async function addFlatSectionToXLSX(
           processedCount++;
         }
       }
-    }
-    if (processedCount > 0) {
-      console.log(`[generateXLSXReport] ${processedCount} fotos processadas com sucesso`);
     }
   }
 

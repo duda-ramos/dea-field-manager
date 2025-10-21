@@ -106,9 +106,7 @@ export function ReportShareModal({
 
       await (storage as any).saveReport?.(reportEntry);
 
-      if (supabaseResult) {
-        console.log('[ReportShareModal] Report saved to Supabase:', supabaseResult);
-      } else {
+      if (!supabaseResult) {
         console.warn('[ReportShareModal] Failed to save to Supabase, but saved locally');
       }
 

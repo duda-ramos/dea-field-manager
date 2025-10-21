@@ -375,7 +375,7 @@ export default function Debug() {
           description: `Ação de teste #${i + 1}`,
           data: { testNumber: i + 1 },
           undo: async () => {
-            console.log(`Undo ação #${i + 1}`);
+            // Test undo action
           },
         });
       }

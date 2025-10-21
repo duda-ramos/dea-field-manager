@@ -50,8 +50,6 @@ export async function syncImportedPhotosToGallery(
   let successCount = 0;
   let errorCount = 0;
   
-  console.log(`📸 Iniciando sincronização de fotos para ${installations.length} instalações importadas`);
-  
   for (const installation of installations) {
     try {
       // Buscar arquivos da instalação
@@ -83,8 +81,6 @@ export async function syncImportedPhotosToGallery(
         continue;
       }
       
-      console.log(`🔄 Sincronizando ${photoMetadata.length} foto(s) da instalação ${installation.codigo}`);
-      
       // Sincronizar fotos com metadados completos
       await syncAllInstallationPhotos(
         projectId,
@@ -100,8 +96,6 @@ export async function syncImportedPhotosToGallery(
       // Continuar mesmo se uma falhar
     }
   }
-  
-  console.log(`✅ Sincronização concluída: ${successCount} instalações processadas, ${errorCount} erros`);
   
   return {
     total: installations.length,
