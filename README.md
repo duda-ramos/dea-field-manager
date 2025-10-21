@@ -1,10 +1,114 @@
-# Welcome to your Lovable project
+# DEA Field Manager
 
 ![Code Quality](https://img.shields.io/badge/code%20quality-7.0%2F10-green)
 ![Bundle Size](https://img.shields.io/badge/bundle-%3C500KB-success)
 ![Type Safety](https://img.shields.io/badge/any%20types-177-yellow)
 ![ESLint](https://img.shields.io/badge/warnings-%3C50-brightgreen)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
+## 📖 Sobre o Projeto
+
+O **DEA Field Manager** é uma aplicação web moderna projetada para facilitar o gerenciamento de instalações em projetos de campo. Sistema completo de gestão de projetos, instalações, fotos e relatórios, com suporte offline e sincronização inteligente.
+
+### ✨ Principais Recursos
+
+- 📁 **Gerenciamento de Projetos**: Organize múltiplos projetos simultaneamente
+- 📊 **Importação de Excel**: Importe planilhas com dados de instalações
+- 📸 **Galeria de Fotos**: Adicione fotos com compressão automática (redução de 70-80%)
+- 📄 **Relatórios Profissionais**: Gere relatórios em PDF e Excel personalizados
+- 🔄 **Sincronização Inteligente**: Trabalhe offline e sincronize quando conectado
+- 👥 **Colaboração em Equipe**: Múltiplos usuários trabalhando simultaneamente
+- 🎨 **Interface Moderna**: Design responsivo para desktop, tablet e mobile
+- ⚡ **Performance Otimizada**: Lazy loading, compressão de imagens e cache inteligente
+
+## 📚 Documentação
+
+### Para Usuários
+
+- **[📖 Guia do Usuário](./docs/USER_GUIDE.md)** - Guia completo de uso do sistema
+  - Primeiros passos
+  - Gerenciamento de projetos
+  - Trabalhar com instalações
+  - Gerar relatórios
+  - Sincronização e modo offline
+  - Colaboração em equipe
+
+- **[❓ Perguntas Frequentes (FAQ)](./docs/FAQ.md)** - Respostas para dúvidas comuns
+  - Como importar planilhas Excel
+  - Adicionar fotos às instalações
+  - Gerar e compartilhar relatórios
+  - Trabalhar offline
+  - Resolver conflitos de sincronização
+
+- **[🔧 Resolução de Problemas](./docs/TROUBLESHOOTING.md)** - Soluções para problemas comuns
+  - Erros ao importar Excel
+  - Fotos não aparecem
+  - Relatório não gera
+  - Sincronização falha
+  - Sistema lento
+
+### Para Desenvolvedores
+
+- **[💻 Guia de Desenvolvimento](#how-can-i-edit-this-code)** - Como editar e contribuir
+- **[🏗️ Arquitetura de Relatórios](./docs/REPORTS_ARCHITECTURE.md)** - Sistema de geração de relatórios
+- **[🔄 Sistema de Sincronização](./docs/SYNC_SYSTEM.md)** - Como funciona a sincronização
+- **[🖼️ Otimização de Imagens](./docs/IMAGE_OPTIMIZATION.md)** - Compressão e lazy loading
+- **[⚠️ Tratamento de Erros](./docs/ERROR_HANDLING_GUIDE.md)** - Padrões de error handling
+- **[📊 Relatório de Qualidade](./docs/CODE_AUDIT_REPORT.md)** - Métricas e melhorias
+
+## 🚀 Início Rápido
+
+### Para Usuários Finais
+
+1. **Acesse o sistema** no navegador
+2. **Crie sua conta** ou faça login
+3. **Crie um projeto** clicando em "+ Novo Projeto"
+4. **Importe sua planilha Excel** com as instalações
+5. **Adicione fotos** às instalações conforme o trabalho avança
+6. **Gere relatórios** profissionais para clientes e fornecedores
+
+📖 **[Veja o guia completo](./docs/USER_GUIDE.md)** para instruções detalhadas.
+
+### Para Desenvolvedores
+
+```sh
+# 1. Clone o repositório
+git clone <YOUR_GIT_URL>
+
+# 2. Navegue até o diretório
+cd <YOUR_PROJECT_NAME>
+
+# 3. Instale as dependências
+npm i
+
+# 4. Configure variáveis de ambiente
+cp .env.example .env
+
+# 5. Inicie o servidor de desenvolvimento
+npm run dev
+```
+
+---
+
+## 📸 Screenshots
+
+### Dashboard de Projetos
+> Visão geral de todos os seus projetos com estatísticas em tempo real
+
+### Gerenciamento de Instalações
+> Liste, filtre e marque instalações como concluídas com um clique
+
+### Galeria de Fotos
+> Adicione fotos com compressão automática e lazy loading para performance otimizada
+
+### Relatórios Profissionais
+> Gere relatórios personalizados em PDF ou Excel com estatísticas e fotos
+
+### Trabalho Offline
+> Continue trabalhando sem internet - tudo sincroniza automaticamente quando voltar online
+
+---
 
 ## Project info
 
