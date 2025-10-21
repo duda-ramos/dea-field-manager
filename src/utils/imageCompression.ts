@@ -1,7 +1,9 @@
 /**
  * Image Compression Utility
- * Provides functions to compress images before upload
+ * Provides functions to compress images before upload using browser-image-compression
  */
+
+import imageCompression from 'browser-image-compression';
 
 // Types
 export interface CompressionOptions {
@@ -134,106 +136,37 @@ export async function shouldCompressByDimensions(
 }
 
 /**
- * Compresses an image using canvas API
+ * Compresses an image using browser-image-compression library
  * @param file - Original image file
  * @param options - Compression options
  * @returns Promise<File> - Compressed image file
  */
-async function compressImageWithCanvas(
+async function compressImageWithLibrary(
   file: File,
   options: Required<CompressionOptions>
 ): Promise<File> {
-  const dimensions = await getImageDimensions(file);
-  
-  return new Promise((resolve, reject) => {
-    try {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
+  try {
+    // Configure compression options for browser-image-compression
+    const compressionOptions = {
+      maxSizeMB: options.maxSizeMB,
+      maxWidthOrHeight: options.maxWidthOrHeight,
+      useWebWorker: options.useWebWorker,
+      fileType: options.fileType,
+      initialQuality: options.quality
+    };
 
-      img.onload = () => {
-        try {
-          URL.revokeObjectURL(objectUrl);
+    // Compress the image using browser-image-compression
+    const compressedFile = await imageCompression(file, compressionOptions);
 
-          // Calculate new dimensions while maintaining aspect ratio
-          let { width, height } = dimensions;
-          const maxDimension = options.maxWidthOrHeight;
-
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height / width) * maxDimension;
-              width = maxDimension;
-            } else {
-              width = (width / height) * maxDimension;
-              height = maxDimension;
-            }
-          }
-
-          // Create canvas and draw image
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-
-          if (!ctx) {
-            throw new Error('Não foi possível criar contexto do canvas');
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert canvas to blob
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('Erro ao converter canvas para blob'));
-                return;
-              }
-
-              // Check if compressed size is within limit
-              const compressedSizeMB = blob.size / (1024 * 1024);
-              if (compressedSizeMB > options.maxSizeMB) {
-                // Try with lower quality
-                const lowerQuality = Math.max(0.5, options.quality - 0.2);
-                canvas.toBlob(
-                  (retryBlob) => {
-                    if (!retryBlob) {
-                      reject(new Error('Erro ao comprimir imagem com qualidade reduzida'));
-                      return;
-                    }
-                    const compressedFile = new File([retryBlob], file.name, {
-                      type: options.fileType,
-                      lastModified: Date.now()
-                    });
-                    resolve(compressedFile);
-                  },
-                  options.fileType,
-                  lowerQuality
-                );
-              } else {
-                const compressedFile = new File([blob], file.name, {
-                  type: options.fileType,
-                  lastModified: Date.now()
-                });
-                resolve(compressedFile);
-              }
-            },
-            options.fileType,
-            options.quality
-          );
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Erro ao carregar imagem para compressão'));
-      };
-
-      img.src = objectUrl;
-    } catch (error) {
-      reject(error);
-    }
-  });
+    // Return the compressed file with original filename
+    return new File([compressedFile], file.name, {
+      type: compressedFile.type,
+      lastModified: Date.now()
+    });
+  } catch (error) {
+    console.error('Erro ao comprimir imagem com browser-image-compression:', error);
+    throw new Error('Falha ao comprimir imagem usando biblioteca');
+  }
 }
 
 /**
@@ -268,18 +201,24 @@ export async function compressImage(
       return file;
     }
 
+    const startTime = Date.now();
+    
     console.log('Comprimindo imagem...', {
       original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
       name: file.name
     });
 
-    // Compress the image
-    const compressedFile = await compressImageWithCanvas(file, mergedOptions);
+    // Compress the image using browser-image-compression library
+    const compressedFile = await compressImageWithLibrary(file, mergedOptions);
+
+    const compressionTime = Date.now() - startTime;
+    const reductionPercent = ((file.size - compressedFile.size) / file.size) * 100;
 
     console.log('Imagem comprimida com sucesso', {
       original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
       compressed: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
-      reduction: `${(((file.size - compressedFile.size) / file.size) * 100).toFixed(1)}%`
+      reduction: `${reductionPercent.toFixed(1)}%`,
+      time: `${compressionTime}ms`
     });
 
     return compressedFile;
