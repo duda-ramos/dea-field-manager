@@ -55,6 +55,9 @@ export default defineConfig(({ mode }) => ({
       brotliSize: true,
     }),
     VitePWA({
+      disable: process.env.VITE_PWA_DISABLED === 'true',
+      // Avoid platforms that rewrite /manifest.webmanifest; use a custom name
+      manifestFilename: 'app.webmanifest',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {

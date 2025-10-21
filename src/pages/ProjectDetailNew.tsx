@@ -315,8 +315,6 @@ export default function ProjectDetailNew() {
 
   const isOwner = project?.user_id ? project.user_id === user?.id : true;
 
-  if (!project) return null;
-
   const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
                         location.pathname.includes('/relatorios') ? 'relatorios' :
                         location.pathname.includes('/orcamentos') ? 'orcamentos' :
@@ -1383,6 +1381,28 @@ export default function ProjectDetailNew() {
       </LoadingBoundary>
     );
   };
+
+  // Guard UI render until project is available to keep hook order stable
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-1/3" />
+              <Skeleton className="h-4 w-1/4 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
