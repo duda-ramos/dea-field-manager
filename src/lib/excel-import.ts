@@ -242,7 +242,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
             
             if (!tipologia && !descricao) {
               totalLinhas--; // Don't count completely empty rows
-              return;
+              continue;
             }
             
             // Parse all values
@@ -300,7 +300,7 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
                 });
               });
               linhasRejeitadas++;
-              return; // Skip invalid row
+              continue; // Skip invalid row
             }
             
             // Create installation object with validated data
