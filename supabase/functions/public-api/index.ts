@@ -41,6 +41,28 @@ interface Database {
           created_at: string
           updated_at: string
         }
+        Insert: {
+          id?: string
+          name: string
+          client: string
+          city: string
+          code?: string
+          status?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          client?: string
+          city?: string
+          code?: string
+          status?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
       }
       installations: {
         Row: {
@@ -56,6 +78,32 @@ interface Database {
           created_at: string
           updated_at: string
         }
+        Insert: {
+          id?: string
+          project_id: string
+          codigo: number
+          descricao: string
+          tipologia: string
+          pavimento: string
+          quantidade: number
+          installed?: boolean
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          codigo?: number
+          descricao?: string
+          tipologia?: string
+          pavimento?: string
+          quantidade?: number
+          installed?: boolean
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
       }
       api_keys: {
         Row: {
@@ -70,12 +118,75 @@ interface Database {
           created_at: string
           updated_at: string
         }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          key_hash: string
+          permissions: any
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          key_hash?: string
+          permissions?: any
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
+    }
+    Views: {
+      [key: string]: unknown
+    }
+    Functions: {
+      [key: string]: unknown
+    }
+    Enums: {
+      [key: string]: unknown
+    }
+    CompositeTypes: {
+      [key: string]: unknown
     }
   }
 }
 
-const supabase = createClient<Database>(
+// Narrow type for api_keys selection used in authentication
+interface ApiKeyData {
+  id: string
+  user_id: string
+  key_hash: string
+  permissions: any
+  is_active: boolean
+  expires_at: string | null
+}
+
+function isApiKeyData(value: unknown): value is ApiKeyData {
+  if (value === null || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+  const hasRequiredStrings =
+    typeof candidate.id === 'string' &&
+    typeof candidate.user_id === 'string' &&
+    typeof candidate.key_hash === 'string'
+  const hasActiveFlag = typeof candidate.is_active === 'boolean'
+  const hasValidExpiry =
+    !('expires_at' in candidate) ||
+    typeof candidate.expires_at === 'string' ||
+    candidate.expires_at === null
+  return hasRequiredStrings && hasActiveFlag && hasValidExpiry
+}
+
+// Using runtime validation via type guards for api_keys rows
+
+const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
@@ -127,30 +238,31 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
 
   // Find matching key by comparing hashes
   for (const keyData of apiKeys) {
-    if (!keyData || typeof keyData !== 'object') continue;
-    
-    const isMatch = await verifyKey(apiKey, (keyData as any).key_hash || '')
-    
+    if (!isApiKeyData(keyData)) continue
+
+    const isMatch = await verifyKey(apiKey, keyData.key_hash)
+
     if (isMatch) {
       // Check if key is expired
-      const expiresAt = (keyData as any).expires_at;
+      const expiresAt = keyData.expires_at
       if (expiresAt && new Date(expiresAt) < new Date()) {
         return null
       }
 
-      const keyId = (keyData as any).id;
-      
-      // Update last used timestamp asynchronously (no need to await)
-      supabase
-        .from('api_keys')
-        .update({ last_used_at: new Date().toISOString() } as any)
-        .eq('id', keyId)
-        .then()
+      // Update last used timestamp
+      try {
+        await supabase
+          .from('api_keys')
+          .update({ last_used_at: new Date().toISOString() })
+          .eq('id', keyData.id)
+      } catch (_updateError) {
+        // Ignore update errors to avoid blocking authentication
+      }
 
       return {
-        user_id: (keyData as any).user_id,
-        permissions: (keyData as any).permissions,
-        api_key_id: keyId
+        user_id: keyData.user_id,
+        permissions: keyData.permissions,
+        api_key_id: keyData.id,
       }
     }
   }
