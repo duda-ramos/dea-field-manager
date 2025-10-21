@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { StorageManagerDexie } from '@/services/StorageManager';
 import { syncPhotoToProjectAlbum } from '@/utils/photoSync';
-import type { Installation, ProjectFile } from '@/types';
+import type { ProjectFile } from '@/types';
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 

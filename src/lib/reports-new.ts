@@ -1,4 +1,3 @@
-// @ts-nocheck - Complex PDF generation with type assertion needs
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -42,7 +41,7 @@ export async function saveReportToSupabase(
     const filePath = `${user.id}/${projectId}/${fileName}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('reports')
       .upload(filePath, blob, {
         contentType: format === 'pdf' 
@@ -791,13 +790,11 @@ async function addEnhancedSectionToPDF(
     // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
     const galleryUrlsMap = new Map<string, { url: string, count: number }>();
     if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
-      let processedCount = 0;
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
           const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
           if (galleryUrl) {
             galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
-            processedCount++;
           }
         }
       }
@@ -988,7 +985,7 @@ async function uploadSinglePhotoWithRetry(
       const filename = `reports/temp_${itemId}_${index}_${timestamp}.jpg`;
       
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filename, blob, {
           contentType: 'image/jpeg',
@@ -1295,7 +1292,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
  * - Returns empty array on critical errors (doesn't break report)
  * - Logs detailed context for debugging
  */
-async function getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
+async function _getPhotoPublicUrls(projectId: string, installationId: string): Promise<string[]> {
   try {
     // Input validation
     if (!bucket) {
@@ -1671,7 +1668,7 @@ function _getCompactColumnStyles(columns: string[]): Record<number, { halign: st
   return styles;
 }
 
-async function addSectionToPDF(
+async function _addSectionToPDF(
   doc: jsPDF, 
   title: string, 
   items: Installation[], 
@@ -1925,7 +1922,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   }
 }
 
-async function addSectionToXLSX(
+async function _addSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -2003,7 +2000,7 @@ async function addSectionToXLSX(
 }
 
 // Enhanced XLSX section with hierarchical structure (Pavimento → Tipologia → Items)
-async function addEnhancedSectionToXLSX(
+async function _addEnhancedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
@@ -2094,7 +2091,7 @@ async function addEnhancedSectionToXLSX(
 }
 
 // Convert data URL to base64 string for Excel
-function dataUrlToBase64(dataUrl: string): string {
+function _dataUrlToBase64(dataUrl: string): string {
   if (dataUrl.startsWith('data:')) {
     return dataUrl.split(',')[1];
   }
@@ -2149,13 +2146,11 @@ async function addFlatSectionToXLSX(
   // Pre-upload photos and create galleries for pendencias section
   const galleryUrlsMap = new Map<string, { url: string, count: number }>();
   if (sectionType === 'pendencias' && projectId) {
-    let processedCount = 0;
     for (const item of sortedItems) {
       if (item.photos && item.photos.length > 0) {
         const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
         if (galleryUrl) {
           galleryUrlsMap.set(item.id, { url: galleryUrl, count: item.photos.length });
-          processedCount++;
         }
       }
     }
@@ -2171,7 +2166,7 @@ async function addFlatSectionToXLSX(
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
   
   // Set column widths
-  const colWidths = columns.map((col, idx) => {
+  const colWidths = columns.map((col, _idx) => {
     if (col === 'Foto') return { wch: 15 };
     if (col === 'Pavimento') return { wch: 15 };
     if (col === 'Tipologia') return { wch: 20 };
@@ -2244,8 +2239,8 @@ function addAggregatedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
-  interlocutor: 'cliente' | 'fornecedor',
-  sectionType: 'concluidas' | 'andamento'
+  _interlocutor: 'cliente' | 'fornecedor',
+  _sectionType: 'concluidas' | 'andamento'
 ) {
   const aggregatedData = aggregateByPavimentoTipologia(items);
   

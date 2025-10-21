@@ -50,7 +50,7 @@ export function CalendarView({ view, onCreateEvent, onEventClick, selectedDate, 
       
       setEvents(eventsData);
       setBlocks(blocksData);
-    } catch (error) {
+    } catch (_error) {
       // Error já tratado pelo toast
       toast({
         title: 'Erro ao carregar agenda',

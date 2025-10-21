@@ -42,7 +42,7 @@ export function FileMigrationModal({
         completed++;
         setMigratedCount(completed);
         setMigrationProgress((completed / totalFiles) * 100);
-      } catch (error) {
+      } catch (_error) {
         // Error já tratado individualmente
         setFailedFiles(prev => [...prev, file.name]);
       }

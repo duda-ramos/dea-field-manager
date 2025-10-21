@@ -258,7 +258,7 @@ export default function GlobalContactsPage() {
             <BulkOperationPanel
               items={contacts.filter(c => selectedContacts.includes(c.id))}
               itemType="contacts"
-              onItemsChange={(updatedItems) => {
+              onItemsChange={(_updatedItems) => {
                 loadContacts();
                 setSelectedContacts([]);
               }}

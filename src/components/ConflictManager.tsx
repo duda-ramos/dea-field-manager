@@ -42,7 +42,7 @@ export function ConflictManager() {
 
       // Move to next conflict
       resolveCurrentConflict();
-    } catch (error) {
+    } catch (_error) {
       // Error já tratado pelo toast
     } finally {
       setIsResolving(false);
