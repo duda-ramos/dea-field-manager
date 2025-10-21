@@ -32,7 +32,7 @@ const ENTITY_ORDER: EntityName[] = [
   'files'
 ];
 
-const getLocalTable = (table: LocalTableName) => (db as Record<string, unknown>)[table];
+const getLocalTable = (table: LocalTableName) => (db as unknown as Record<string, any>)[table];
 
 const BATCH_SIZE = getFeatureFlag('SYNC_BATCH_SIZE') as number;
 const PULL_PAGE_SIZE = 1000;
@@ -47,7 +47,7 @@ const normalizeTimestamps = (obj: Record<string, unknown>) => ({
 const denormalizeTimestamps = (obj: Record<string, unknown>) => ({
   ...obj,
   createdAt: obj.created_at,
-  updatedAt: obj.updated_at ? new Date(obj.updated_at).getTime() : Date.now()
+  updatedAt: obj.updated_at ? new Date(obj.updated_at as string | number).getTime() : Date.now()
 });
 
 // Generic push/pull operations
@@ -57,7 +57,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
   if (!session?.user) throw new Error('User not authenticated');
   const user = session.user;
 
-  const localTable = getLocalTable(local);
+  const localTable = getLocalTable(local) as any;
   const dirtyRecords = await localTable.where('_dirty').equals(1).toArray();
   if (dirtyRecords.length === 0) return { pushed: 0, deleted: 0, errors: [] };
 
@@ -111,7 +111,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   const errors: string[] = [];
   const lastPulledDate = new Date(lastPulledAt).toISOString();
 
-  const localTable = getLocalTable(local);
+  const localTable = getLocalTable(local) as any;
 
   while (hasMore) {
     try {
@@ -138,7 +138,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 
         for (const record of records) {
           try {
-            const localRecord = transformRecordForLocal(record, entityName);
+            const localRecord = transformRecordForLocal(record as any, entityName);
             await localTable.put(localRecord);
             pulled++;
           } catch (error) {
@@ -163,7 +163,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 }
 
 function transformRecordForSupabase(record: Record<string, unknown>, entityName: string, userId: string): Record<string, unknown> {
-  const base = normalizeTimestamps({
+  const base: any = normalizeTimestamps({
     ...record,
     user_id: userId
   });
@@ -198,10 +198,10 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
       const projectId = record.projectId || record.project_id;
       const createdAtISO =
         record.created_at ||
-        (record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString());
+        (record.createdAt ? new Date(record.createdAt as string | number).toISOString() : new Date().toISOString());
       const updatedAtISO =
         record.updated_at ||
-        (record.updatedAt ? new Date(record.updatedAt).toISOString() : new Date().toISOString());
+        (record.updatedAt ? new Date(record.updatedAt as string | number).toISOString() : new Date().toISOString());
 
       return {
         id: record.id,
@@ -241,7 +241,7 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
 }
 
 function transformRecordForLocal(record: Record<string, unknown>, entityName: string): Record<string, unknown> {
-  const base = denormalizeTimestamps({
+  const base: any = denormalizeTimestamps({
     ...record,
     _dirty: 0,
     _deleted: 0
@@ -293,8 +293,8 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
         motivo: record.motivo,
         descricao_motivo: record.descricao_motivo,
         criadoEm: record.created_at,
-        updatedAt: new Date(record.updated_at).getTime(),
-        createdAt: new Date(record.created_at).getTime(),
+        updatedAt: new Date(record.updated_at as string | number).getTime(),
+        createdAt: new Date(record.created_at as string | number).getTime(),
         _dirty: 0,
         _deleted: 0
       };

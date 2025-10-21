@@ -320,10 +320,10 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
       const projectId = record.projectId || record.project_id;
       const createdAtISO =
         record.created_at ||
-        (record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString());
+        (record.createdAt ? new Date(record.createdAt as string | number).toISOString() : new Date().toISOString());
       const updatedAtISO =
         record.updated_at ||
-        (record.updatedAt ? new Date(record.updatedAt).toISOString() : new Date().toISOString());
+        (record.updatedAt ? new Date(record.updatedAt as string | number).toISOString() : new Date().toISOString());
 
       return {
         id: record.id,
@@ -415,8 +415,8 @@ function transformRecordForLocal(record: Record<string, unknown>, entityName: st
         motivo: record.motivo,
         descricao_motivo: record.descricao_motivo,
         criadoEm: record.created_at,
-        updatedAt: new Date(record.updated_at).getTime(),
-        createdAt: new Date(record.created_at).getTime(),
+        updatedAt: new Date(record.updated_at as string | number).getTime(),
+        createdAt: new Date(record.created_at as string | number).getTime(),
         _dirty: 0,
         _deleted: 0
       };

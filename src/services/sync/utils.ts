@@ -148,6 +148,7 @@ export interface LegacySyncMetrics {
     item_versions?: { pulled: number; errors: string[] };
     files?: { pulled: number; errors: string[] };
   };
+  [key: string]: unknown;
 }
 
 export function createEmptyMetrics(): LegacySyncMetrics {
