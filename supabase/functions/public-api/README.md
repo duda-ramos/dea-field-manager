@@ -1,116 +1,88 @@
-# Public API - Project Management
-
-Este diretório contém a especificação OpenAPI e instruções de uso da API pública exposta pelo Function `public-api` do Supabase.
+# DEA Field Manager - API Pública
 
 ## Autenticação
 
-- Tipo: Bearer API Key
-- Header: `Authorization: Bearer <SUA_API_KEY>`
-
-As chaves são gerenciadas na tabela `api_keys` e validadas por hash (bcrypt). Evite expor sua chave em clientes públicos.
-
-## Base URL
-
-```
-https://<PROJECT_REF>.supabase.co/functions/v1/public-api
+Todas as requisições requerem uma API Key no header Authorization:
+```bash
+Authorization: Bearer sua-api-key-aqui
 ```
 
-## Documentação (OpenAPI)
+### Como obter uma API Key:
+1. Acesse o sistema DEA Field Manager
+2. Vá em Configurações > API Keys
+3. Clique em "Gerar Nova Key"
+4. Copie e armazene a key com segurança (ela não será mostrada novamente)
 
-O arquivo `openapi.yaml` descreve os endpoints, parâmetros e esquemas de resposta.
-
-## Rate limits
-
-- Sugerido: 60 requisições/minuto por chave
-- Ao exceder, retorne 429 e implemente retry exponencial no cliente
+## Rate Limiting
+- 100 requisições por minuto por API Key
+- Header `X-RateLimit-Remaining` mostra requisições restantes
 
 ## Endpoints
 
-### 1) Listar projetos
-
-```
-GET /projects?cliente=XYZ&status=in_progress
-```
-
-Exemplo (curl):
-
+### Listar Projetos
 ```bash
-curl -H "Authorization: Bearer $API_KEY" \
-  "https://$PROJECT_REF.supabase.co/functions/v1/public-api/projects?cliente=XYZ&status=in_progress"
+GET /projects
+curl -H "Authorization: Bearer sua-key" \
+  https://[projeto].supabase.co/functions/v1/public-api/projects
 ```
 
-Exemplo (fetch):
+**Query Parameters:**
+- `status`: Filtrar por status (planning, in-progress, completed)
 
-```js
-const base = `https://${PROJECT_REF}.supabase.co/functions/v1/public-api`;
-const res = await fetch(`${base}/projects?cliente=XYZ&status=in_progress`, {
-  headers: { Authorization: `Bearer ${API_KEY}` },
-});
-const body = await res.json();
-```
-
-### 2) Detalhar projeto
-
-```
-GET /projects/:id
-```
-
-Exemplo (curl):
-
-```bash
-curl -H "Authorization: Bearer $API_KEY" \
-  "https://$PROJECT_REF.supabase.co/functions/v1/public-api/projects/PROJECT_ID"
-```
-
-### 3) Criar projeto
-
-```http
-POST /projects
-Content-Type: application/json
+**Resposta:**
+```json
 {
-  "name": "Residencial Aurora",
-  "client": "Construtora XYZ",
-  "city": "São Paulo",
-  "code": "AUR-001",
-  "status": "planning"
-}
-```
-
-### 4) Atualizar projeto
-
-```http
-PUT /projects/:id
-Content-Type: application/json
-{
-  "status": "in_progress"
-}
-```
-
-### 5) Adicionar instalação
-
-```http
-POST /projects/:id/installations
-Content-Type: application/json
-{
-  "codigo": 101,
-  "descricao": "Ponto de Tomada",
-  "tipologia": "Elétrica",
-  "pavimento": "Térreo",
-  "quantidade": 2,
-  "installed": false,
-  "photos": [
-    { "url": "https://storage.supabase.co/path/to/photo.jpg", "type": "image/jpeg", "size": 123456 }
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Projeto X",
+      "client": "Cliente Y",
+      "city": "São Paulo",
+      "status": "in-progress"
+    }
   ]
 }
 ```
 
-Observação: uploads binários de fotos devem ser feitos ao storage; envie as URLs no campo `photos`.
+### Criar Projeto
+```bash
+POST /projects
+curl -X POST \
+  -H "Authorization: Bearer sua-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Novo Projeto","client":"Cliente","city":"SP"}' \
+  https://[projeto].supabase.co/functions/v1/public-api/projects
+```
 
-## Códigos de erro comuns
+### Listar Instalações
+```bash
+GET /projects/{id}/installations
+curl -H "Authorization: Bearer sua-key" \
+  https://[projeto].supabase.co/functions/v1/public-api/projects/{id}/installations
+```
 
-- 400: Dados inválidos
-- 401: API key inválida/ausente
-- 403: Permissões insuficientes
-- 404: Recurso não encontrado
-- 429: Rate limit excedido
-- 500: Erro interno
+## Códigos de Erro
+
+| Código | Descrição |
+|--------|-----------|
+| 401 | API Key inválida ou ausente |
+| 404 | Recurso não encontrado |
+| 429 | Rate limit excedido |
+| 500 | Erro interno do servidor |
+
+## Exemplos com JavaScript
+```javascript
+// Usando fetch
+const response = await fetch(
+  'https://[projeto].supabase.co/functions/v1/public-api/projects',
+  {
+    headers: {
+      'Authorization': 'Bearer sua-api-key'
+    }
+  }
+);
+const data = await response.json();
+```
+
+## Suporte
+Para dúvidas ou problemas, entre em contato através do sistema.
