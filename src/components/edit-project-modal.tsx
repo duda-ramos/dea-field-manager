@@ -164,6 +164,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
               <Input 
                 id="name" 
                 value={formData.name} 
+                aria-required="true"
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? 'name-error' : undefined}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, name: e.target.value }));
                   if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
@@ -172,7 +175,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 className={errors.name ? 'border-destructive' : ''}
               />
               {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                <p id="name-error" className="text-sm text-destructive mt-1">{errors.name}</p>
               )}
             </div>
             <div>
@@ -180,6 +183,9 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
               <Input 
                 id="client" 
                 value={formData.client} 
+                aria-required="true"
+                aria-invalid={Boolean(errors.client)}
+                aria-describedby={errors.client ? 'client-error' : undefined}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, client: e.target.value }));
                   if (errors.client) setErrors(prev => ({ ...prev, client: '' }));
@@ -188,7 +194,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 className={errors.client ? 'border-destructive' : ''}
               />
               {errors.client && (
-                <p className="text-sm text-destructive mt-1">{errors.client}</p>
+                <p id="client-error" className="text-sm text-destructive mt-1">{errors.client}</p>
               )}
             </div>
           </div>
@@ -199,6 +205,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
               <Input 
                 id="city" 
                 value={formData.city} 
+                aria-required="true"
                 onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                 placeholder="Ex: São Paulo, SP" 
               />
@@ -259,6 +266,8 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 id="installation_date" 
                 type="date"
                 value={formData.installation_date} 
+                aria-invalid={Boolean(errors.dates)}
+                aria-describedby={errors.dates ? 'dates-error' : undefined}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, installation_date: e.target.value }));
                   if (errors.dates) setErrors(prev => ({ ...prev, dates: '' }));
@@ -272,6 +281,8 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                 id="inauguration_date" 
                 type="date"
                 value={formData.inauguration_date} 
+                aria-invalid={Boolean(errors.dates)}
+                aria-describedby={errors.dates ? 'dates-error' : undefined}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, inauguration_date: e.target.value }));
                   if (errors.dates) setErrors(prev => ({ ...prev, dates: '' }));
@@ -281,7 +292,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
             </div>
           </div>
           {errors.dates && (
-            <p className="text-sm text-destructive mt-1">{errors.dates}</p>
+            <p id="dates-error" className="text-sm text-destructive mt-1">{errors.dates}</p>
           )}
 
           <div>
@@ -332,6 +343,7 @@ export function EditProjectModal({ project, isOpen, onClose, onProjectUpdated }:
                       variant="outline" 
                       size="sm" 
                       onClick={() => removeSupplier(index)}
+                      aria-label={`Remover fornecedor ${index + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

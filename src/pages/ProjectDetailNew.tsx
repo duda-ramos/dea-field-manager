@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback, memo } from "react";
+import { FixedSizeList as VirtualList, type ListChildComponentProps } from 'react-window';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
@@ -47,6 +48,110 @@ const ReportShareModal = lazy(() => import("@/components/reports/ReportShareModa
 const ReportHistoryPanel = lazy(() => import("@/components/reports/ReportHistoryPanel").then(mod => ({ default: mod.ReportHistoryPanel })));
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+type InstallationCardProps = {
+  installation: Installation;
+  isSelected: boolean;
+  onSelectChange: (id: string, selected: boolean) => void;
+  onToggleInstallation: (id: string) => void;
+  onOpenDetails: (installation: Installation) => void;
+  isDetailsOpen: boolean;
+};
+
+const InstallationCard = memo(function InstallationCard({
+  installation,
+  isSelected,
+  onSelectChange,
+  onToggleInstallation,
+  onOpenDetails,
+  isDetailsOpen,
+}: InstallationCardProps) {
+  return (
+    <Card className="hover:shadow-md transition-shadow" role="article" aria-label={`Instalação ${installation.codigo} - ${installation.descricao}`}>
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => onSelectChange(installation.id, e.target.checked)}
+              className="w-4 h-4 mt-1 shrink-0"
+              aria-label={`Selecionar instalação ${installation.codigo} - ${installation.descricao}`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-start">
+                <div className="text-xs px-1 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words shrink-0 w-fit" aria-label={`Código ${installation.codigo}`}>
+                  {installation.codigo}
+                </div>
+                <h4 className="font-medium text-sm break-words text-left min-w-0">{installation.descricao}</h4>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pavimento:</span>
+                  <span className="font-medium">{installation.pavimento}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <Badge 
+                    variant={installation.status === "ativo" ? "default" : 
+                             installation.status === "on hold" ? "secondary" : 
+                             installation.status === "cancelado" ? "destructive" : "outline"}
+                    className="text-xs"
+                  >
+                    {installation.status}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant={installation.installed ? "default" : "outline"}
+              size="sm"
+              onClick={() => onToggleInstallation(installation.id)}
+              className="flex-1 gap-2"
+              aria-label={installation.installed ? `Marcar ${installation.codigo} como pendente` : `Marcar ${installation.codigo} como instalado`}
+            >
+              {installation.installed ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  Instalado
+                </>
+              ) : (
+                <>
+                  <Clock className="h-4 w-4" aria-hidden="true" />
+                  Pendente
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenDetails(installation)}
+              className="shrink-0"
+              aria-label={`Abrir detalhes de ${installation.codigo}`}
+              aria-expanded={isDetailsOpen}
+              title="Abrir detalhes"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+
+          {installation.observacoes && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Observações:</span>
+              <div className="text-sm bg-muted/50 rounded p-2 mt-1">
+                {installation.observacoes}
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 export default function ProjectDetailNew() {
   const { id } = useParams<{ id: string }>();
@@ -213,7 +318,7 @@ export default function ProjectDetailNew() {
                         'info';
 
 
-  const toggleInstallation = async (installationId: string) => {
+  const toggleInstallation = useCallback(async (installationId: string) => {
     let targetInstallation: Installation | undefined;
     let previousInstalled = false;
     let newInstalledState = false;
@@ -353,7 +458,19 @@ export default function ProjectDetailNew() {
     } catch {
       // Errors are handled inside persistToggle
     }
-  };
+  }, [addAction, logger, project, storage, toast, undo, user?.id]);
+
+  const handleSelectChange = useCallback((id: string, selected: boolean) => {
+    setSelectedInstallations(prev => selected ? [...prev, id] : prev.filter(itemId => itemId !== id));
+  }, []);
+
+  const handleOpenDetails = useCallback((installation: Installation) => {
+    setSelectedInstallation(installation);
+  }, []);
+
+  const handleToggleInstallationClick = useCallback((id: string) => {
+    toggleInstallation(id);
+  }, [toggleInstallation]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1097,7 +1214,7 @@ export default function ProjectDetailNew() {
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 justify-between">
+                <Button variant="outline" size="sm" className="flex-1 justify-between" aria-label="Abrir filtros">
                   <Filter className="h-4 w-4 mr-2" />
                   Filtros
                   <ChevronDown className="h-4 w-4 ml-2" />
@@ -1134,8 +1251,8 @@ export default function ProjectDetailNew() {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="outline" size="sm" aria-label="Recarregar lista" title="Recarregar">
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -1197,92 +1314,42 @@ export default function ProjectDetailNew() {
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <div className="space-y-3">
-                        {installations.map((installation) => (
-                          <Card key={installation.id} className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-4">
-                              <div className="space-y-3">
-                                <div className="flex items-start gap-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedInstallations.includes(installation.id)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedInstallations([...selectedInstallations, installation.id]);
-                                      } else {
-                                        setSelectedInstallations(selectedInstallations.filter(id => id !== installation.id));
-                                      }
-                                    }}
-                                    className="w-4 h-4 mt-1 shrink-0"
+                        {installations.length > 100 ? (
+                          <div style={{ height: 600 }}>
+                            <VirtualList
+                              height={600}
+                              width={"100%"}
+                              itemCount={installations.length}
+                              itemSize={160}
+                              itemKey={(index) => installations[index].id}
+                            >
+                              {({ index, style }) => (
+                                <div style={style}>
+                                  <InstallationCard
+                                    installation={installations[index]}
+                                    isSelected={selectedInstallations.includes(installations[index].id)}
+                                    onSelectChange={handleSelectChange}
+                                    onToggleInstallation={handleToggleInstallationClick}
+                                    onOpenDetails={handleOpenDetails}
+                                    isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
                                   />
-                                   <div className="flex-1 min-w-0">
-                                     <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-start">
-                                       <div className="text-xs px-1 py-1 border border-input bg-background rounded text-left leading-tight min-w-0 break-words shrink-0 w-fit">
-                                         {installation.codigo}
-                                       </div>
-                                       <h4 className="font-medium text-sm break-words text-left min-w-0">{installation.descricao}</h4>
-                                     </div>
-                                    
-                                    <div className="space-y-2 text-sm">
-                                      <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Pavimento:</span>
-                                        <span className="font-medium">{installation.pavimento}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Status:</span>
-                                        <Badge 
-                                          variant={installation.status === "ativo" ? "default" : 
-                                                   installation.status === "on hold" ? "secondary" : 
-                                                   installation.status === "cancelado" ? "destructive" : "outline"}
-                                          className="text-xs"
-                                        >
-                                          {installation.status}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </div>
                                 </div>
-
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant={installation.installed ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => toggleInstallation(installation.id)}
-                                    className="flex-1 gap-2"
-                                  >
-                                    {installation.installed ? (
-                                      <>
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        Instalado
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Clock className="h-4 w-4" />
-                                        Pendente
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setSelectedInstallation(installation)}
-                                    className="shrink-0"
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </Button>
-                                </div>
-
-                                {installation.observacoes && (
-                                  <div className="text-sm">
-                                    <span className="text-muted-foreground">Observações:</span>
-                                    <div className="text-sm bg-muted/50 rounded p-2 mt-1">
-                                      {installation.observacoes}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              )}
+                            </VirtualList>
+                          </div>
+                        ) : (
+                          installations.map((installation) => (
+                            <InstallationCard
+                              key={installation.id}
+                              installation={installation}
+                              isSelected={selectedInstallations.includes(installation.id)}
+                              onSelectChange={handleSelectChange}
+                              onToggleInstallation={handleToggleInstallationClick}
+                              onOpenDetails={handleOpenDetails}
+                              isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
+                            />
+                          ))
+                        )}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -1307,8 +1374,9 @@ export default function ProjectDetailNew() {
                 size="sm"
                 onClick={() => navigate('/')}
                 className="p-2 shrink-0"
+                aria-label="Voltar"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{project.name}</h1>
@@ -1320,8 +1388,8 @@ export default function ProjectDetailNew() {
             
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="lg:hidden">
-                  <Menu className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="lg:hidden" aria-label="Abrir menu">
+                  <Menu className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
               <SheetContent>
