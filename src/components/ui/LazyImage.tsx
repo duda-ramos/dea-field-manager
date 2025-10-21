@@ -33,8 +33,8 @@ export const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(
       className,
       placeholder,
       wrapperClassName,
-      threshold = 0.5,
-      rootMargin = '0px',
+      threshold = 0.1,
+      rootMargin = '100px',
       ...props
     },
     forwardedRef

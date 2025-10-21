@@ -43,8 +43,8 @@ export function useLazyImage(
 
     // Opções padrão do IntersectionObserver
     const observerOptions: IntersectionObserverInit = {
-      threshold: options?.threshold ?? 0.5, // 50% visível por padrão
-      rootMargin: options?.rootMargin ?? '0px',
+      threshold: options?.threshold ?? 0.1, // 10% visível por padrão (carregamento antecipado)
+      rootMargin: options?.rootMargin ?? '100px', // Pré-carrega imagens 100px antes de ficarem visíveis
       root: options?.root ?? null,
     };
 
