@@ -124,8 +124,20 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
     }
   };
 
+  const getProgressText = () => {
+    const statusText = statusConfig[project.status].label;
+    const progressText = totalInstallations > 0 
+      ? `${Math.round(progressPercentage)}% concluído`
+      : 'Sem instalações';
+    return `Projeto ${project.name}, cliente ${project.client}, ${statusText}, ${progressText}`;
+  };
+
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg p-3 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''} ${isDeleted ? 'opacity-60' : ''}`}>
+    <Card 
+      className={`transition-all duration-200 hover:shadow-lg p-3 sm:p-4 ${isSelected ? 'ring-2 ring-primary bg-primary-light/30' : ''} ${isDeleted ? 'opacity-60' : ''}`}
+      role="article"
+      aria-label={getProgressText()}
+    >
       <CardHeader className="pb-2 sm:pb-3 p-0">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-2 flex-1">
@@ -139,6 +151,7 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
                     onSelectionChange(e.target.checked);
                   }}
                   className="h-3 w-3 sm:h-4 sm:w-4 rounded border-2 border-primary"
+                  aria-label={`Selecionar projeto ${project.name}`}
                 />
               </div>
             )}
@@ -220,16 +233,17 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
               className="mobile-button flex-1"
               onClick={handleSyncProject}
               disabled={isSyncing}
+              aria-label={isSyncing ? "Sincronizando projeto com a nuvem" : "Sincronizar projeto com a nuvem"}
             >
               {isSyncing ? (
                 <>
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" aria-hidden="true" />
                   <span className="hidden sm:inline">Sincronizando...</span>
                   <span className="sm:hidden">Sync...</span>
                 </>
               ) : (
                 <>
-                  <RefreshCw className="h-3 w-3 mr-1" />
+                  <RefreshCw className="h-3 w-3 mr-1" aria-hidden="true" />
                   <span className="hidden sm:inline">Sincronizar</span>
                   <span className="sm:hidden">Sync</span>
                 </>
@@ -244,9 +258,10 @@ export function ProjectCard({ project, isSelected = false, onSelectionChange, on
                 e.stopPropagation();
                 handleViewProject();
               }}
+              aria-label={`Ver detalhes do projeto ${project.name}`}
             >
               <span className="text-xs">Ver Projeto</span>
-              <ArrowRight className="h-3 w-3 ml-1 group-hover/btn:translate-x-1 transition-transform" />
+              <ArrowRight className="h-3 w-3 ml-1 group-hover/btn:translate-x-1 transition-transform" aria-hidden="true" />
             </Button>
           )}
           <ProjectLifecycleActions 

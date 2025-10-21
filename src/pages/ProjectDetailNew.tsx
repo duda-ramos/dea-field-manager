@@ -113,6 +113,7 @@ const InstallationCard = memo(function InstallationCard({
               onClick={() => onToggleInstallation(installation.id)}
               className="flex-1 gap-2"
               aria-label={installation.installed ? `Marcar ${installation.codigo} como pendente` : `Marcar ${installation.codigo} como instalado`}
+              aria-pressed={installation.installed}
             >
               {installation.installed ? (
                 <>
@@ -131,9 +132,10 @@ const InstallationCard = memo(function InstallationCard({
               size="sm"
               onClick={() => onOpenDetails(installation)}
               className="shrink-0"
-              aria-label={`Abrir detalhes de ${installation.codigo}`}
+              aria-label={`Abrir fotos da instalação ${installation.codigo}`}
               aria-expanded={isDetailsOpen}
-              title="Abrir detalhes"
+              aria-haspopup="dialog"
+              title="Abrir fotos"
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -933,11 +935,12 @@ export default function ProjectDetailNew() {
                 onClick={() => setShowReportCustomization(true)}
                 disabled={isGenerating}
                 className="gap-2 w-full sm:w-auto"
+                aria-label={isGenerating ? "Gerando relatório" : "Gerar novo relatório"}
               >
                 {isGenerating ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Gerando...</>
                 ) : (
-                  <><FileText className="h-4 w-4" /> Gerar Relatório</>
+                  <><FileText className="h-4 w-4" aria-hidden="true" /> Gerar Relatório</>
                 )}
               </Button>
             </div>
@@ -1397,24 +1400,26 @@ export default function ProjectDetailNew() {
                   <SheetTitle>Opções do Projeto</SheetTitle>
                 </SheetHeader>
                 <div className="space-y-4 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full justify-start gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Editar Projeto
-                  </Button>
-                  <Button
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowAddModal(true)}
-                    className="w-full justify-start gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Adicionar Item
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="w-full justify-start gap-2"
+                  aria-label="Editar projeto"
+                >
+                  <Edit className="h-4 w-4" aria-hidden="true" />
+                  Editar Projeto
+                </Button>
+                <Button
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowAddModal(true)}
+                  className="w-full justify-start gap-2"
+                  aria-label="Adicionar item ao projeto"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Adicionar Item
+                </Button>
                 </div>
               </SheetContent>
             </Sheet>
@@ -1425,8 +1430,9 @@ export default function ProjectDetailNew() {
                 size="sm"
                 onClick={() => setIsEditModalOpen(true)}
                 className="gap-2"
+                aria-label="Editar projeto"
               >
-                <Edit className="h-4 w-4" />
+                <Edit className="h-4 w-4" aria-hidden="true" />
                 Editar
               </Button>
               <Button
@@ -1434,8 +1440,9 @@ export default function ProjectDetailNew() {
                 size="sm"
                 onClick={() => setShowAddModal(true)}
                 className="gap-2"
+                aria-label="Adicionar item ao projeto"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Adicionar
               </Button>
             </div>
@@ -1501,7 +1508,7 @@ export default function ProjectDetailNew() {
           </DropdownMenu>
         </div>
 
-        <div className="hidden lg:flex gap-2 border-b pb-4 mb-6">
+        <div className="hidden lg:flex gap-2 border-b pb-4 mb-6" role="tablist" aria-label="Navegação do projeto">
           {[
             { key: 'info', label: 'Informações', path: `/projeto/${id}`, icon: Home },
             { key: 'pecas', label: 'Peças', path: `/projeto/${id}/pecas`, icon: FileSpreadsheet },
@@ -1517,8 +1524,11 @@ export default function ProjectDetailNew() {
               size="sm"
               onClick={() => navigate(tab.path)}
               className="gap-2"
+              role="tab"
+              aria-selected={currentSection === tab.key}
+              aria-controls={`panel-${tab.key}`}
             >
-              <tab.icon className="h-4 w-4" />
+              <tab.icon className="h-4 w-4" aria-hidden="true" />
               {tab.label}
             </Button>
           ))}
@@ -1527,7 +1537,7 @@ export default function ProjectDetailNew() {
 
       {/* Content */}
       <div className="container mx-auto px-4 pb-6 max-w-full overflow-x-hidden">
-        <div className="space-y-4 max-w-full">
+        <div className="space-y-4 max-w-full" role="tabpanel" id={`panel-${currentSection}`} aria-labelledby={`tab-${currentSection}`}>
           {currentSection === 'info' && renderInfoSection()}
           {currentSection === 'pecas' && renderPecasSection()}
           {currentSection === 'relatorios' && renderRelatoriosSection()}
