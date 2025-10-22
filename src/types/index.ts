@@ -149,7 +149,9 @@ export interface FileAttachment {
   storage_path?: string; // Legacy path in Supabase Storage
   uploadedAt?: string; // ISO string
   uploaded_at?: string; // Legacy field
+  created_at?: string; // Supabase timestamp
   updatedAt?: number; // epoch ms for sync
+  updated_at?: string; // Supabase timestamp
   createdAt?: number;
   _dirty?: number;
   _deleted?: number;

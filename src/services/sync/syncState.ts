@@ -213,7 +213,7 @@ class SyncStateManager {
       operation: 'unknown'
     } : error;
 
-    this.addLog('error', `Erro: ${syncError.message}`, syncError);
+    this.addLog('error', `Erro: ${syncError.message}`, syncError as any);
     this.updateState({
       status: 'error',
       lastError: syncError
@@ -242,7 +242,7 @@ class SyncStateManager {
           ...this.currentState.metrics,
           lastSyncAt: Date.now(),
           lastSyncDuration: duration,
-          tablesProcessed: syncMetrics.tablesProcessed
+          tablesProcessed: syncMetrics.tablesProcessed as any || {}
         }
       });
     }

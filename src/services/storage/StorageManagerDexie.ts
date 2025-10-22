@@ -93,18 +93,18 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
 // Transformadores para Supabase
 function transformProjectForSupabase(project: Record<string, unknown>, userId: string) {
   return {
-    id: project.id,
-    name: project.name,
-    client: project.client,
-    city: project.city,
-    code: project.code,
-    status: project.status,
-    installation_date: project.installation_date || null,
-    inauguration_date: project.inauguration_date || null,
-    installation_time_estimate_days: project.installation_time_estimate_days || null,
-    owner_name: project.owner,
-    suppliers: project.suppliers,
-    project_files_link: project.project_files_link || null,
+    id: project.id as string | undefined,
+    name: project.name as string,
+    client: project.client as string,
+    city: project.city as string,
+    code: project.code as string | undefined,
+    status: project.status as string | undefined,
+    installation_date: (project.installation_date as string) || null,
+    inauguration_date: (project.inauguration_date as string) || null,
+    installation_time_estimate_days: (project.installation_time_estimate_days as number) || null,
+    owner_name: project.owner as string | undefined,
+    suppliers: project.suppliers as string[] | undefined,
+    project_files_link: (project.project_files_link as string) || null,
     user_id: userId,
     updated_at: new Date().toISOString()
   };
@@ -112,17 +112,17 @@ function transformProjectForSupabase(project: Record<string, unknown>, userId: s
 
 function transformInstallationForSupabase(installation: Record<string, unknown>, userId: string) {
   return {
-    id: installation.id,
-    project_id: installation.project_id,
-    tipologia: installation.tipologia,
-    codigo: installation.codigo,
-    descricao: installation.descricao,
-    quantidade: installation.quantidade,
-    pavimento: installation.pavimento,
-    revisado: installation.revisado || false,
-    pendencia_tipo: installation.pendencia_tipo || null,
-    pendencia_descricao: installation.pendencia_descricao || null,
-    photos: installation.photos || [],
+    id: installation.id as string | undefined,
+    project_id: installation.project_id as string,
+    tipologia: installation.tipologia as string,
+    codigo: installation.codigo as number,
+    descricao: installation.descricao as string,
+    quantidade: installation.quantidade as number,
+    pavimento: installation.pavimento as string,
+    revisado: (installation.revisado as boolean) || false,
+    pendencia_tipo: (installation.pendencia_tipo as string) || null,
+    pendencia_descricao: (installation.pendencia_descricao as string) || null,
+    photos: (installation.photos as string[]) || [],
     user_id: userId,
     updated_at: new Date().toISOString()
   };
@@ -130,12 +130,12 @@ function transformInstallationForSupabase(installation: Record<string, unknown>,
 
 function transformContactForSupabase(contact: Record<string, unknown>, userId: string) {
   return {
-    id: contact.id,
-    name: contact.name,
-    email: contact.email,
-    phone: contact.phone,
-    role: contact.role,
-    project_id: contact.projetoId || contact.project_id,
+    id: contact.id as string | undefined,
+    name: contact.name as string,
+    email: contact.email as string,
+    phone: contact.phone as string,
+    role: contact.role as string,
+    project_id: (contact.projetoId || contact.project_id) as string,
     user_id: userId,
     updated_at: new Date().toISOString()
   };
@@ -143,13 +143,13 @@ function transformContactForSupabase(contact: Record<string, unknown>, userId: s
 
 function transformBudgetForSupabase(budget: Record<string, unknown>, userId: string) {
   return {
-    id: budget.id,
-    project_id: budget.projectId,
-    supplier: budget.supplier,
-    status: budget.status || 'pending',
-    file_name: budget.fileName,
-    file_path: budget.filePath,
-    file_size: budget.fileSize,
+    id: budget.id as string | undefined,
+    project_id: budget.projectId as string,
+    supplier: budget.supplier as string,
+    status: (budget.status as string) || 'pending',
+    file_name: budget.fileName as string | undefined,
+    file_path: budget.filePath as string | undefined,
+    file_size: budget.fileSize as number | undefined,
     user_id: userId,
     updated_at: new Date().toISOString()
   };
@@ -157,14 +157,14 @@ function transformBudgetForSupabase(budget: Record<string, unknown>, userId: str
 
 function transformFileForSupabase(file: Record<string, unknown>, userId: string) {
   return {
-    id: file.id,
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    url: file.url,
-    storage_path: file.storagePath,
-    project_id: file.projectId || null,
-    installation_id: file.installationId || null,
+    id: file.id as string | undefined,
+    name: file.name as string,
+    type: file.type as string,
+    size: file.size as number,
+    url: (file.url as string) || null,
+    storage_path: (file.storagePath as string) || null,
+    project_id: (file.projectId as string | undefined) || null,
+    installation_id: (file.installationId as string | undefined) || null,
     user_id: userId,
     updated_at: new Date().toISOString()
   };
@@ -381,7 +381,7 @@ export const StorageManagerDexie = {
 
         Object.entries(snapshotData).forEach(([key, value]) => {
           if (value !== undefined) {
-            (mergedInstallation as Record<string, unknown>)[key] = value;
+            (mergedInstallation as unknown as Record<string, unknown>)[key] = value;
           }
         });
 
@@ -566,14 +566,20 @@ export const StorageManagerDexie = {
     };
     
     // ONLINE FIRST: Sincronizar imediatamente
-    await syncToServerImmediate('file', metaAtualizado as Record<string, unknown>);
+    await syncToServerImmediate('file', metaAtualizado as unknown as Record<string, unknown>);
     await db.files.put(metaAtualizado);
     autoSyncManager.triggerDebouncedSync();
 
     return metaAtualizado;
   },
   async deleteFile(id: string) {
-    await db.files.put({ id, _deleted: 1, _dirty: 1, updatedAt: Date.now() } as Partial<ProjectFile>);
+    const fileToDelete: Partial<ProjectFile> & { id: string } = { 
+      id, 
+      _deleted: 1, 
+      _dirty: 1, 
+      updatedAt: Date.now() 
+    };
+    await db.files.put(fileToDelete as any);
     syncStateManager.incrementPending('files', 1);
   }
 };
@@ -806,12 +812,15 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
     id,
     projectId: String(projectId),
     project_id: String(projectId),
+    fileName: String(rest.fileName || rest.file_name || 'relatorio'),
+    format: (rest.format as 'pdf' | 'xlsx') || 'pdf',
+    interlocutor: (rest.interlocutor as 'cliente' | 'fornecedor') || 'cliente',
     generatedAt: String(generatedAt),
     generated_at: String(generatedAt),
     generatedBy: String(generatedBy),
     generated_by: String(generatedBy),
     size: Number(size),
-    mimeType: inferReportMimeType(rest.format as 'pdf' | 'xlsx', mimeType),
+    mimeType: inferReportMimeType((rest.format as 'pdf' | 'xlsx') || 'pdf', String(mimeType || '')),
     blob: storedBlob,
     createdAt,
     payloadId: String(payloadId),
@@ -913,18 +922,18 @@ async function migrateLegacyReportHistory() {
         
         if (!error && data) {
           supabaseReports = data.map((report: Record<string, unknown>) => ({
-            id: report.id,
-            projectId: report.project_id,
-            fileName: report.file_name,
-            format: report.format,
-            interlocutor: report.interlocutor,
-            config: report.config || {},
+            id: String(report.id),
+            projectId: String(report.project_id),
+            fileName: String(report.file_name || 'relatorio'),
+            format: (report.format as 'pdf' | 'xlsx') || 'pdf',
+            interlocutor: (report.interlocutor as 'cliente' | 'fornecedor') || 'cliente',
+            config: (report.config as Record<string, unknown>) || {},
             size: 0, // Size not stored in Supabase
-            generatedAt: report.generated_at,
-            generatedBy: report.generated_by,
-            fileUrl: report.file_url,
-            file_url: report.file_url,
-            createdAt: new Date(report.created_at).getTime(),
+            generatedAt: String(report.generated_at),
+            generatedBy: String(report.generated_by),
+            fileUrl: String(report.file_url || ''),
+            file_url: String(report.file_url || ''),
+            createdAt: new Date(String(report.created_at)).getTime(),
           }));
         }
       }

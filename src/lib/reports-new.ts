@@ -1544,29 +1544,29 @@ function getFlatColumnStyles(
         '0': { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
         '1': { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
         '2': { halign: 'right', cellWidth: 14 },  // Código - 8%
-        3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
-        4: { halign: 'left', cellWidth: 35 },   // Observação - 21%
-        5: { halign: 'center', cellWidth: 14 }  // Foto - 8%
+        '3': { halign: 'left', cellWidth: 50 },   // Descrição - 30%
+        '4': { halign: 'left', cellWidth: 35 },   // Observação - 21%
+        '5': { halign: 'center', cellWidth: 14 }  // Foto - 8%
       };
     } else {
       return {
-        0: { halign: 'left', cellWidth: 18 },   // Pavimento - 11%
-        1: { halign: 'left', cellWidth: 28 },   // Tipologia - 17%
-        2: { halign: 'right', cellWidth: 12 },  // Código - 7%
-        3: { halign: 'left', cellWidth: 42 },   // Descrição - 25%
-        4: { halign: 'left', cellWidth: 28 },   // Observação - 17%
-        5: { halign: 'left', cellWidth: 28 },   // Comentários do Fornecedor - 17%
-        6: { halign: 'center', cellWidth: 12 }  // Foto - 7%
+        '0': { halign: 'left', cellWidth: 18 },   // Pavimento - 11%
+        '1': { halign: 'left', cellWidth: 28 },   // Tipologia - 17%
+        '2': { halign: 'right', cellWidth: 12 },  // Código - 7%
+        '3': { halign: 'left', cellWidth: 42 },   // Descrição - 25%
+        '4': { halign: 'left', cellWidth: 28 },   // Observação - 17%
+        '5': { halign: 'left', cellWidth: 28 },   // Comentários do Fornecedor - 17%
+        '6': { halign: 'center', cellWidth: 12 }  // Foto - 7%
       };
     }
   } else if (sectionType === 'revisao') {
     return {
-      0: { halign: 'left', cellWidth: 22 },   // Pavimento - 13%
-      1: { halign: 'left', cellWidth: 40 },   // Tipologia - 24%
-      2: { halign: 'right', cellWidth: 14 },  // Código - 8%
-      3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
-      4: { halign: 'center', cellWidth: 14 }, // Versão - 8%
-      5: { halign: 'left', cellWidth: 28 }    // Motivo - 17%
+      '0': { halign: 'left', cellWidth: 22 },   // Pavimento - 13%
+      '1': { halign: 'left', cellWidth: 40 },   // Tipologia - 24%
+      '2': { halign: 'right', cellWidth: 14 },  // Código - 8%
+      '3': { halign: 'left', cellWidth: 50 },   // Descrição - 30%
+      '4': { halign: 'center', cellWidth: 14 }, // Versão - 8%
+      '5': { halign: 'left', cellWidth: 28 }    // Motivo - 17%
     };
   }
   
@@ -1574,11 +1574,11 @@ function getFlatColumnStyles(
 }
 
 // Get column styles for aggregated tables
-function getAggregatedColumnStyles(): Record<number, { halign: string; cellWidth: number }> {
+function getAggregatedColumnStyles(): Record<string, { halign: 'left' | 'center' | 'right'; cellWidth: number }> {
   return {
-    0: { halign: 'left', cellWidth: 68 },   // Pavimento - 40%
-    1: { halign: 'left', cellWidth: 68 },   // Tipologia - 40%
-    2: { halign: 'right', cellWidth: 34 }   // Quantidade Total - 20%
+    '0': { halign: 'left', cellWidth: 68 },   // Pavimento - 40%
+    '1': { halign: 'left', cellWidth: 68 },   // Tipologia - 40%
+    '2': { halign: 'right', cellWidth: 34 }   // Quantidade Total - 20%
   };
 }
 
@@ -2073,7 +2073,7 @@ async function _addEnhancedSectionToXLSX(
 
       // Add items data (compact format)
       const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, projectId);
-      allData.push(...rows);
+      allData.push(...(rows as (string | number)[][]));
     }
 
     // Add spacing between pavimentos
@@ -2107,20 +2107,10 @@ function _dataUrlToBase64(dataUrl: string): string {
  */
 function createHyperlinkCell(url: string, text: string = 'Ver Foto'): { content: string; styles: { textColor: number[]; fontStyle: string } } {
   return {
-    v: text,
-    l: {
-      Target: url,
-      Tooltip: 'Clique para ver a foto'
-    },
-    s: {
-      font: {
-        color: { rgb: '0000FF' },
-        underline: true
-      },
-      alignment: {
-        horizontal: 'center',
-        vertical: 'center'
-      }
+    content: text,
+    styles: {
+      textColor: [0, 0, 255],
+      fontStyle: 'underline'
     }
   };
 }

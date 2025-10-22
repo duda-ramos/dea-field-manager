@@ -58,7 +58,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
   const user = session.user;
 
   const localTable = getLocalTable(local);
-  const dirtyRecords = await localTable.where('_dirty').equals(1).toArray();
+  const dirtyRecords = await (localTable as any).where('_dirty').equals(1).toArray();
   if (dirtyRecords.length === 0) return { pushed: 0, deleted: 0, errors: [] };
 
   logger.debug(`📤 Pushing ${dirtyRecords.length} ${entityName}...`);
@@ -75,15 +75,15 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
       const operations = batch.map(async (record: Record<string, unknown>) => {
         try {
           if (record._deleted) {
-            await supabase.from(remote).delete().eq('id', record.id);
+            await (supabase.from(remote as any).delete() as any).eq('id', record.id);
             deleted++;
-            await localTable.delete(record.id);
+            await (localTable as any).delete(record.id);
           } else {
             // Transform record for Supabase
             const normalizedRecord = transformRecordForSupabase(record, entityName, user.id);
-            await supabase.from(remote).upsert(normalizedRecord);
+            await (supabase.from(remote as any).upsert(normalizedRecord) as any);
             pushed++;
-            await localTable.update(record.id, { _dirty: 0 });
+            await (localTable as any).update(record.id, { _dirty: 0 });
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -116,9 +116,9 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   while (hasMore) {
     try {
       const { data: records, error } = await withRetry(async () => {
-        return await supabase
-          .from(remote)
-          .select('*')
+        return await (supabase
+          .from(remote as any)
+          .select('*') as any)
           .eq('user_id', user.id)
           .gt('updated_at', lastPulledDate)
           .order('updated_at', { ascending: true })
@@ -139,7 +139,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
         for (const record of records) {
           try {
             const localRecord = transformRecordForLocal(record as Record<string, unknown>, entityName);
-            await localTable.put(localRecord);
+            await (localTable as any).put(localRecord);
             pulled++;
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
@@ -163,7 +163,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 }
 
 function transformRecordForSupabase(record: Record<string, unknown>, entityName: string, userId: string): Record<string, unknown> {
-  const base = normalizeTimestamps({
+  const base: any = normalizeTimestamps({
     ...record,
     user_id: userId
   });
@@ -241,7 +241,7 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
 }
 
 function transformRecordForLocal(record: Record<string, unknown>, entityName: string): Record<string, unknown> {
-  const base = denormalizeTimestamps({
+  const base: any = denormalizeTimestamps({
     ...record,
     _dirty: 0,
     _deleted: 0

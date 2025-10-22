@@ -108,7 +108,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
       const operations = batch.map(async (record: Record<string, unknown>) => {
         try {
           if (record._deleted) {
-            await supabase.from(remote).delete().eq('id', record.id);
+            await (supabase.from(remote as any).delete() as any).eq('id', record.id);
             deleted++;
             await localTable.delete(record.id as string);
           } else {
@@ -121,7 +121,7 @@ async function pushEntityType(entityName: EntityName): Promise<{ pushed: number;
               logger.debug(`[Force Upload] ${entityName} ${record.id}`);
             }
             
-            await supabase.from(remote).upsert(normalizedRecord);
+            await (supabase.from(remote as any).upsert(normalizedRecord) as any);
             pushed++;
             
             // Clear both _dirty and _forceUpload flags after successful push
@@ -172,9 +172,9 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
   while (hasMore) {
     try {
       const { data, error } = await withRetry(async () => {
-        return await supabase
-          .from(remote)
-          .select('*')
+        return await (supabase
+          .from(remote as any)
+          .select('*') as any)
           .eq('user_id', user.id)
           .gt('updated_at', lastPulledDate)
           .order('updated_at', { ascending: true })
@@ -228,8 +228,8 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
               if (localRecord && localRecord._dirty === 1 && recordType) {
                 const conflictInfo = checkForRemoteEdits(
                   localRecord,
-                  remoteRecord,
-                  remoteRecord.id,
+                  { ...remoteRecord, updated_at: String(remoteRecord.updated_at || new Date().toISOString()) },
+                  String(remoteRecord.id),
                   recordType
                 );
 
@@ -284,7 +284,7 @@ async function pullEntityType(entityName: EntityName, lastPulledAt: number): Pro
 }
 
 function transformRecordForSupabase(record: Record<string, unknown>, entityName: string, userId: string): Record<string, unknown> {
-  const base = normalizeTimestamps({
+  const base: any = normalizeTimestamps({
     ...record,
     user_id: userId
   });
@@ -363,7 +363,7 @@ function transformRecordForSupabase(record: Record<string, unknown>, entityName:
 }
 
 function transformRecordForLocal(record: Record<string, unknown>, entityName: string): Record<string, unknown> {
-  const base = denormalizeTimestamps({
+  const base: any = denormalizeTimestamps({
     ...record,
     _dirty: 0,
     _deleted: 0
