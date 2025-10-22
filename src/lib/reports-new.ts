@@ -151,31 +151,69 @@ export interface PavimentoSummary {
   total: number;
 }
 
-// Report theme for consistent styling
+// Enhanced Professional Report Theme
 export const reportTheme = {
   colors: {
-    pendentes: '#F59E0B',
-    instalados: '#10B981', 
-    emAndamento: '#6B7280',
-    restante: '#E5E7EB',
-    header: [55, 65, 81] as [number, number, number], // #374151
+    // Primary palette - Professional blue and green
+    primary: '#2563EB',        // Modern blue
+    primaryLight: '#DBEAFE',   // Light blue for backgrounds
+    secondary: '#10B981',      // Success green
+    secondaryLight: '#D1FAE5', // Light green for backgrounds
+    
+    // Status colors
+    pendentes: '#F59E0B',      // Amber for pending
+    pendentesLight: '#FEF3C7', // Light amber background
+    instalados: '#10B981',     // Green for completed
+    instaladosLight: '#D1FAE5',// Light green background
+    emAndamento: '#6B7280',    // Gray for in progress
+    emAndamentoLight: '#F3F4F6', // Light gray background
+    emRevisao: '#8B5CF6',      // Purple for revision
+    emRevisaoLight: '#EDE9FE', // Light purple background
+    
+    // Neutrals
+    dark: '#1F2937',           // Dark gray for text
+    medium: '#6B7280',         // Medium gray
+    light: '#E5E7EB',          // Light gray for borders
+    lighter: '#F9FAFB',        // Very light gray for backgrounds
+    white: '#FFFFFF',
+    
+    // Legacy support (RGB arrays for jsPDF)
+    header: [37, 99, 235] as [number, number, number],     // primary blue
     alternateRow: [249, 250, 251] as [number, number, number], // #F9FAFB
+    cardBg: [219, 234, 254] as [number, number, number],   // primaryLight
+    
+    // Functional colors
     border: '#E5E7EB',
-    divider: '#E5E7EB',
-    footer: '#6B7280'
+    divider: '#D1D5DB',
+    footer: '#6B7280',
+    restante: '#E5E7EB'
   },
   fonts: {
-    title: 22,
-    subtitle: 16,
-    text: 10,
-    footer: 8
+    // Enhanced typography hierarchy
+    hero: 24,           // Main report title
+    title: 20,          // Section titles
+    subtitle: 14,       // Subsection titles
+    cardTitle: 12,      // Card headers
+    text: 10,           // Body text
+    small: 8,           // Small text
+    footer: 8           // Footer text
   },
   spacing: {
-    margin: 20,
-    titleBottom: 10,
-    subtitleTop: 12,
-    subtitleBottom: 6,
-    sectionSpacing: 8
+    margin: 15,           // Page margins
+    cardPadding: 8,       // Padding inside cards
+    cardMargin: 4,        // Margin between cards
+    titleBottom: 12,      // Space after titles
+    subtitleTop: 10,      // Space before subtitles
+    subtitleBottom: 8,    // Space after subtitles
+    sectionSpacing: 15,   // Space between sections
+    lineSpacing: 6        // Space between lines
+  },
+  layout: {
+    // Standard layout dimensions
+    cardHeight: 25,
+    cardWidth: 85,
+    iconSize: 10,
+    borderRadius: 3
   }
 };
 
@@ -485,6 +523,118 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
 }
 
 /**
+ * Draw an elegant info card with icon, label, and value
+ */
+function drawInfoCard(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  label: string,
+  value: string,
+  bgColor: string
+) {
+  const height = reportTheme.layout.cardHeight;
+  const padding = reportTheme.spacing.cardPadding;
+  
+  // Convert hex color to RGB
+  const rgb = hexToRgb(bgColor);
+  
+  // Draw card background with rounded corners
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.roundedRect(x, y, width, height, reportTheme.layout.borderRadius, reportTheme.layout.borderRadius, 'F');
+  
+  // Draw subtle border
+  doc.setDrawColor(reportTheme.colors.light);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(x, y, width, height, reportTheme.layout.borderRadius, reportTheme.layout.borderRadius, 'S');
+  
+  // Label text (with icon)
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.small);
+  doc.setTextColor(reportTheme.colors.medium);
+  doc.text(label, x + padding, y + padding + 3);
+  
+  // Value text
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.cardTitle);
+  doc.setTextColor(reportTheme.colors.dark);
+  
+  // Wrap text if too long
+  const maxWidth = width - (padding * 2);
+  const lines = doc.splitTextToSize(value, maxWidth);
+  doc.text(lines, x + padding, y + padding + 10);
+  
+  doc.setFont(undefined, 'normal');
+}
+
+/**
+ * Draw a statistics card with large number and label
+ */
+function drawStatCard(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  number: number,
+  label: string,
+  color: string,
+  bgColor: string,
+  icon: string = ''
+) {
+  const height = reportTheme.layout.cardHeight;
+  const padding = reportTheme.spacing.cardPadding;
+  
+  // Convert hex colors to RGB
+  const bgRgb = hexToRgb(bgColor);
+  const colorRgb = hexToRgb(color);
+  
+  // Draw card background with rounded corners
+  doc.setFillColor(bgRgb.r, bgRgb.g, bgRgb.b);
+  doc.roundedRect(x, y, width, height, reportTheme.layout.borderRadius, reportTheme.layout.borderRadius, 'F');
+  
+  // Draw left accent bar
+  doc.setFillColor(colorRgb.r, colorRgb.g, colorRgb.b);
+  doc.roundedRect(x, y, 3, height, reportTheme.layout.borderRadius, reportTheme.layout.borderRadius, 'F');
+  
+  // Icon (if provided)
+  if (icon) {
+    doc.setFontSize(14);
+    doc.text(icon, x + padding + 2, y + padding + 4);
+  }
+  
+  // Large number
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(colorRgb.r, colorRgb.g, colorRgb.b);
+  doc.text(number.toString(), x + padding + 3, y + height - padding - 8);
+  
+  // Label text
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(reportTheme.fonts.small);
+  doc.setTextColor(reportTheme.colors.medium);
+  const maxWidth = width - (padding * 2 + 3);
+  const lines = doc.splitTextToSize(label, maxWidth);
+  doc.text(lines, x + padding + 3, y + height - padding - 1);
+  
+  doc.setFont(undefined, 'normal');
+}
+
+/**
+ * Convert hex color to RGB object
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  // Remove # if present
+  hex = hex.replace('#', '');
+  
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  return { r, g, b };
+}
+
+/**
  * Generate PDF Report with comprehensive error handling
  * 
  * @param data - Report data including project, installations, versions
@@ -535,18 +685,40 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
     format: 'a4'
   });
 
-  // Add footer to all pages
+  // Enhanced footer with divider line
   const addFooter = () => {
     const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Draw subtle top line
+    doc.setDrawColor(reportTheme.colors.light);
+    doc.setLineWidth(0.3);
+    doc.line(reportTheme.spacing.margin, pageHeight - 15, pageWidth - reportTheme.spacing.margin, pageHeight - 15);
+    
+    // Footer text
     doc.setFontSize(reportTheme.fonts.footer);
-    doc.setTextColor(reportTheme.colors.footer);
-    const footerText = `DEA Manager • ${data.project.name} • ${new Date(data.generatedAt).toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
-    doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+    doc.setTextColor(reportTheme.colors.medium);
+    const pageNum = doc.getCurrentPageInfo().pageNumber;
+    const footerText = `DEA Manager • ${data.project.name} • ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`;
+    doc.text(footerText, reportTheme.spacing.margin, pageHeight - 8);
+    
+    // Page number on the right
+    doc.setFont(undefined, 'bold');
+    const pageText = `Pág. ${pageNum}`;
+    const pageTextWidth = doc.getTextWidth(pageText);
+    doc.text(pageText, pageWidth - reportTheme.spacing.margin - pageTextWidth, pageHeight - 8);
+    doc.setFont(undefined, 'normal');
   };
 
   let yPosition = reportTheme.spacing.margin;
+  const pageWidth = doc.internal.pageSize.width;
 
+  // ========================================
+  // PROFESSIONAL HEADER WITH LOGO AND TITLE
+  // ========================================
+  
   // Add company logo - graceful fallback if fails
+  let logoLoaded = false;
   try {
     const logoImg = new Image();
     logoImg.src = '/logo-dea.png';
@@ -556,47 +728,108 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
     });
 
     // Define apenas a largura máxima, a altura será proporcional
-    const maxWidth = 30;
+    const maxWidth = 35;
     const aspectRatio = logoImg.width / logoImg.height;
     const logoHeight = maxWidth / aspectRatio;
     
     doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
+    logoLoaded = true;
   } catch (error) {
     console.error('[generatePDFReport] Error loading logo, continuing without logo:', error);
     // Continue without logo - not critical for report
   }
 
-  // Enhanced Header
-  doc.setFontSize(reportTheme.fonts.title);
-  doc.setTextColor('#000000');
-  doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin + 35, yPosition + 10);
-  yPosition += reportTheme.spacing.titleBottom + 15;
-
-  doc.setFontSize(12);
-  doc.text(`Cliente: ${data.project.client}`, reportTheme.spacing.margin, yPosition);
-  yPosition += 7;
-  doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, reportTheme.spacing.margin, yPosition);
-  yPosition += 10;
-
-  // Optional responsavel in smaller font
-  if (data.generatedBy) {
-    doc.setFontSize(reportTheme.fonts.footer);
-    doc.setTextColor('#6B7280');
-    doc.text(`Responsável: ${data.generatedBy}`, reportTheme.spacing.margin, yPosition);
-    yPosition += 8;
-    doc.setTextColor('#000000');
-  }
-
-  // Header divider
-  doc.setDrawColor('#E5E7EB');
-  doc.setLineWidth(0.5);
-  doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
-  yPosition += 10;
-
-  // Add Gráficos de Acompanhamento section
+  // Enhanced Hero Title
+  const titleX = logoLoaded ? reportTheme.spacing.margin + 40 : reportTheme.spacing.margin;
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.hero);
+  doc.setTextColor(reportTheme.colors.dark);
+  doc.text('Relatório de Instalações', titleX, yPosition + 8);
+  doc.setFont(undefined, 'normal');
+  
   doc.setFontSize(reportTheme.fonts.subtitle);
-  doc.setTextColor('#000000');
-  doc.text('Gráficos de Acompanhamento', reportTheme.spacing.margin, yPosition);
+  doc.setTextColor(reportTheme.colors.medium);
+  doc.text(data.project.name, titleX, yPosition + 16);
+  
+  yPosition += 30;
+
+  // ========================================
+  // PROJECT INFO CARDS
+  // ========================================
+  
+  const cardStartY = yPosition;
+  const cardWidth = (pageWidth - (reportTheme.spacing.margin * 2) - reportTheme.spacing.cardMargin * 2) / 3;
+  
+  // Card 1: Cliente
+  drawInfoCard(doc, reportTheme.spacing.margin, cardStartY, cardWidth, 
+    '👤 Cliente', data.project.client, reportTheme.colors.primaryLight);
+  
+  // Card 2: Data do Relatório
+  drawInfoCard(doc, reportTheme.spacing.margin + cardWidth + reportTheme.spacing.cardMargin, cardStartY, cardWidth,
+    '📅 Data do Relatório', new Date(data.generatedAt).toLocaleDateString('pt-BR', { 
+      day: '2-digit', month: 'long', year: 'numeric' 
+    }), reportTheme.colors.primaryLight);
+  
+  // Card 3: Responsável
+  drawInfoCard(doc, reportTheme.spacing.margin + (cardWidth + reportTheme.spacing.cardMargin) * 2, cardStartY, cardWidth,
+    '✍️ Responsável', data.generatedBy || 'Sistema', reportTheme.colors.primaryLight);
+  
+  yPosition = cardStartY + reportTheme.layout.cardHeight + reportTheme.spacing.sectionSpacing;
+
+  // Elegant divider
+  doc.setDrawColor(reportTheme.colors.divider);
+  doc.setLineWidth(0.5);
+  doc.line(reportTheme.spacing.margin, yPosition, pageWidth - reportTheme.spacing.margin, yPosition);
+  yPosition += reportTheme.spacing.sectionSpacing;
+
+  // ========================================
+  // VISUAL STATISTICS CARDS
+  // ========================================
+  
+  // Section title
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.title);
+  doc.setTextColor(reportTheme.colors.dark);
+  doc.text('📊 Resumo Executivo', reportTheme.spacing.margin, yPosition);
+  doc.setFont(undefined, 'normal');
+  yPosition += reportTheme.spacing.subtitleBottom + 5;
+
+  // Calculate statistics
+  const totalItems = sections.pendencias.length + sections.concluidas.length + 
+                     sections.emRevisao.length + sections.emAndamento.length;
+  const percentConcluido = totalItems > 0 ? Math.round((sections.concluidas.length / totalItems) * 100) : 0;
+
+  // Statistics cards in a grid (4 columns)
+  const statCardStartY = yPosition;
+  const statCardWidth = (pageWidth - (reportTheme.spacing.margin * 2) - (reportTheme.spacing.cardMargin * 3)) / 4;
+  
+  // Card 1: Total
+  drawStatCard(doc, reportTheme.spacing.margin, statCardStartY, statCardWidth,
+    totalItems, 'Total de Itens', reportTheme.colors.primary, reportTheme.colors.primaryLight, '📦');
+  
+  // Card 2: Concluídos
+  drawStatCard(doc, reportTheme.spacing.margin + (statCardWidth + reportTheme.spacing.cardMargin), statCardStartY, statCardWidth,
+    sections.concluidas.length, `Concluídos (${percentConcluido}%)`, reportTheme.colors.instalados, reportTheme.colors.instaladosLight, '✅');
+  
+  // Card 3: Pendentes
+  drawStatCard(doc, reportTheme.spacing.margin + (statCardWidth + reportTheme.spacing.cardMargin) * 2, statCardStartY, statCardWidth,
+    sections.pendencias.length, 'Pendências', reportTheme.colors.pendentes, reportTheme.colors.pendentesLight, '⚠️');
+  
+  // Card 4: Em Revisão
+  drawStatCard(doc, reportTheme.spacing.margin + (statCardWidth + reportTheme.spacing.cardMargin) * 3, statCardStartY, statCardWidth,
+    sections.emRevisao.length, 'Em Revisão', reportTheme.colors.emRevisao, reportTheme.colors.emRevisaoLight, '🔄');
+  
+  yPosition = statCardStartY + reportTheme.layout.cardHeight + reportTheme.spacing.sectionSpacing;
+
+  // ========================================
+  // PROGRESS VISUALIZATION
+  // ========================================
+  
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.subtitle);
+  doc.setTextColor(reportTheme.colors.dark);
+  doc.text('Gráfico de Progresso', reportTheme.spacing.margin, yPosition);
+  doc.setFont(undefined, 'normal');
   yPosition += 10;
 
   // Add storage bar if available
@@ -682,10 +915,20 @@ async function addPavimentoSummaryToPDF(
     yPosition = reportTheme.spacing.margin;
   }
 
-  doc.setFontSize(reportTheme.fonts.subtitle);
-  doc.setTextColor('#000000');
-  doc.text('Resumo por Pavimento', reportTheme.spacing.margin, yPosition);
-  yPosition += 15;
+  // Section header for pavimento summary
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.title);
+  doc.setTextColor(reportTheme.colors.dark);
+  doc.text('🏢 Resumo por Pavimento', reportTheme.spacing.margin, yPosition);
+  doc.setFont(undefined, 'normal');
+  
+  // Subtitle
+  doc.setFontSize(reportTheme.fonts.small);
+  doc.setTextColor(reportTheme.colors.medium);
+  doc.text('Distribuição de instalações por andar', reportTheme.spacing.margin, yPosition + 5);
+  doc.setTextColor(reportTheme.colors.dark);
+  
+  yPosition += 18;
 
   // Generate mini storage bars for each pavimento
   for (const item of summary) {
@@ -702,48 +945,65 @@ async function addPavimentoSummaryToPDF(
       item.instalados
     );
 
-    // Pavimento label
-    doc.setFontSize(12);
-    doc.setTextColor('#374151');
-    doc.text(item.pavimento, reportTheme.spacing.margin, yPosition);
+    // Pavimento label with background
+    const pavBgRgb = hexToRgb(reportTheme.colors.primaryLight);
+    doc.setFillColor(pavBgRgb.r, pavBgRgb.g, pavBgRgb.b);
+    doc.roundedRect(reportTheme.spacing.margin, yPosition - 5, 35, 10, 2, 2, 'F');
+    
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(reportTheme.colors.dark);
+    doc.text(item.pavimento, reportTheme.spacing.margin + 3, yPosition + 1);
+    doc.setFont(undefined, 'normal');
 
     // Mini storage bar
     if (miniBarImage) {
       doc.addImage(miniBarImage, 'PNG', reportTheme.spacing.margin + 40, yPosition - 4, 60, 8);
     }
 
-    // Badges with numbers
+    // Enhanced badges with icons and better styling
     let badgeX = reportTheme.spacing.margin + 110;
     doc.setFontSize(9);
     
     // Pendentes badge
-    doc.setFillColor('#FEF3C7'); // Light orange background
-    doc.setTextColor('#92400E'); // Dark orange text
-    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
-    doc.text(item.pendentes.toString(), badgeX + 4, yPosition + 1);
-    badgeX += 20;
+    const pendRgb = hexToRgb(reportTheme.colors.pendentesLight);
+    doc.setFillColor(pendRgb.r, pendRgb.g, pendRgb.b);
+    doc.roundedRect(badgeX, yPosition - 4, 18, 8, 2, 2, 'F');
+    doc.setTextColor('#92400E');
+    doc.setFont(undefined, 'bold');
+    doc.text(item.pendentes.toString(), badgeX + 7, yPosition + 1);
+    doc.setFont(undefined, 'normal');
+    badgeX += 22;
     
     // Em Andamento badge
-    doc.setFillColor('#F3F4F6'); // Light gray background
-    doc.setTextColor('#374151'); // Dark gray text
-    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
-    doc.text(item.emAndamento.toString(), badgeX + 4, yPosition + 1);
-    badgeX += 20;
+    const andRgb = hexToRgb(reportTheme.colors.emAndamentoLight);
+    doc.setFillColor(andRgb.r, andRgb.g, andRgb.b);
+    doc.roundedRect(badgeX, yPosition - 4, 18, 8, 2, 2, 'F');
+    doc.setTextColor('#374151');
+    doc.setFont(undefined, 'bold');
+    doc.text(item.emAndamento.toString(), badgeX + 7, yPosition + 1);
+    doc.setFont(undefined, 'normal');
+    badgeX += 22;
     
     // Instalados badge
-    doc.setFillColor('#D1FAE5'); // Light green background
-    doc.setTextColor('#065F46'); // Dark green text
-    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
-    doc.text(item.instalados.toString(), badgeX + 4, yPosition + 1);
-    badgeX += 20;
-    
-    // Total badge
-    doc.setFillColor('#E5E7EB'); // Light gray background
-    doc.setTextColor('#111827'); // Black text
+    const instRgb = hexToRgb(reportTheme.colors.instaladosLight);
+    doc.setFillColor(instRgb.r, instRgb.g, instRgb.b);
+    doc.roundedRect(badgeX, yPosition - 4, 18, 8, 2, 2, 'F');
+    doc.setTextColor('#065F46');
     doc.setFont(undefined, 'bold');
-    doc.roundedRect(badgeX, yPosition - 4, 15, 8, 2, 2, 'F');
-    doc.text(item.total.toString(), badgeX + 4, yPosition + 1);
+    doc.text(item.instalados.toString(), badgeX + 7, yPosition + 1);
     doc.setFont(undefined, 'normal');
+    badgeX += 22;
+    
+    // Total badge with darker style
+    const totalBgRgb = hexToRgb(reportTheme.colors.primary);
+    doc.setFillColor(totalBgRgb.r, totalBgRgb.g, totalBgRgb.b);
+    doc.roundedRect(badgeX, yPosition - 4, 18, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text(item.total.toString(), badgeX + 7, yPosition + 1);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(reportTheme.colors.dark);
 
     yPosition += 15;
   }
@@ -770,11 +1030,45 @@ async function addEnhancedSectionToPDF(
     yPosition = reportTheme.spacing.margin;
   }
 
-  // Section title
-  doc.setFontSize(reportTheme.fonts.subtitle);
-  doc.setTextColor('#000000');
-  doc.text(title, reportTheme.spacing.margin, yPosition);
-  yPosition += 15;
+  // ========================================
+  // SECTION TITLE WITH DECORATIVE HEADER
+  // ========================================
+  
+  // Choose color based on section type
+  let sectionColor = reportTheme.colors.primary;
+  let sectionIcon = '📋';
+  
+  if (sectionType === 'pendencias') {
+    sectionColor = reportTheme.colors.pendentes;
+    sectionIcon = '⚠️';
+  } else if (sectionType === 'concluidas') {
+    sectionColor = reportTheme.colors.instalados;
+    sectionIcon = '✅';
+  } else if (sectionType === 'revisao') {
+    sectionColor = reportTheme.colors.emRevisao;
+    sectionIcon = '🔄';
+  } else if (sectionType === 'andamento') {
+    sectionColor = reportTheme.colors.emAndamento;
+    sectionIcon = '⏳';
+  }
+  
+  const sectionColorRgb = hexToRgb(sectionColor);
+  
+  // Draw colored header bar
+  const pageWidth = doc.internal.pageSize.width;
+  doc.setFillColor(sectionColorRgb.r, sectionColorRgb.g, sectionColorRgb.b);
+  doc.roundedRect(reportTheme.spacing.margin, yPosition - 5, 
+                  pageWidth - (reportTheme.spacing.margin * 2), 10, 2, 2, 'F');
+  
+  // Section title with icon
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(reportTheme.fonts.title);
+  doc.setTextColor(255, 255, 255); // White text on colored background
+  doc.text(`${sectionIcon} ${title} (${items.length})`, reportTheme.spacing.margin + 5, yPosition + 1.5);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(reportTheme.colors.dark);
+  
+  yPosition += 18;
 
   // For flat sections (Pendencias and Em Revisao) - single table without subgroups
   if (sectionType === 'pendencias' || sectionType === 'revisao') {
@@ -803,30 +1097,37 @@ async function addEnhancedSectionToPDF(
     // Prepare table data (full columns including Pavimento and Tipologia)
     const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
 
-    // Generate single flat table
+    // Generate professional flat table with enhanced styling
     autoTable(doc, {
       head: [columns],
       body: rows,
       startY: yPosition,
       margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
       styles: { 
-        fontSize: 10,
-        cellPadding: 3,
+        fontSize: 9,
+        cellPadding: 4,
         lineColor: [229, 231, 235],
-        lineWidth: 0.1
+        lineWidth: 0.2,
+        textColor: [31, 41, 55], // Dark text for readability
+        halign: 'left',
+        valign: 'middle'
       },
       headStyles: { 
-        fillColor: [55, 65, 81], // #374151
-        textColor: 255,
+        fillColor: reportTheme.colors.header, // Primary blue
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 10
+        fontSize: 10,
+        cellPadding: 5,
+        halign: 'left',
+        valign: 'middle'
       },
       bodyStyles: {
-        fontSize: 10,
-        cellPadding: 3
+        fontSize: 9,
+        cellPadding: 4,
+        minCellHeight: 8
       },
       alternateRowStyles: { 
-        fillColor: [250, 250, 251] // #FAFAFB
+        fillColor: [249, 250, 251] // Very light gray for zebra striping
       },
       columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
@@ -899,7 +1200,7 @@ async function addEnhancedSectionToPDF(
       item.quantidade.toString()
     ]);
 
-    // Generate aggregated table
+    // Generate professional aggregated table
     autoTable(doc, {
       head: [columns],
       body: rows,
@@ -907,22 +1208,29 @@ async function addEnhancedSectionToPDF(
       margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
       styles: { 
         fontSize: 10,
-        cellPadding: 3,
+        cellPadding: 4,
         lineColor: [229, 231, 235],
-        lineWidth: 0.1
+        lineWidth: 0.2,
+        textColor: [31, 41, 55],
+        halign: 'left',
+        valign: 'middle'
       },
       headStyles: { 
-        fillColor: [55, 65, 81], // #374151
-        textColor: 255,
+        fillColor: reportTheme.colors.header, // Primary blue
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 10
+        fontSize: 11,
+        cellPadding: 5,
+        halign: 'left',
+        valign: 'middle'
       },
       bodyStyles: {
         fontSize: 10,
-        cellPadding: 3
+        cellPadding: 4,
+        minCellHeight: 10
       },
       alternateRowStyles: { 
-        fillColor: [250, 250, 251] // #FAFAFB
+        fillColor: [249, 250, 251] // Zebra striping
       },
       columnStyles: getAggregatedColumnStyles(),
       theme: 'grid',
