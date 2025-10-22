@@ -55,12 +55,22 @@ export function useOnboarding() {
     setShowOnboarding(true);
   };
 
+  const closeOnboarding = () => {
+    // When user closes onboarding, mark as completed to prevent showing again
+    const storageKey = getStorageKey();
+    if (storageKey) {
+      localStorage.setItem(storageKey, 'true');
+      setHasCompletedOnboarding(true);
+    }
+    setShowOnboarding(false);
+  };
+
   return {
     hasCompletedOnboarding,
     showOnboarding,
     markOnboardingComplete,
     resetOnboarding,
     startOnboarding,
-    closeOnboarding: () => setShowOnboarding(false)
+    closeOnboarding
   };
 }
