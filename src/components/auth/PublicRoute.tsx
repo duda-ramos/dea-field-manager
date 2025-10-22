@@ -5,9 +5,10 @@ import { Loader2 } from 'lucide-react';
 
 interface PublicRouteProps {
   children: ReactNode;
+  allowAuthenticated?: boolean;
 }
 
-export const PublicRoute = ({ children }: PublicRouteProps) => {
+export const PublicRoute = ({ children, allowAuthenticated = false }: PublicRouteProps) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -21,7 +22,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  if (user) {
+  if (user && !allowAuthenticated) {
     // User is already logged in, redirect to dashboard
     return <Navigate to="/" replace />;
   }

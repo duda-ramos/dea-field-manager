@@ -122,7 +122,7 @@ const App = () => {
                       </PublicRoute>
                     } />
                     <Route path="/auth/reset-password" element={
-                      <PublicRoute>
+                      <PublicRoute allowAuthenticated>
                         <ResetPasswordPage />
                       </PublicRoute>
                     } />
