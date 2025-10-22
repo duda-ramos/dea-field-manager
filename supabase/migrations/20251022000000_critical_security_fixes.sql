@@ -394,8 +394,10 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION detect_suspicious_audit_activity() TO authenticated;
+-- Restrict execution to the service role so only privileged automation or
+-- trusted backend workflows can run the definer function.
+REVOKE EXECUTE ON FUNCTION detect_suspicious_audit_activity() FROM authenticated;
+GRANT EXECUTE ON FUNCTION detect_suspicious_audit_activity() TO service_role;
 
 -- ============================================================================
 -- PART 6: SECURITY DOCUMENTATION AND FINAL CHECKS
