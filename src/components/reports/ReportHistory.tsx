@@ -58,6 +58,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
               project_id: report.project_id,
               fileName: report.file_name,
               format: report.format as 'pdf' | 'xlsx',
+              size: report.file_size || 0,
               interlocutor: report.interlocutor as 'cliente' | 'fornecedor',
               config: report.sections_included || {},
               generatedAt: report.generated_at,
@@ -66,7 +67,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
               generated_by: report.generated_by,
               storagePath: report.file_url,
               stats: report.stats,
-              source: 'supabase', // Mark as Supabase source
+              source: 'supabase' as const, // Mark as Supabase source
               userId: report.user_id
             })));
           }

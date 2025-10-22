@@ -68,15 +68,18 @@ export default function GlobalContactsPage() {
       localContacts.forEach(contact => {
         const project = allProjects.find(p => p.id === contact.projetoId || p.id === contact.project_id);
         if (project) {
+          const contactRole = contact.tipo || contact.role || 'cliente';
           allContacts.push({
             id: contact.id,
             name: contact.nome || contact.name,
             email: contact.email || '',
             phone: contact.telefone || contact.phone || '',
-            role: contact.tipo || contact.role,
+            role: (contactRole === 'cliente' || contactRole === 'fornecedor' || contactRole === 'obra') 
+              ? contactRole 
+              : 'cliente' as const,
             project_name: project.name,
             project_id: project.id,
-            created_at: contact.criadoEm || contact.created_at || new Date().toISOString()
+            created_at: contact.created_at || new Date().toISOString()
           });
         }
       });

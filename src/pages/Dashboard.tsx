@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [newProject, setNewProject] = useState({
     name: "",
     client: "",

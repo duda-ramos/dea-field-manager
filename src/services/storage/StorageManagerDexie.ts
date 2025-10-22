@@ -44,19 +44,19 @@ async function syncToServerImmediate(entityType: string, data: Record<string, un
       async () => {
         switch (entityType) {
           case 'project':
-            await supabase.from('projects').upsert(transformProjectForSupabase(data, user.id));
+            await supabase.from('projects').upsert([transformProjectForSupabase(data, user.id)]);
             break;
           case 'installation':
-            await supabase.from('installations').upsert(transformInstallationForSupabase(data, user.id));
+            await supabase.from('installations').upsert([transformInstallationForSupabase(data, user.id)]);
             break;
           case 'contact':
-            await supabase.from('contacts').upsert(transformContactForSupabase(data, user.id));
+            await supabase.from('contacts').upsert([transformContactForSupabase(data, user.id)]);
             break;
           case 'budget':
-            await supabase.from('supplier_proposals').upsert(transformBudgetForSupabase(data, user.id));
+            await supabase.from('supplier_proposals').upsert([transformBudgetForSupabase(data, user.id)]);
             break;
           case 'file':
-            await supabase.from('files').upsert(transformFileForSupabase(data, user.id));
+            await supabase.from('files').upsert([transformFileForSupabase(data, user.id)]);
             break;
         }
       },
@@ -240,7 +240,7 @@ export const StorageManagerDexie = {
           async () => {
             const { error } = await supabase
               .from('projects')
-              .upsert(transformProjectForSupabase(withDates, user.id));
+              .upsert([transformProjectForSupabase(withDates, user.id)]);
 
             if (error) throw error;
           },

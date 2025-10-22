@@ -7,6 +7,7 @@ import {
   logConflict
 } from './conflictUtils';
 import { logger } from '@/services/logger';
+import { Project, Installation, ProjectContact, ProjectBudget } from '@/types';
 
 /**
  * Resolve conflitos de edição entre versões local e remota
@@ -81,16 +82,16 @@ async function keepLocalVersion(
   // Update in database based on type
   switch (recordType) {
     case 'project':
-      await StorageManagerDexie.upsertProject(markedRecord as Project);
+      await StorageManagerDexie.upsertProject(markedRecord as unknown as Project);
       break;
     case 'installation':
-      await StorageManagerDexie.upsertInstallation(markedRecord as Installation);
+      await StorageManagerDexie.upsertInstallation(markedRecord as unknown as Installation);
       break;
     case 'contact':
-      await StorageManagerDexie.upsertContact(markedRecord as ProjectContact);
+      await StorageManagerDexie.upsertContact(markedRecord as unknown as ProjectContact);
       break;
     case 'budget':
-      await StorageManagerDexie.upsertBudget(markedRecord as ProjectBudget);
+      await StorageManagerDexie.upsertBudget(markedRecord as unknown as ProjectBudget);
       break;
   }
 
@@ -123,16 +124,16 @@ async function useRemoteVersion(
   // Update in database based on type
   switch (recordType) {
     case 'project':
-      await db.projects.put(cleanedRecord as Project);
+      await db.projects.put(cleanedRecord as unknown as Project);
       break;
     case 'installation':
-      await db.installations.put(cleanedRecord as Installation);
+      await db.installations.put(cleanedRecord as unknown as Installation);
       break;
     case 'contact':
-      await db.contacts.put(cleanedRecord as ProjectContact);
+      await db.contacts.put(cleanedRecord as unknown as ProjectContact);
       break;
     case 'budget':
-      await db.budgets.put(cleanedRecord as ProjectBudget);
+      await db.budgets.put(cleanedRecord as unknown as ProjectBudget);
       break;
   }
 

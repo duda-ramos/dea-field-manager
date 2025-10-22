@@ -41,8 +41,17 @@ export default function ContatosPage() {
   const loadContatos = async () => {
     if (!id) return;
     const allContacts = await storage.getContacts();
-    const allContatos = allContacts.filter(c => c.projetoId === id);
-    setContatos(allContatos);
+    const projectContacts = allContacts.filter(c => c.project_id === id);
+    // Transform ProjectContact to Contato format
+    const contatosFormatted = projectContacts.map(c => ({
+      ...c,
+      projetoId: c.project_id,
+      nome: c.name,
+      telefone: c.phone,
+      tipo: c.role as 'cliente' | 'fornecedor' | 'obra',
+      criadoEm: c.created_at || new Date().toISOString()
+    }));
+    setContatos(contatosFormatted as any);
   };
 
   const handleSaveContato = async (contato: Contato) => {

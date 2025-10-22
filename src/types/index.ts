@@ -92,6 +92,7 @@ export interface ProjectContact {
   phone?: string;
   telefone?: string; // Legacy field
   email?: string;
+  created_at?: string;
   atualizadoEm?: string; // Legacy field
   // Sync flags
   _dirty?: number;
