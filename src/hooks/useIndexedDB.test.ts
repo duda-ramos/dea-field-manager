@@ -50,9 +50,9 @@ function createMemoryDriver() {
             }),
             oncomplete: null as ((ev: Event) => unknown) | null,
             onerror: null as ((ev: Event) => unknown) | null,
-          };
+          } as unknown as IDBTransaction;
           setTimeout(() => tx.oncomplete && tx.oncomplete({} as Event), 0);
-          return tx as IDBTransaction;
+          return tx;
         },
       };
       // First open triggers upgrade

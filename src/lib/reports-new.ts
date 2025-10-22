@@ -607,7 +607,7 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
 
   // Add pavimento summary
   if (pavimentoSummary.length > 0) {
-    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition, data.interlocutor);
+    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition);
   }
 
   // Add sections only if they have items - each section wrapped in try/catch
@@ -1537,13 +1537,13 @@ function aggregateByPavimentoTipologia(items: Installation[]): { pavimento: stri
 function getFlatColumnStyles(
   sectionType: 'pendencias' | 'revisao',
   interlocutor: 'cliente' | 'fornecedor'
-): Record<number, { halign: string; cellWidth?: number }> {
+): Record<string, { halign: 'left' | 'center' | 'right'; cellWidth?: number }> {
   if (sectionType === 'pendencias') {
     if (interlocutor === 'cliente') {
       return {
-        0: { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
-        1: { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
-        2: { halign: 'right', cellWidth: 14 },  // Código - 8%
+        '0': { halign: 'left', cellWidth: 20 },   // Pavimento - 12%
+        '1': { halign: 'left', cellWidth: 32 },   // Tipologia - 19%
+        '2': { halign: 'right', cellWidth: 14 },  // Código - 8%
         3: { halign: 'left', cellWidth: 50 },   // Descrição - 30%
         4: { halign: 'left', cellWidth: 35 },   // Observação - 21%
         5: { halign: 'center', cellWidth: 14 }  // Foto - 8%

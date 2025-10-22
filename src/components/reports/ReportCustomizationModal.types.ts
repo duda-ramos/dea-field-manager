@@ -27,4 +27,11 @@ export interface ReportConfig {
   };
   groupBy: 'none' | 'pavimento' | 'tipologia';
   sortBy: 'codigo' | 'pavimento' | 'tipologia' | 'updated_at';
+  stats?: {
+    pendencias: number;
+    concluidas: number;
+    emRevisao: number;
+    emAndamento: number;
+    total: number;
+  };
 }
