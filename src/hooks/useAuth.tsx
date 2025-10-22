@@ -60,7 +60,7 @@ const initializeAutoSyncOnce = async () => {
 const getRedirectUrl = (path = '/') => {
   const isProduction = window.location.hostname !== 'localhost';
   if (isProduction) {
-    return `https://dea-field-manager.lovable.app${path}`;
+    return `https://deamanager.lovable.app${path}`;
   }
   return `${window.location.origin}${path}`;
 };

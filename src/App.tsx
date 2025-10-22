@@ -35,6 +35,7 @@ const PublicReportView = lazy(() => import("./components/reports/PublicReportVie
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -118,6 +119,11 @@ const App = () => {
                     <Route path="/auth/forgot-password" element={
                       <PublicRoute>
                         <ForgotPasswordPage />
+                      </PublicRoute>
+                    } />
+                    <Route path="/auth/reset-password" element={
+                      <PublicRoute allowAuthenticated>
+                        <ResetPasswordPage />
                       </PublicRoute>
                     } />
                     
