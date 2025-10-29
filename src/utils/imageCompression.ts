@@ -96,6 +96,14 @@ export function shouldCompress(file: File): boolean {
       return false;
     }
 
+    // Non-JPEG formats should still go through the compression pipeline so
+    // that we can enforce the dimension constraints asynchronously inside
+    // `compressImage`. Without this check, PNG/WebP files smaller than the
+    // size threshold would exit early and skip the resize validation.
+    if (file.type !== 'image/jpeg' && file.type !== 'image/jpg') {
+      return true;
+    }
+
     // Check file size (convert bytes to MB)
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > SIZE_THRESHOLD_MB) {
@@ -185,14 +193,18 @@ export async function compressImage(
       ...options
     };
 
-    // Check if compression is needed
-    const needsCompression = shouldCompress(file);
+    // Evaluate if the file exceeds the size threshold. We keep this separate
+    // from `shouldCompress` so that non-JPEG files (which return `true` to
+    // ensure the dimension checks run) don't get unnecessarily recompressed
+    // when they are already within the allowed limits.
+    const fileSizeMB = file.size / (1024 * 1024);
+    const sizeExceedsThreshold = fileSizeMB > SIZE_THRESHOLD_MB;
     const needsDimensionCheck = await shouldCompressByDimensions(
       file,
       mergedOptions.maxWidthOrHeight
     );
 
-    if (!needsCompression && !needsDimensionCheck) {
+    if (!sizeExceedsThreshold && !needsDimensionCheck) {
       console.log('Imagem não precisa de compressão');
       return file;
     }

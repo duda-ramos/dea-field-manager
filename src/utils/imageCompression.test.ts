@@ -2,11 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { shouldCompress } from './imageCompression';
 
 describe('shouldCompress', () => {
-  // Test case that will fail with the current buggy implementation
-  it('should return false for a small PNG file (under the size threshold)', () => {
+  it('should return true for a small PNG file to ensure dimension checks run', () => {
     // Create a mock PNG file smaller than SIZE_THRESHOLD_MB (1MB)
     const smallPngFile = new File([''], 'small.png', { type: 'image/png' });
-    expect(shouldCompress(smallPngFile)).toBe(false);
+    expect(shouldCompress(smallPngFile)).toBe(true);
   });
 
   // Test case to ensure large PNGs are still compressed
