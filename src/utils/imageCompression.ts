@@ -102,10 +102,6 @@ export function shouldCompress(file: File): boolean {
       return true;
     }
 
-    // Check if format is different from JPEG
-    if (file.type !== 'image/jpeg' && file.type !== 'image/jpg') {
-      return true;
-    }
 
     // Note: Dimension check requires async operation (getImageDimensions)
     // For synchronous check, we rely on size and format only
