@@ -153,6 +153,7 @@ export interface FileAttachment {
   updatedAt?: number; // epoch ms for sync
   updated_at?: string; // Supabase timestamp
   createdAt?: number;
+  caption?: string; // Photo caption/description
   _dirty?: number;
   _deleted?: number;
   needsUpload?: number;
