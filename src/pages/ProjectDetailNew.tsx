@@ -307,17 +307,23 @@ export default function ProjectDetailNew() {
 
   const handleArchiveProject = async () => {
     if (!project) return;
-    
+
     setIsArchiving(true);
     try {
       // Download ZIP first
-      await downloadProjectZip(project.id);
-      
+      const zipResult = await downloadProjectZip(project.id);
+      if (!zipResult.success) {
+        throw zipResult.error || new Error('Falha ao baixar backup do projeto');
+      }
+
       // Then archive
-      await archiveProject(project.id);
-      
+      const archiveResult = await archiveProject(project.id);
+      if (!archiveResult.success) {
+        throw archiveResult.error || new Error('Falha ao arquivar projeto');
+      }
+
       setShowArchiveDialog(false);
-      
+
       // Navigate back to projects page after archiving
       navigate('/');
     } catch (error) {
@@ -339,11 +345,14 @@ export default function ProjectDetailNew() {
 
   const handleDeleteProject = async () => {
     if (!project) return;
-    
+
     try {
-      await softDeleteProject(project.id);
+      const deleteResult = await softDeleteProject(project.id);
+      if (!deleteResult.success) {
+        throw deleteResult.error || new Error('Falha ao mover projeto para lixeira');
+      }
       setShowDeleteDialog(false);
-      
+
       // Navigate back to projects page after deletion
       navigate('/');
     } catch (error) {
