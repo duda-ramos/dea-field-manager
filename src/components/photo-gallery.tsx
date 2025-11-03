@@ -313,8 +313,8 @@ export function PhotoGallery({
     if (!photoUrl) return;
 
     // Update metadata
-    const newMetadata = new Map(photoMetadata);
-    const existingMetadata = newMetadata.get(photoUrl) || {
+    const existingMetadata = photoMetadata.get(photoUrl);
+    const baseMetadata: PhotoMetadata = existingMetadata || {
       id: crypto.randomUUID(),
       name: `photo_${selectedPhotoIndex}`,
       size: 0,
@@ -322,30 +322,45 @@ export function PhotoGallery({
       url: photoUrl,
       uploadedAt: new Date().toISOString(),
       updatedAt: Date.now(),
-    } as PhotoMetadata;
+    };
 
-    const updatedMetadata = {
-      ...existingMetadata,
+    const updatedMetadata: PhotoMetadata = {
+      ...baseMetadata,
       caption: currentCaption,
       updatedAt: Date.now()
     };
 
-    newMetadata.set(photoUrl, updatedMetadata);
-    setPhotoMetadata(newMetadata);
+    let persistedMetadata: PhotoMetadata = updatedMetadata;
+    let captionPersisted = false;
 
     // Save to storage if we have IDs
     if (projectId && updatedMetadata.id) {
       try {
-        await Storage.upsertFile(updatedMetadata);
-        showToast.success("Legenda salva", "A legenda foi atualizada com sucesso");
+        if (!existingMetadata) {
+          await Storage.upsertFile(updatedMetadata);
+        }
+
+        persistedMetadata = await Storage.updatePhotoMetadata(updatedMetadata.id, {
+          caption: currentCaption
+        });
+
+        captionPersisted = true;
       } catch (error) {
-        logger.error("Erro ao salvar legenda da foto", {
+        logger.error("Erro ao atualizar legenda da foto", {
           error,
           photoId: updatedMetadata.id,
-          operacao: 'saveCaption'
+          operacao: 'saveCaption:updatePhotoMetadata'
         });
         showToast.error("Erro ao salvar", "Não foi possível salvar a legenda");
       }
+    }
+
+    const newMetadata = new Map(photoMetadata);
+    newMetadata.set(photoUrl, persistedMetadata);
+    setPhotoMetadata(newMetadata);
+
+    if (captionPersisted) {
+      showToast.success("Legenda salva", "A legenda foi atualizada com sucesso");
     }
 
     setCaptionModalOpen(false);
