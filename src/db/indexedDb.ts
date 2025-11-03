@@ -7,6 +7,15 @@ import type { Project, Installation, ItemVersion, FileAttachment, ReportHistoryE
 export type Contact = any;
 export type Budget = any;
 
+export interface DeletedItem {
+  id: string;
+  entityType: 'project' | 'installation';
+  entityId: string;
+  data: any;
+  deletedAt: number;
+  expiresAt: number;
+}
+
 class DeaFieldManagerDB extends Dexie {
   projects!: Table<Project, string>;
   installations!: Table<Installation, string>;
@@ -17,6 +26,7 @@ class DeaFieldManagerDB extends Dexie {
   meta!: Table<{ key: string; value: any }, string>;
   reports!: Table<ReportHistoryEntry, string>;
   reportPayloads!: Table<{ id: string; projectId?: string; blob?: Blob; mimeType?: string; size?: number; createdAt?: number }, string>;
+  deletedItems!: Table<DeletedItem, string>;
 
   constructor() {
     super('DeaFieldManagerDB');
@@ -126,6 +136,20 @@ class DeaFieldManagerDB extends Dexie {
             await reportsTable.put(report);
           }
         });
+
+      // Version 8 - Add deletedItems table for undo functionality
+      this.version(8).stores({
+        projects: 'id, updatedAt, name, _dirty, _deleted',
+        installations: 'id, project_id, updatedAt, status, _dirty, _deleted',
+        contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+        budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+        itemVersions: 'id, installationId, createdAt, _dirty, _deleted',
+        files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+        meta: 'key',
+        reports: 'id, projectId, project_id, createdAt, generatedAt, payloadId',
+        reportPayloads: 'id, projectId',
+        deletedItems: 'id, entityId, entityType, expiresAt'
+      });
   }
 }
 

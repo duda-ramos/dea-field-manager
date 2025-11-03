@@ -17,6 +17,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { useUndoShortcut } from "@/hooks/useUndoShortcut";
 import { ConflictManager } from "@/components/ConflictManager";
 import { PageLoadingState } from "@/components/ui/loading-spinner";
+import { cleanupExpiredDeletions } from "@/lib/utils";
 
 // Lazy loaded pages - Heavy components loaded on demand
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -63,6 +64,11 @@ const App = () => {
   useEffect(() => {
     // Inicializar monitor de conexão
     onlineMonitor.initialize();
+    
+    // Limpar registros de exclusão expirados
+    cleanupExpiredDeletions().catch(error => {
+      console.error('Erro ao limpar exclusões expiradas:', error);
+    });
     
     return () => {
       onlineMonitor.cleanup();
