@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { toast } from "sonner";
+import { storage } from "@/lib/storage";
 
 export interface ProjectLifecycleFilters {
   showActive?: boolean;
@@ -14,11 +15,25 @@ export interface ProjectLifecycleFilters {
  */
 export async function softDeleteProject(projectId: string) {
   try {
+    const deletedAt = new Date().toISOString();
+    const permanentDeletionAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Update local storage first
+    const project = await storage.getProjectById(projectId);
+    if (project) {
+      await storage.upsertProject({
+        ...project,
+        deleted_at: deletedAt,
+        permanent_deletion_at: permanentDeletionAt,
+      });
+    }
+    
+    // Then update Supabase
     const { error } = await supabase
       .from("projects")
       .update({
-        deleted_at: new Date().toISOString(),
-        permanent_deletion_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        deleted_at: deletedAt,
+        permanent_deletion_at: permanentDeletionAt,
       })
       .eq("id", projectId);
 
@@ -41,10 +56,23 @@ export async function softDeleteProject(projectId: string) {
  */
 export async function archiveProject(projectId: string) {
   try {
+    const archivedAt = new Date().toISOString();
+    
+    // Update local storage first
+    const project = await storage.getProjectById(projectId);
+    if (project) {
+      await storage.upsertProject({
+        ...project,
+        archived_at: archivedAt,
+        status: "completed",
+      });
+    }
+    
+    // Then update Supabase
     const { error } = await supabase
       .from("projects")
       .update({
-        archived_at: new Date().toISOString(),
+        archived_at: archivedAt,
         status: "completed",
       })
       .eq("id", projectId);
@@ -68,6 +96,19 @@ export async function archiveProject(projectId: string) {
  */
 export async function restoreProject(projectId: string) {
   try {
+    // Update local storage first
+    const project = await storage.getProjectById(projectId);
+    if (project) {
+      await storage.upsertProject({
+        ...project,
+        deleted_at: null,
+        archived_at: null,
+        permanent_deletion_at: null,
+        status: "in-progress",
+      });
+    }
+    
+    // Then update Supabase
     const { error } = await supabase
       .from("projects")
       .update({

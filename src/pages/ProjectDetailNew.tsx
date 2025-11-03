@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { 
   ArrowLeft, Upload, CheckCircle2, Clock, 
   Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
-  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2
+  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2, Trash2, MoreVertical
 } from "lucide-react";
 import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
@@ -48,6 +48,17 @@ const ReportShareModal = lazy(() => import("@/components/reports/ReportShareModa
 const ReportHistoryPanel = lazy(() => import("@/components/reports/ReportHistoryPanel").then(mod => ({ default: mod.ReportHistoryPanel })));
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { archiveProject, softDeleteProject, downloadProjectZip } from '@/services/projectLifecycle';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ItemStatusFilterValue = 'all' | NonNullable<Installation['status']>;
 
@@ -191,6 +202,9 @@ export default function ProjectDetailNew() {
   const [lastReportDate, setLastReportDate] = useState<string | null>(null);
   const [itemStatusFilter, setItemStatusFilter] = useState<ItemStatusFilterValue>('all');
   const installationToggleQueue = useRef<Map<string, Promise<void>>>(new Map());
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   const enqueueInstallationUpdate = (
     installationId: string,
@@ -289,6 +303,71 @@ export default function ProjectDetailNew() {
 
   const handleProjectUpdated = (updatedProject: Project) => {
     setProject(updatedProject);
+  };
+
+  const handleArchiveProject = async () => {
+    if (!project) return;
+
+    setIsArchiving(true);
+    try {
+      // Download ZIP first
+      const zipResult = await downloadProjectZip(project.id);
+      if (!zipResult.success) {
+        throw zipResult.error || new Error('Falha ao baixar backup do projeto');
+      }
+
+      // Then archive
+      const archiveResult = await archiveProject(project.id);
+      if (!archiveResult.success) {
+        throw archiveResult.error || new Error('Falha ao arquivar projeto');
+      }
+
+      setShowArchiveDialog(false);
+
+      // Navigate back to projects page after archiving
+      navigate('/');
+    } catch (error) {
+      logger.error('Erro ao arquivar projeto', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          projectId: project.id,
+          projectName: project.name,
+          userId: user?.id,
+          operacao: 'handleArchiveProject',
+          timestamp: new Date().toISOString()
+        }
+      });
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!project) return;
+
+    try {
+      const deleteResult = await softDeleteProject(project.id);
+      if (!deleteResult.success) {
+        throw deleteResult.error || new Error('Falha ao mover projeto para lixeira');
+      }
+      setShowDeleteDialog(false);
+
+      // Navigate back to projects page after deletion
+      navigate('/');
+    } catch (error) {
+      logger.error('Erro ao deletar projeto', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          projectId: project.id,
+          projectName: project.name,
+          userId: user?.id,
+          operacao: 'handleDeleteProject',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
   };
 
   // Calculate stats for info section - memoized to ensure updates when installations change
@@ -1478,27 +1557,51 @@ export default function ProjectDetailNew() {
                 <SheetHeader>
                   <SheetTitle>Opções do Projeto</SheetTitle>
                 </SheetHeader>
-                <div className="space-y-4 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="w-full justify-start gap-2"
-                  aria-label="Editar projeto"
-                >
-                  <Edit className="h-4 w-4" aria-hidden="true" />
-                  Editar Projeto
-                </Button>
-                <Button
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowAddModal(true)}
-                  className="w-full justify-start gap-2"
-                  aria-label="Adicionar item ao projeto"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Adicionar Item
-                </Button>
+                <div className="space-y-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditModalOpen(true);
+                    }}
+                    className="w-full justify-start gap-2"
+                    aria-label="Editar projeto"
+                  >
+                    <Edit className="h-4 w-4" aria-hidden="true" />
+                    Editar Projeto
+                  </Button>
+                  <Button
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAddModal(true)}
+                    className="w-full justify-start gap-2"
+                    aria-label="Adicionar item ao projeto"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Adicionar Item
+                  </Button>
+                  <div className="border-t pt-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowArchiveDialog(true)}
+                      className="w-full justify-start gap-2"
+                      aria-label="Arquivar projeto"
+                    >
+                      <Archive className="h-4 w-4" aria-hidden="true" />
+                      Arquivar Projeto
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="w-full justify-start gap-2 text-destructive hover:text-destructive mt-2"
+                      aria-label="Mover projeto para lixeira"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      Mover para Lixeira
+                    </Button>
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -1524,6 +1627,32 @@ export default function ProjectDetailNew() {
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Adicionar
               </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    aria-label="Mais opções"
+                  >
+                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowArchiveDialog(true)}>
+                    <Archive className="h-4 w-4 mr-2" />
+                    Arquivar Projeto
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Mover para Lixeira
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -1726,6 +1855,50 @@ export default function ProjectDetailNew() {
           />
         </Suspense>
       )}
+
+      {/* Archive Project Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar Projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O projeto será marcado como concluído e um arquivo ZIP com todos os dados será baixado automaticamente. 
+              Projetos arquivados são mantidos por 6 meses.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiveProject} disabled={isArchiving}>
+              {isArchiving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Preparando...
+                </>
+              ) : (
+                'Arquivar e Baixar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Project Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover para Lixeira?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O projeto será movido para a lixeira e será excluído permanentemente em 7 dias. Você pode restaurá-lo antes disso.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProject}>
+              Mover para Lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
