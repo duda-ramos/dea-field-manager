@@ -594,6 +594,7 @@ export const StorageManagerDexie = {
 (StorageManagerDexie as Record<string, unknown>).saveInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as Record<string, unknown>).updateInstallation = StorageManagerDexie.upsertInstallation;
 (StorageManagerDexie as Record<string, unknown>).overwriteInstallation = StorageManagerDexie.upsertInstallation;
+(StorageManagerDexie as Record<string, unknown>).deleteInstallation = StorageManagerDexie.deleteInstallation;
 (StorageManagerDexie as Record<string, unknown>).importInstallations = async (projectId: string, installations: Installation[]) => {
   const results = [];
   for (const installation of installations) {

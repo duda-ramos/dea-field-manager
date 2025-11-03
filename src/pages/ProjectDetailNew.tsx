@@ -76,6 +76,8 @@ type InstallationCardProps = {
   onToggleInstallation: (id: string) => void;
   onOpenDetails: (installation: Installation) => void;
   isDetailsOpen: boolean;
+  onEdit: (installation: Installation) => void;
+  onDelete: (id: string) => void;
 };
 
 const InstallationCard = memo(function InstallationCard({
@@ -85,7 +87,11 @@ const InstallationCard = memo(function InstallationCard({
   onToggleInstallation,
   onOpenDetails,
   isDetailsOpen,
+  onEdit,
+  onDelete,
 }: InstallationCardProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   return (
     <Card className="hover:shadow-md transition-shadow" role="article" aria-label={`Instalação ${installation.codigo} - ${installation.descricao}`}>
       <CardContent className="p-4">
@@ -159,7 +165,55 @@ const InstallationCard = memo(function InstallationCard({
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  aria-label="Mais opções"
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(installation)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+          
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Instalação?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir a instalação "{installation.descricao}" (código {installation.codigo})? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    onDelete(installation.id);
+                    setShowDeleteDialog(false);
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {installation.observacoes && (
             <div className="text-sm">
@@ -193,6 +247,7 @@ export default function ProjectDetailNew() {
   const [isImporting, setIsImporting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingInstallation, setEditingInstallation] = useState<Installation | null>(null);
   const [showReportCustomization, setShowReportCustomization] = useState(false);
   const [showReportShare, setShowReportShare] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<{ blob: Blob; format: 'pdf' | 'xlsx'; config: ReportConfig } | null>(null);
@@ -587,6 +642,80 @@ export default function ProjectDetailNew() {
   const handleToggleInstallationClick = useCallback((id: string) => {
     toggleInstallation(id);
   }, [toggleInstallation]);
+
+  const handleEditInstallation = useCallback((installation: Installation) => {
+    setEditingInstallation(installation);
+    setShowAddModal(true);
+  }, []);
+
+  const handleDeleteInstallation = useCallback(async (installationId: string) => {
+    if (!project) {
+      toast({
+        title: "Erro",
+        description: "Projeto não carregado. Tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const installationToDelete = installations.find(inst => inst.id === installationId);
+    if (!installationToDelete) return;
+
+    try {
+      // Delete installation
+      await storage.deleteInstallation(installationId);
+
+      // Update local state
+      setInstallations(prev => prev.filter(inst => inst.id !== installationId));
+
+      // Add undo action
+      addAction({
+        type: 'DELETE_INSTALLATION',
+        description: `Excluiu "${installationToDelete.descricao}"`,
+        data: {
+          installation: installationToDelete,
+          projectId: project.id
+        },
+        undo: async () => {
+          // Restore installation
+          const restored = await storage.upsertInstallation(installationToDelete);
+          setInstallations(prev => [...prev, restored].sort((a, b) => 
+            String(a.codigo).localeCompare(String(b.codigo))
+          ));
+        }
+      });
+
+      showUndoToast(
+        `Excluiu "${installationToDelete.descricao}"`,
+        async () => {
+          await undo();
+        }
+      );
+
+      toast({
+        title: "Instalação excluída",
+        description: `${installationToDelete.descricao} foi excluída com sucesso`,
+      });
+    } catch (error) {
+      logger.error('Falha ao excluir instalação', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          installationId,
+          projectId: project.id,
+          userId: user?.id,
+          operacao: 'handleDeleteInstallation',
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      toast({
+        title: "Erro ao excluir instalação",
+        description: "Não foi possível excluir a instalação. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  }, [installations, project, storage, toast, addAction, undo, user?.id, logger]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1471,6 +1600,8 @@ export default function ProjectDetailNew() {
                                     onToggleInstallation={handleToggleInstallationClick}
                                     onOpenDetails={handleOpenDetails}
                                     isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
+                                    onEdit={handleEditInstallation}
+                                    onDelete={handleDeleteInstallation}
                                   />
                                 </div>
                               )}
@@ -1486,6 +1617,8 @@ export default function ProjectDetailNew() {
                               onToggleInstallation={handleToggleInstallationClick}
                               onOpenDetails={handleOpenDetails}
                               isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
+                              onEdit={handleEditInstallation}
+                              onDelete={handleDeleteInstallation}
                             />
                           ))
                         )}
@@ -1772,9 +1905,13 @@ export default function ProjectDetailNew() {
         <Suspense fallback={null}>
           <AddInstallationModal
             isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => {
+              setShowAddModal(false);
+              setEditingInstallation(null);
+            }}
             onUpdate={loadProjectData}
             projectId={project.id}
+            editingInstallation={editingInstallation}
           />
         </Suspense>
       )}
