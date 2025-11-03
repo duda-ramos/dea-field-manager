@@ -750,6 +750,44 @@ export const StorageManagerDexie = {
     };
     await db.files.put(fileToDelete as any);
     syncStateManager.incrementPending('files', 1);
+  },
+
+  /**
+   * Update photo metadata (caption, etc.)
+   * @param id - Photo file ID
+   * @param metadata - Partial metadata to update
+   */
+  async updatePhotoMetadata(id: string, metadata: Partial<ProjectFile>) {
+    const existing = await db.files.get(id);
+    if (!existing) {
+      throw new Error('Photo not found');
+    }
+
+    const updated: ProjectFile = {
+      ...existing,
+      ...metadata,
+      updatedAt: Date.now(),
+      _dirty: 1
+    };
+
+    await db.files.put(updated);
+    realtimeManager.trackLocalOperation('files');
+    syncStateManager.incrementPending('files', 1);
+    
+    // Try to sync immediately if online
+    if (isOnline()) {
+      await syncToServerImmediate('file', updated as unknown as Record<string, unknown>);
+    }
+    
+    return updated;
+  },
+
+  /**
+   * Delete photo with confirmation
+   * @param id - Photo file ID
+   */
+  async deletePhoto(id: string) {
+    return StorageManagerDexie.deleteFile(id);
   }
 };
 
