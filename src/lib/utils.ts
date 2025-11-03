@@ -13,6 +13,17 @@ export function cn(...inputs: ClassValue[]) {
 
 const DELETION_TIMEOUT = 10000; // 10 seconds
 
+let storageManagerModulePromise:
+  | Promise<typeof import('@/services/storage/StorageManagerDexie')>
+  | null = null;
+
+async function loadStorageManagerDexie() {
+  if (!storageManagerModulePromise) {
+    storageManagerModulePromise = import('@/services/storage/StorageManagerDexie');
+  }
+  return storageManagerModulePromise;
+}
+
 interface DeletionCallback {
   onExpire: () => Promise<void>;
   timeoutId: NodeJS.Timeout;
@@ -29,12 +40,14 @@ const deletionTimers = new Map<string, DeletionCallback>();
  * @param onPermanentDelete - Callback to execute permanent deletion
  * @returns Object with undo function and deletion ID
  */
-export async function scheduleTemporaryDeletion(
+export async function scheduleTemporaryDeletion<
+  T extends Project | Installation
+>(
   entityType: 'project' | 'installation',
   entityId: string,
-  data: Project | Installation,
+  data: T,
   onPermanentDelete: () => Promise<void>
-): Promise<{ undoId: string; undo: () => Promise<void> }> {
+): Promise<{ undoId: string; undo: () => Promise<T | null> }> {
   const deletedAt = Date.now();
   const expiresAt = deletedAt + DELETION_TIMEOUT;
   const undoId = `${entityType}_${entityId}_${deletedAt}`;
@@ -78,7 +91,7 @@ export async function scheduleTemporaryDeletion(
     const item = await db.deletedItems.get(undoId);
     if (item) {
       await db.deletedItems.delete(undoId);
-      return item.data;
+      return item.data as T;
     }
     return null;
   };
@@ -122,13 +135,30 @@ export async function isPendingDeletion(entityId: string): Promise<DeletedItem |
 export async function cleanupExpiredDeletions(): Promise<void> {
   const now = Date.now();
   const expired = await db.deletedItems.where('expiresAt').below(now).toArray();
-  
+
   for (const item of expired) {
-    await db.deletedItems.delete(item.id);
-    const callback = deletionTimers.get(item.id);
-    if (callback) {
-      clearTimeout(callback.timeoutId);
-      deletionTimers.delete(item.id);
+    let permanentDeleteCompleted = false;
+    try {
+      const callback = deletionTimers.get(item.id);
+      if (callback) {
+        clearTimeout(callback.timeoutId);
+        deletionTimers.delete(item.id);
+        await callback.onExpire();
+      } else {
+        const { StorageManagerDexie } = await loadStorageManagerDexie();
+        if (item.entityType === 'project') {
+          await StorageManagerDexie.deleteProject(item.entityId);
+        } else {
+          await StorageManagerDexie.deleteInstallation(item.entityId);
+        }
+      }
+      permanentDeleteCompleted = true;
+    } catch (error) {
+      console.error('Error executing permanent deletion for expired item:', error);
+    }
+
+    if (permanentDeleteCompleted) {
+      await db.deletedItems.delete(item.id);
     }
   }
 }
