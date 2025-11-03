@@ -402,14 +402,32 @@ export default function ProjectDetailNew() {
     if (!project) return;
 
     try {
-      const deleteResult = await softDeleteProject(project.id);
-      if (!deleteResult.success) {
-        throw deleteResult.error || new Error('Falha ao mover projeto para lixeira');
-      }
+      // Use new undo system with 10 second grace period
+      const { undo: undoFunc } = await storage.deleteProjectWithUndo(project.id);
+      
       setShowDeleteDialog(false);
 
-      // Navigate back to projects page after deletion
-      navigate('/');
+      // Show undo toast with 10 second countdown
+      showUndoToast(
+        `"${project.name}" será excluído permanentemente em 10 segundos`,
+        async () => {
+          const restoredProject = await undoFunc();
+          if (restoredProject) {
+            // If restored successfully, just stay on the page
+            toast({
+              title: "Projeto restaurado",
+              description: `${project.name} foi restaurado com sucesso`,
+            });
+            // Reload project data
+            loadProjectData();
+          }
+        }
+      );
+
+      // Navigate back to projects page after showing toast
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
     } catch (error) {
       logger.error('Erro ao deletar projeto', {
         error: error instanceof Error ? error.message : String(error),
@@ -421,6 +439,12 @@ export default function ProjectDetailNew() {
           operacao: 'handleDeleteProject',
           timestamp: new Date().toISOString()
         }
+      });
+      
+      toast({
+        title: "Erro ao excluir projeto",
+        description: "Não foi possível excluir o projeto. Tente novamente.",
+        variant: "destructive"
       });
     }
   };
@@ -662,40 +686,25 @@ export default function ProjectDetailNew() {
     if (!installationToDelete) return;
 
     try {
-      // Delete installation
-      await storage.deleteInstallation(installationId);
+      // Delete installation with undo capability (10 second grace period)
+      const { undo: undoFunc } = await storage.deleteInstallationWithUndo(installationId);
 
       // Update local state
       setInstallations(prev => prev.filter(inst => inst.id !== installationId));
 
-      // Add undo action
-      addAction({
-        type: 'DELETE_INSTALLATION',
-        description: `Excluiu "${installationToDelete.descricao}"`,
-        data: {
-          installation: installationToDelete,
-          projectId: project.id
-        },
-        undo: async () => {
-          // Restore installation
-          const restored = await storage.upsertInstallation(installationToDelete);
-          setInstallations(prev => [...prev, restored].sort((a, b) => 
-            String(a.codigo).localeCompare(String(b.codigo))
-          ));
-        }
-      });
-
+      // Show undo toast with 10 second countdown
       showUndoToast(
-        `Excluiu "${installationToDelete.descricao}"`,
+        `"${installationToDelete.descricao}" será excluída permanentemente em 10 segundos`,
         async () => {
-          await undo();
+          const restoredInstallation = await undoFunc();
+          if (restoredInstallation) {
+            // Restore in local state
+            setInstallations(prev => [...prev, restoredInstallation].sort((a, b) => 
+              String(a.codigo).localeCompare(String(b.codigo))
+            ));
+          }
         }
       );
-
-      toast({
-        title: "Instalação excluída",
-        description: `${installationToDelete.descricao} foi excluída com sucesso`,
-      });
     } catch (error) {
       logger.error('Falha ao excluir instalação', {
         error: error instanceof Error ? error.message : String(error),
@@ -715,7 +724,7 @@ export default function ProjectDetailNew() {
         variant: "destructive"
       });
     }
-  }, [installations, project, storage, toast, addAction, undo, user?.id, logger]);
+  }, [installations, project, storage, toast, user?.id, logger]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

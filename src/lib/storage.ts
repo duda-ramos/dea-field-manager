@@ -15,11 +15,17 @@ interface StorageLike {
   getProjectById(id: string): Promise<Project | undefined>;
   upsertProject(project: Project): Promise<Project>;
   deleteProject(id: string): Promise<void>;
+  deleteProjectWithUndo(
+    id: string
+  ): Promise<{ undoId: string; undo: () => Promise<Project | null> }>;
 
   // Installations
   getInstallationsByProject(projectId: string): Promise<Installation[]>;
   upsertInstallation(installation: Installation): Promise<Installation>;
   deleteInstallation(id: string): Promise<void>;
+  deleteInstallationWithUndo(
+    id: string
+  ): Promise<{ undoId: string; undo: () => Promise<Installation | null> }>;
   getItemVersions(installationId: string): Promise<ItemVersion[]>;
   upsertItemVersion(version: ItemVersion): Promise<ItemVersion>;
 

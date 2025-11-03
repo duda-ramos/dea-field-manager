@@ -14,6 +14,7 @@ import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 import { logger } from '@/lib/logger';
+import { scheduleTemporaryDeletion, undoDeletion, isPendingDeletion } from '@/lib/utils';
 
 const now = () => Date.now();
 
@@ -318,6 +319,100 @@ export const StorageManagerDexie = {
     }
   },
 
+  /**
+   * Delete project with undo capability (10 second grace period)
+   * @returns Object with undoId and undo function
+   */
+  async deleteProjectWithUndo(id: string) {
+    const existing = await db.projects.get(id);
+    if (!existing) {
+      throw new Error('Project not found');
+    }
+
+    // Collect all related data for potential restoration
+    const installations = await db.installations.where('project_id').equals(id).toArray();
+    const budgets = await db.budgets.where('projectId').equals(id).toArray();
+    const files = await db.files.where('projectId').equals(id).toArray();
+    const contacts = await db.contacts.where('projetoId').equals(id).toArray();
+
+    const relatedData = {
+      installations,
+      budgets,
+      files,
+      contacts,
+    };
+
+    // Permanent deletion function (called after timeout)
+    const permanentDelete = async () => {
+      await StorageManagerDexie.deleteProject(id);
+    };
+
+    // Schedule temporary deletion
+    const { undoId, undo } = await scheduleTemporaryDeletion(
+      'project',
+      id,
+      { ...existing, _relatedData: relatedData } as any,
+      permanentDelete
+    );
+
+    // Enhanced undo function that restores the project
+    const undoWithRestore = async () => {
+      const restoredData = await undo();
+      if (restoredData) {
+        const { _relatedData, ...projectData } = restoredData;
+        
+        // Restore project
+        await db.projects.put({ 
+          ...projectData, 
+          _deleted: 0, 
+          _dirty: 1, 
+          updatedAt: now() 
+        });
+        
+        // Restore related records if they exist
+        if (_relatedData) {
+          for (const installation of _relatedData.installations || []) {
+            await db.installations.put({ 
+              ...installation, 
+              _deleted: 0, 
+              _dirty: 1, 
+              updatedAt: now() 
+            });
+          }
+          for (const budget of _relatedData.budgets || []) {
+            await db.budgets.put({ 
+              ...budget, 
+              _deleted: 0, 
+              _dirty: 1, 
+              updatedAt: now() 
+            });
+          }
+          for (const file of _relatedData.files || []) {
+            await db.files.put({ 
+              ...file, 
+              _deleted: 0, 
+              _dirty: 1, 
+              updatedAt: now() 
+            });
+          }
+          for (const contact of _relatedData.contacts || []) {
+            await db.contacts.put({ 
+              ...contact, 
+              _deleted: 0, 
+              _dirty: 1 
+            });
+          }
+        }
+        
+        realtimeManager.trackLocalOperation('projects');
+        return projectData;
+      }
+      return null;
+    };
+
+    return { undoId, undo: undoWithRestore };
+  },
+
   // -------- INSTALLATIONS ----------
   async getInstallationsByProject(projectId: string) {
     const installations = await db.installations
@@ -465,6 +560,80 @@ export const StorageManagerDexie = {
     }
   },
 
+  /**
+   * Delete installation with undo capability (10 second grace period)
+   * @returns Object with undoId and undo function
+   */
+  async deleteInstallationWithUndo(id: string) {
+    const existing = await db.installations.get(id);
+    if (!existing) {
+      throw new Error('Installation not found');
+    }
+
+    // Collect all related data for potential restoration
+    const itemVersions = await db.itemVersions.where('installationId').equals(id).toArray();
+    const files = await db.files.where('installationId').equals(id).toArray();
+
+    const relatedData = {
+      itemVersions,
+      files,
+    };
+
+    // Permanent deletion function (called after timeout)
+    const permanentDelete = async () => {
+      await StorageManagerDexie.deleteInstallation(id);
+    };
+
+    // Schedule temporary deletion
+    const { undoId, undo } = await scheduleTemporaryDeletion(
+      'installation',
+      id,
+      { ...existing, _relatedData: relatedData } as any,
+      permanentDelete
+    );
+
+    // Enhanced undo function that restores the installation
+    const undoWithRestore = async () => {
+      const restoredData = await undo();
+      if (restoredData) {
+        const { _relatedData, ...installationData } = restoredData;
+        
+        // Restore installation
+        await db.installations.put({ 
+          ...installationData, 
+          _deleted: 0, 
+          _dirty: 1, 
+          updatedAt: now() 
+        });
+        
+        // Restore related records if they exist
+        if (_relatedData) {
+          for (const itemVersion of _relatedData.itemVersions || []) {
+            await db.itemVersions.put({ 
+              ...itemVersion, 
+              _deleted: 0, 
+              _dirty: 1 
+            });
+          }
+          for (const file of _relatedData.files || []) {
+            await db.files.put({ 
+              ...file, 
+              _deleted: 0, 
+              _dirty: 1, 
+              updatedAt: now() 
+            });
+          }
+        }
+        
+        realtimeManager.trackLocalOperation('installations');
+        return installationData;
+      }
+      return null;
+    };
+
+    return { undoId, undo: undoWithRestore };
+  },
+
   // -------- ITEM VERSIONS ----------
   async getItemVersions(installationId: string) {
     return db.itemVersions.where('installationId').equals(installationId).toArray();
@@ -588,6 +757,9 @@ export const StorageManagerDexie = {
 (StorageManagerDexie as Record<string, unknown>).saveProject = StorageManagerDexie.upsertProject;
 (StorageManagerDexie as Record<string, unknown>).updateProject = StorageManagerDexie.upsertProject;
 (StorageManagerDexie as Record<string, unknown>).getProject = StorageManagerDexie.getProjectById;
+
+// Export undo utilities for external use
+export { isPendingDeletion, undoDeletion } from '@/lib/utils';
 
 // Installations
 (StorageManagerDexie as Record<string, unknown>).getInstallations = StorageManagerDexie.getInstallationsByProject;
