@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { User, Bell, Shield, Palette } from "lucide-react";
+import { BackupSection } from "@/components/settings/BackupSection";
 
 export default function ConfiguracoesPage() {
   return (
@@ -82,6 +83,8 @@ export default function ConfiguracoesPage() {
             </p>
           </CardContent>
         </Card>
+
+        <BackupSection />
       </div>
     </div>
   );
