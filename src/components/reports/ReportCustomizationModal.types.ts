@@ -1,16 +1,20 @@
-import type { Installation, Project } from '@/types';
+import type { Installation, Project } from "@/types";
 
 export interface ReportCustomizationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (config: ReportConfig, format: 'pdf' | 'xlsx') => Promise<Blob>;
-  onShare: (blob: Blob, format: 'pdf' | 'xlsx', config: ReportConfig) => void;
+  onGenerate: (
+    config: ReportConfig,
+    format: "pdf" | "xlsx",
+    options?: { onProgress?: (progress: number, message?: string) => void },
+  ) => Promise<Blob>;
+  onShare: (blob: Blob, format: "pdf" | "xlsx", config: ReportConfig) => void;
   project: Project;
   installations: Installation[];
 }
 
 export interface ReportConfig {
-  interlocutor: 'cliente' | 'fornecedor';
+  interlocutor: "cliente" | "fornecedor";
   sections: {
     pendencias: boolean;
     concluidas: boolean;
@@ -26,8 +30,13 @@ export interface ReportConfig {
     storageChart: boolean;
     thumbnails: boolean;
   };
-  groupBy: 'none' | 'pavimento' | 'tipologia';
-  sortBy: 'codigo' | 'pavimento' | 'tipologia' | 'updated_at';
+  pdfOptions: {
+    includePhotos: boolean;
+    variant: "compact" | "complete";
+    maxPhotosPerItem: number;
+  };
+  groupBy: "none" | "pavimento" | "tipologia";
+  sortBy: "codigo" | "pavimento" | "tipologia" | "updated_at";
   visibleColumns: {
     pavimento: boolean;
     tipologia: boolean;

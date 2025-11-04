@@ -1,7 +1,7 @@
-import type { ReportConfig } from './ReportCustomizationModal.types';
+import type { ReportConfig } from "./ReportCustomizationModal.types";
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
-  interlocutor: 'cliente',
+  interlocutor: "cliente",
   sections: {
     pendencias: true,
     concluidas: true,
@@ -17,8 +17,13 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
     storageChart: true,
     thumbnails: false,
   },
-  groupBy: 'pavimento',
-  sortBy: 'codigo',
+  pdfOptions: {
+    includePhotos: true,
+    variant: "complete",
+    maxPhotosPerItem: 3,
+  },
+  groupBy: "pavimento",
+  sortBy: "codigo",
   visibleColumns: {
     pavimento: true,
     tipologia: true,
@@ -32,4 +37,4 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   },
 };
 
-export const REPORT_CONFIG_STORAGE_KEY = 'report-config-preferences';
+export const REPORT_CONFIG_STORAGE_KEY = "report-config-preferences";

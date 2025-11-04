@@ -12,6 +12,17 @@ import { logger } from '@/lib/logger';
 type WorksheetCell = string | number | XLSX.CellObject;
 type WorksheetRow = WorksheetCell[];
 
+export interface PDFGenerationOptions {
+  onProgress?: (progress: number, message?: string) => void;
+}
+
+type CachedPdfPhoto = {
+  dataUrl: string;
+  format: 'JPEG' | 'PNG';
+};
+
+type PdfPhotoCache = Map<string, CachedPdfPhoto[]>;
+
 interface WorksheetImage {
   name: string;
   data: string;
@@ -231,6 +242,130 @@ async function fetchThumbnailDataUrl(photoUrl: string, size = 100): Promise<stri
     console.error('[fetchThumbnailDataUrl] Unexpected error generating thumbnail', error);
     return null;
   }
+}
+
+async function fetchCompressedImageDataUrl(photoUrl: string, size = 150, quality = 0.72): Promise<CachedPdfPhoto | null> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+
+  try {
+    const response = await fetch(photoUrl);
+    if (!response.ok) {
+      console.warn('[fetchCompressedImageDataUrl] Failed to download photo', { photoUrl, status: response.status });
+      return null;
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+
+      const ratio = Math.min(size / image.width, size / image.height, 1);
+      const drawWidth = Math.max(1, Math.round(image.width * ratio));
+      const drawHeight = Math.max(1, Math.round(image.height * ratio));
+      const offsetX = Math.round((size - drawWidth) / 2);
+      const offsetY = Math.round((size - drawHeight) / 2);
+
+      ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      return {
+        dataUrl,
+        format: 'JPEG'
+      };
+    } catch (error) {
+      console.error('[fetchCompressedImageDataUrl] Failed to process image', error);
+      return null;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch (error) {
+    console.error('[fetchCompressedImageDataUrl] Unexpected error', error);
+    return null;
+  }
+}
+
+async function buildPdfPhotoCache(
+  sections: ReportSections,
+  options: {
+    maxPhotosPerItem: number;
+    thumbnailSize?: number;
+    onProgress?: (processed: number, total: number) => void;
+  }
+): Promise<PdfPhotoCache> {
+  const cache: PdfPhotoCache = new Map();
+
+  if (typeof window === 'undefined') {
+    return cache;
+  }
+
+  const thumbnailSize = options.thumbnailSize ?? 150;
+  const itemsWithPhotos = [
+    ...sections.pendencias,
+    ...sections.concluidas,
+    ...sections.emRevisao,
+    ...sections.emAndamento
+  ].filter(item => Array.isArray(item.photos) && item.photos.length > 0);
+
+  const totalPhotos = itemsWithPhotos.reduce((total, item) => {
+    return total + Math.min(item.photos.length, options.maxPhotosPerItem);
+  }, 0);
+
+  if (totalPhotos === 0) {
+    options.onProgress?.(0, 0);
+    return cache;
+  }
+
+  let processed = 0;
+
+  for (const item of itemsWithPhotos) {
+    const compressedPhotos: CachedPdfPhoto[] = [];
+    const limit = Math.min(item.photos.length, options.maxPhotosPerItem);
+
+    for (let index = 0; index < limit; index++) {
+      const photoUrl = item.photos[index];
+      try {
+        const compressed = await fetchCompressedImageDataUrl(photoUrl, thumbnailSize);
+        if (compressed) {
+          compressedPhotos.push(compressed);
+        }
+      } catch (error) {
+        console.warn('[buildPdfPhotoCache] Failed to compress photo', { photoUrl, error });
+      } finally {
+        processed += 1;
+        options.onProgress?.(processed, totalPhotos);
+      }
+    }
+
+    if (compressedPhotos.length > 0) {
+      cache.set(item.id, compressedPhotos);
+    }
+  }
+
+  if (processed < totalPhotos) {
+    options.onProgress?.(totalPhotos, totalPhotos);
+  }
+
+  return cache;
 }
 
 async function generateDoughnutChartImage(totals: {
@@ -822,28 +957,52 @@ export function generateFileName(project: Project, interlocutor: 'cliente' | 'fo
  * - Continues without photo links if photo upload fails
  * - Returns empty blob only on critical PDF generation failure
  */
-export async function generatePDFReport(data: ReportData): Promise<Blob> {
+export async function generatePDFReport(data: ReportData, options: PDFGenerationOptions = {}): Promise<Blob> {
+  const reportProgress = (value: number, message?: string) => {
+    if (!options.onProgress) {
+      return;
+    }
+    try {
+      options.onProgress(Math.max(0, Math.min(1, value)), message);
+    } catch (error) {
+      console.error('[generatePDFReport] Failed to report progress', error);
+    }
+  };
+
+  let includePhotosInPdf = false;
+  let cachedPhotoItems = 0;
+
   try {
-    // Input validation
+    reportProgress(0.02, 'Validando dados do relatório...');
+
     if (!data) {
       console.error('[generatePDFReport] Error: data is null or undefined');
+      reportProgress(1, 'Dados inválidos para gerar o PDF.');
       return new Blob([], { type: 'application/pdf' });
     }
 
     if (!data.project) {
       console.error('[generatePDFReport] Error: data.project is missing');
+      reportProgress(1, 'Projeto não encontrado para o relatório.');
       return new Blob([], { type: 'application/pdf' });
     }
 
     if (!Array.isArray(data.installations)) {
       console.error('[generatePDFReport] Error: data.installations is not an array');
+      reportProgress(1, 'Instalações inválidas para o relatório.');
       return new Blob([], { type: 'application/pdf' });
     }
 
+    const resolvedConfig = resolveReportConfig(data.customConfig);
+    includePhotosInPdf = resolvedConfig.pdfOptions?.variant === 'complete' && resolvedConfig.pdfOptions.includePhotos;
+    const resolvedMaxPhotos = Math.max(1, resolvedConfig.pdfOptions?.maxPhotosPerItem ?? DEFAULT_REPORT_CONFIG.pdfOptions.maxPhotosPerItem ?? 3);
+    const maxPhotosPerItem = Math.min(resolvedMaxPhotos, 3);
+
     const sections = calculateReportSections(data);
+    reportProgress(0.12, 'Calculando resumos do projeto...');
     const pavimentoSummary = calculatePavimentoSummary(sections);
-    
-    // Try to generate storage bar, but continue without it if it fails
+
+    reportProgress(0.16, 'Gerando gráficos de status...');
     let storageBarImage = '';
     try {
       storageBarImage = await generateStorageBarImage(sections);
@@ -851,132 +1010,173 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
       console.error('[generatePDFReport] Error generating storage bar, continuing without chart:', error);
       storageBarImage = '';
     }
-  
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
 
-  // Add footer to all pages
-  const addFooter = () => {
-    const pageHeight = doc.internal.pageSize.height;
-    doc.setFontSize(reportTheme.fonts.footer);
-    doc.setTextColor(reportTheme.colors.footer);
-    const footerText = `DEA Manager • ${data.project.name} • ${new Date(data.generatedAt).toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
-    doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
-  };
+    reportProgress(0.2, includePhotosInPdf ? 'Otimizando fotos para o PDF...' : 'Preparando layout do PDF...');
+    let photoCache: PdfPhotoCache = new Map();
+    if (includePhotosInPdf) {
+      photoCache = await buildPdfPhotoCache(sections, {
+        maxPhotosPerItem,
+        thumbnailSize: 150,
+        onProgress: (processed, total) => {
+          cachedPhotoItems = Math.max(cachedPhotoItems, processed);
+          if (total <= 0) {
+            reportProgress(0.4, 'Nenhuma foto para processar.');
+            return;
+          }
+          const base = 0.2;
+          const span = 0.2;
+          const ratio = Math.min(1, Math.max(0, processed / total));
+          reportProgress(base + span * ratio, `Otimizando fotos (${processed}/${total})...`);
+        }
+      });
+    } else {
+      reportProgress(0.4, 'Layout do PDF pronto para renderização.');
+    }
 
-  let yPosition = reportTheme.spacing.margin;
+    reportProgress(0.45, 'Configurando cabeçalho do relatório...');
 
-  // Add company logo - graceful fallback if fails
-  try {
-    const logoImg = new Image();
-    logoImg.src = '/logo-dea.png';
-    await new Promise((resolve, reject) => {
-      logoImg.onload = resolve;
-      logoImg.onerror = reject;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
     });
 
-    // Define apenas a largura máxima, a altura será proporcional
-    const maxWidth = 30;
-    const aspectRatio = logoImg.width / logoImg.height;
-    const logoHeight = maxWidth / aspectRatio;
-    
-    doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
-  } catch (error) {
-    console.error('[generatePDFReport] Error loading logo, continuing without logo:', error);
-    // Continue without logo - not critical for report
-  }
+    const addFooter = () => {
+      const pageHeight = doc.internal.pageSize.height;
+      doc.setFontSize(reportTheme.fonts.footer);
+      doc.setTextColor(reportTheme.colors.footer);
+      const footerText = `DEA Manager • ${data.project.name} • ${new Date(data.generatedAt).toLocaleDateString('pt-BR')} — pág. ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(footerText, reportTheme.spacing.margin, pageHeight - 10);
+    };
 
-  // Enhanced Header
-  doc.setFontSize(reportTheme.fonts.title);
-  doc.setTextColor('#000000');
-  doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin + 35, yPosition + 10);
-  yPosition += reportTheme.spacing.titleBottom + 15;
+    let yPosition = reportTheme.spacing.margin;
 
-  doc.setFontSize(12);
-  doc.text(`Cliente: ${data.project.client}`, reportTheme.spacing.margin, yPosition);
-  yPosition += 7;
-  doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, reportTheme.spacing.margin, yPosition);
-  yPosition += 10;
+    try {
+      const logoImg = new Image();
+      logoImg.src = '/logo-dea.png';
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+      });
 
-  // Optional responsavel in smaller font
-  if (data.generatedBy) {
-    doc.setFontSize(reportTheme.fonts.footer);
-    doc.setTextColor('#6B7280');
-    doc.text(`Responsável: ${data.generatedBy}`, reportTheme.spacing.margin, yPosition);
-    yPosition += 8;
+      const maxWidth = 30;
+      const aspectRatio = logoImg.width / logoImg.height || 1;
+      const logoHeight = maxWidth / aspectRatio;
+
+      doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
+    } catch (error) {
+      console.error('[generatePDFReport] Error loading logo, continuing without logo:', error);
+    }
+
+    doc.setFontSize(reportTheme.fonts.title);
     doc.setTextColor('#000000');
-  }
+    doc.text(`Relatório de Instalações | ${data.project.name}`, reportTheme.spacing.margin + 35, yPosition + 10);
+    yPosition += reportTheme.spacing.titleBottom + 15;
 
-  // Header divider
-  doc.setDrawColor('#E5E7EB');
-  doc.setLineWidth(0.5);
-  doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
-  yPosition += 10;
+    doc.setFontSize(12);
+    doc.text(`Cliente: ${data.project.client ?? 'Não informado'}`, reportTheme.spacing.margin, yPosition);
+    yPosition += 7;
+    doc.text(`Data do Relatório: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, reportTheme.spacing.margin, yPosition);
+    yPosition += 10;
 
-  // Add Gráficos de Acompanhamento section
-  doc.setFontSize(reportTheme.fonts.subtitle);
-  doc.setTextColor('#000000');
-  doc.text('Gráficos de Acompanhamento', reportTheme.spacing.margin, yPosition);
-  yPosition += 10;
-
-  // Add storage bar if available
-  if (storageBarImage) {
-    doc.addImage(storageBarImage, 'PNG', reportTheme.spacing.margin, yPosition, 170, 25);
-    yPosition += 35;
-  }
-
-  // Add pavimento summary
-  if (pavimentoSummary.length > 0) {
-    yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition);
-  }
-
-  // Add sections only if they have items - each section wrapped in try/catch
-  if (sections.pendencias.length > 0) {
-    try {
-      yPosition = await addEnhancedSectionToPDF(doc, 'Pendências', sections.pendencias, yPosition, data.interlocutor, 'pendencias', data.project.name, data.project.id);
-    } catch (error) {
-      console.error('[generatePDFReport] Error adding Pendências section, skipping:', error);
+    if (data.generatedBy) {
+      doc.setFontSize(reportTheme.fonts.footer);
+      doc.setTextColor('#6B7280');
+      doc.text(`Responsável: ${data.generatedBy}`, reportTheme.spacing.margin, yPosition);
+      yPosition += 8;
+      doc.setTextColor('#000000');
     }
-  }
 
-  if (sections.concluidas.length > 0) {
-    try {
-      yPosition = await addEnhancedSectionToPDF(doc, 'Concluídas', sections.concluidas, yPosition, data.interlocutor, 'concluidas', data.project.name, data.project.id);
-    } catch (error) {
-      console.error('[generatePDFReport] Error adding Concluídas section, skipping:', error);
+    doc.setDrawColor('#E5E7EB');
+    doc.setLineWidth(0.5);
+    doc.line(reportTheme.spacing.margin, yPosition, 190, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(reportTheme.fonts.subtitle);
+    doc.text('Gráficos de Acompanhamento', reportTheme.spacing.margin, yPosition);
+    yPosition += 10;
+
+    if (storageBarImage) {
+      doc.addImage(storageBarImage, 'PNG', reportTheme.spacing.margin, yPosition, 170, 25);
+      yPosition += 35;
     }
-  }
 
-  if (sections.emRevisao.length > 0) {
-    try {
-      yPosition = await addEnhancedSectionToPDF(doc, 'Em Revisão', sections.emRevisao, yPosition, data.interlocutor, 'revisao', data.project.name, data.project.id);
-    } catch (error) {
-      console.error('[generatePDFReport] Error adding Em Revisão section, skipping:', error);
+    if (pavimentoSummary.length > 0) {
+      yPosition = await addPavimentoSummaryToPDF(doc, pavimentoSummary, yPosition);
     }
-  }
 
-  if (sections.emAndamento.length > 0) {
-    try {
-      const sectionTitle = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-      yPosition = await addEnhancedSectionToPDF(doc, sectionTitle, sections.emAndamento, yPosition, data.interlocutor, 'andamento', data.project.name, data.project.id);
-    } catch (error) {
-      console.error('[generatePDFReport] Error adding Em Andamento section, skipping:', error);
+    reportProgress(0.6, 'Montando seções do relatório...');
+
+    const sectionEntries: Array<{
+      title: string;
+      items: Installation[];
+      type: 'pendencias' | 'concluidas' | 'revisao' | 'andamento';
+    }> = [
+      { title: 'Pendências', items: sections.pendencias, type: 'pendencias' },
+      { title: 'Concluídas', items: sections.concluidas, type: 'concluidas' },
+      { title: 'Em Revisão', items: sections.emRevisao, type: 'revisao' },
+      {
+        title: data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento',
+        items: sections.emAndamento,
+        type: 'andamento'
+      }
+    ];
+
+    const totalRenderableSections = sectionEntries.filter(section => section.items.length > 0).length || 1;
+    let renderedSections = 0;
+
+    for (const section of sectionEntries) {
+      if (section.items.length === 0) {
+        continue;
+      }
+
+      try {
+        yPosition = await addEnhancedSectionToPDF(
+          doc,
+          section.title,
+          section.items,
+          yPosition,
+          data.interlocutor,
+          section.type,
+          data.project.name,
+          data.project.id,
+          resolvedConfig,
+          {
+            photoCache,
+            includeInlinePhotos: includePhotosInPdf,
+            maxPhotosPerItem
+          }
+        );
+      } catch (error) {
+        console.error(`[generatePDFReport] Error adding ${section.title} section, skipping:`, error);
+      }
+
+      renderedSections += 1;
+      reportProgress(
+        0.6 + 0.25 * (renderedSections / totalRenderableSections),
+        `Seção "${section.title}" processada (${renderedSections}/${totalRenderableSections})...`
+      );
     }
-  }
 
-  // Add footer to all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    addFooter();
-  }
+    reportProgress(0.88, 'Aplicando rodapés...');
 
-  return new Blob([doc.output('blob')], { type: 'application/pdf' });
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter();
+    }
+
+    const pdfBlob = doc.output('blob');
+    const maxBytes = 10 * 1024 * 1024;
+    if (pdfBlob.size > maxBytes) {
+      reportProgress(1, 'PDF gerado (acima de 10MB). Considere usar a versão compacta.');
+    } else {
+      reportProgress(1, 'PDF gerado com sucesso.');
+    }
+
+    return pdfBlob;
   } catch (error) {
-    // Critical error - log detailed context and return empty blob
+    reportProgress(1, 'Erro ao gerar PDF.');
     logger.error('Falha crítica ao gerar relatório PDF', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
@@ -985,6 +1185,8 @@ export async function generatePDFReport(data: ReportData): Promise<Blob> {
         projectName: data?.project?.name,
         installationsCount: data?.installations?.length,
         interlocutor: data?.interlocutor,
+        includePhotos: includePhotosInPdf,
+        processedPhotos: cachedPhotoItems,
         operacao: 'generatePDFReport',
         timestamp: new Date().toISOString()
       }
@@ -1076,14 +1278,20 @@ async function addPavimentoSummaryToPDF(
 
 // Flat section rendering without subgroups
 async function addEnhancedSectionToPDF(
-  doc: jsPDF, 
-  title: string, 
-  items: Installation[], 
-  yPosition: number, 
+  doc: jsPDF,
+  title: string,
+  items: Installation[],
+  yPosition: number,
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
   projectName?: string,
-  projectId?: string
+  projectId?: string,
+  config?: ReportConfig,
+  pdfContext?: {
+    photoCache?: PdfPhotoCache;
+    includeInlinePhotos?: boolean;
+    maxPhotosPerItem?: number;
+  }
 ): Promise<number> {
   if (items.length === 0) return yPosition;
 
@@ -1099,6 +1307,13 @@ async function addEnhancedSectionToPDF(
   doc.text(title, reportTheme.spacing.margin, yPosition);
   yPosition += 15;
 
+  const inlinePhotoCache = pdfContext?.photoCache;
+  const renderInlinePhotos = Boolean(pdfContext?.includeInlinePhotos && inlinePhotoCache && inlinePhotoCache.size > 0);
+  const maxInlinePhotos = Math.max(
+    1,
+    Math.min(pdfContext?.maxPhotosPerItem ?? DEFAULT_REPORT_CONFIG.pdfOptions.maxPhotosPerItem, 3)
+  );
+
   // For flat sections (Pendencias and Em Revisao) - single table without subgroups
   if (sectionType === 'pendencias' || sectionType === 'revisao') {
     // Sort items by Pavimento, Tipologia, Código
@@ -1110,9 +1325,9 @@ async function addEnhancedSectionToPDF(
       return codeA - codeB;
     });
 
-    // Pre-upload photos and create galleries for all items to avoid async in didDrawCell
+    // Pre-upload photos and create galleries for all items to avoid async in didDrawCell when inline photos are disabled
     const galleryUrlsMap = new Map<string, { url: string, count: number }>();
-    if ((sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
+    if (!renderInlinePhotos && (sectionType === 'pendencias' || sectionType === 'revisao') && projectId) {
       for (const item of sortedItems) {
         if (item.photos && item.photos.length > 0) {
           const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
@@ -1124,7 +1339,14 @@ async function addEnhancedSectionToPDF(
     }
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, undefined, projectId);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, config, projectId);
+    const photoColumnIndices = new Set<number>();
+    columns.forEach((column, index) => {
+      if (column.toLowerCase().startsWith('foto')) {
+        photoColumnIndices.add(index);
+      }
+    });
+    const shouldRenderInline = renderInlinePhotos && photoColumnIndices.size > 0;
 
     // Generate single flat table
     autoTable(doc, {
@@ -1153,42 +1375,80 @@ async function addEnhancedSectionToPDF(
       },
       columnStyles: getFlatColumnStyles(sectionType, interlocutor),
       theme: 'grid',
+      didParseCell: data => {
+        if (shouldRenderInline && data.section === 'body' && photoColumnIndices.has(data.column.index)) {
+          const item = sortedItems[data.row.index];
+          const cached = inlinePhotoCache?.get(item.id) ?? [];
+          if (cached.length > 0) {
+            data.cell.styles.minCellHeight = Math.max(data.cell.styles.minCellHeight ?? 0, 36);
+            const rowRef = data.row as unknown as { height?: number };
+            rowRef.height = Math.max(rowRef.height ?? 0, 36);
+          }
+        }
+      },
       didDrawCell: (data) => {
-        // Add clickable photo gallery links in the "Foto" column for pendencias and revisao
-        if (sectionType === 'pendencias' && data.section === 'body') {
-          // Photo column index: 5 for cliente, 6 for fornecedor
-          const photoColumnIndex = interlocutor === 'cliente' ? 5 : 6;
-          
-          if (data.column.index === photoColumnIndex) {
-            const item = sortedItems[data.row.index];
-            const galleryInfo = galleryUrlsMap.get(item.id);
-            
-            if (galleryInfo) {
-              // Clear the cell text first
-              doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
-              doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-              
-              // Add clickable link to gallery
-              const linkX = data.cell.x + 2;
-              const linkY = data.cell.y + data.cell.height / 2 + 2;
-              const linkText = `Ver Fotos (${galleryInfo.count})`;
-              
-              // Set blue color for link
-              doc.setTextColor(0, 0, 255);
-              doc.setFontSize(9);
-              
-              // Add clickable link
-              doc.textWithLink(linkText, linkX, linkY, { url: galleryInfo.url });
-              
-              // Reset text color
-              doc.setTextColor(0, 0, 0);
-            } else if (item.photos && item.photos.length > 0) {
-              // If upload failed, show "Sem foto" instead of breaking
-              doc.setTextColor(100, 100, 100);
-              doc.setFontSize(9);
-              doc.text('Sem foto', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 2);
-              doc.setTextColor(0, 0, 0);
+        if (data.section !== 'body' || !photoColumnIndices.has(data.column.index)) {
+          return;
+        }
+
+        const item = sortedItems[data.row.index];
+        if (shouldRenderInline) {
+          const cached = inlinePhotoCache?.get(item.id) ?? [];
+          if (cached.length > 0) {
+            data.cell.text = [];
+            const padding = 2;
+            const availableWidth = data.cell.width - padding * 2;
+            const availableHeight = data.cell.height - padding * 2;
+            const photosToRender = cached.slice(0, maxInlinePhotos);
+            const columnsCount = photosToRender.length || 1;
+            const gap = 2;
+            const baseSize = Math.min(
+              availableHeight,
+              (availableWidth - gap * (columnsCount - 1)) / columnsCount
+            );
+            const thumbSize = Math.max(12, Math.min(baseSize, 32));
+            let currentX = data.cell.x + padding;
+            const offsetY = data.cell.y + padding + Math.max(0, (availableHeight - thumbSize) / 2);
+
+            photosToRender.forEach(photo => {
+              const format = photo.format === 'PNG' ? 'PNG' : 'JPEG';
+              try {
+                doc.addImage(photo.dataUrl, format, currentX, offsetY, thumbSize, thumbSize);
+              } catch (error) {
+                console.warn('[addEnhancedSectionToPDF] Failed to add inline photo', error);
+              }
+              currentX += thumbSize + gap;
+            });
+
+            const remaining = cached.length - photosToRender.length;
+            if (remaining > 0) {
+              doc.setFontSize(7);
+              doc.setTextColor('#6B7280');
+              doc.text(`+${remaining}`, data.cell.x + data.cell.width - 2, offsetY + thumbSize, { align: 'right' });
+              doc.setTextColor('#000000');
+              doc.setFontSize(10);
             }
+            return;
+          }
+        }
+
+        if (!renderInlinePhotos && sectionType === 'pendencias') {
+          const galleryInfo = galleryUrlsMap.get(item.id);
+          if (galleryInfo) {
+            doc.setFillColor(data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 250, data.row.index % 2 === 0 ? 255 : 251);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            const linkX = data.cell.x + 2;
+            const linkY = data.cell.y + data.cell.height / 2 + 2;
+            const linkText = `Ver Fotos (${galleryInfo.count})`;
+            doc.setTextColor(0, 0, 255);
+            doc.setFontSize(9);
+            doc.textWithLink(linkText, linkX, linkY, { url: galleryInfo.url });
+            doc.setTextColor(0, 0, 0);
+          } else if (item.photos && item.photos.length > 0) {
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(9);
+            doc.text('Sem foto', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 2);
+            doc.setTextColor(0, 0, 0);
           }
         }
       },

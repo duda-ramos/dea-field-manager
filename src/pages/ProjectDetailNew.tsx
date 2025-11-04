@@ -1941,11 +1941,11 @@ export default function ProjectDetailNew() {
           <ReportCustomizationModal
             isOpen={showReportCustomization}
             onClose={() => setShowReportCustomization(false)}
-            onGenerate={async (config, format) => {
+            onGenerate={async (config, format, options) => {
               setIsGenerating(true);
               try {
                 const { generatePDFReport, generateXLSXReport } = await import('@/lib/reports-new');
-                
+
                 const versions = await Promise.all(
                   installations.map(installation => storage.getItemVersions(installation.id))
                 ).then(results => results.flat());
@@ -1963,7 +1963,9 @@ export default function ProjectDetailNew() {
                 };
 
                 if (format === 'pdf') {
-                  return await generatePDFReport(reportData);
+                  return await generatePDFReport(reportData, {
+                    onProgress: options?.onProgress
+                  });
                 } else {
                   return await generateXLSXReport(reportData);
                 }

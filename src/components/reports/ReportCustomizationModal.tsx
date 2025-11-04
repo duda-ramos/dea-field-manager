@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Eye, FileText, Table, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { calculateReportSections, calculatePavimentoSummary, ReportSections, PavimentoSummary } from '@/lib/reports-new';
 import { StorageBar } from '@/components/storage-bar';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -37,6 +38,10 @@ const mergeConfigWithDefaults = (config: Partial<ReportConfig> | null | undefine
     includeDetails: {
       ...DEFAULT_REPORT_CONFIG.includeDetails,
       ...config.includeDetails,
+    },
+    pdfOptions: {
+      ...DEFAULT_REPORT_CONFIG.pdfOptions,
+      ...config.pdfOptions,
     },
     visibleColumns: {
       ...DEFAULT_REPORT_CONFIG.visibleColumns,
@@ -79,6 +84,8 @@ export function ReportCustomizationModal({
   } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingFormat, setGeneratingFormat] = useState<'pdf' | 'xlsx' | null>(null);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationMessage, setGenerationMessage] = useState('');
   const [activeTab, setActiveTab] = useState('sections');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
@@ -236,6 +243,28 @@ export function ReportCustomizationModal({
     }));
   }, []);
 
+  const handlePdfIncludePhotosToggle = useCallback((checked: boolean) => {
+    setConfig(prev => ({
+      ...prev,
+      pdfOptions: {
+        ...prev.pdfOptions,
+        includePhotos: checked,
+        variant: checked ? 'complete' : 'compact',
+      },
+    }));
+  }, []);
+
+  const handlePdfVariantChange = useCallback((variant: 'compact' | 'complete') => {
+    setConfig(prev => ({
+      ...prev,
+      pdfOptions: {
+        ...prev.pdfOptions,
+        variant,
+        includePhotos: variant === 'complete',
+      },
+    }));
+  }, []);
+
   const handleRestoreDefaults = useCallback(() => {
     setConfig(mergeConfigWithDefaults(DEFAULT_REPORT_CONFIG));
     toast({
@@ -260,8 +289,43 @@ export function ReportCustomizationModal({
 
     setIsGenerating(true);
     setGeneratingFormat(format);
+    if (format === 'pdf') {
+      setGenerationProgress(0.05);
+      setGenerationMessage('Preparando dados do relatório...');
+    } else {
+      setGenerationProgress(0);
+      setGenerationMessage('');
+    }
     try {
-      const blob = await onGenerate(config, format);
+      const blob = await onGenerate(config, format, {
+        onProgress: (progress, message) => {
+          setGenerationProgress(prev => {
+            if (!Number.isFinite(progress)) {
+              return prev;
+            }
+            return Math.min(Math.max(progress, 0), 1);
+          });
+          if (message) {
+            setGenerationMessage(message);
+          }
+        }
+      });
+
+      if (format === 'pdf') {
+        setGenerationProgress(1);
+        setGenerationMessage('PDF gerado com sucesso');
+        const maxBytes = 10 * 1024 * 1024;
+        if (blob.size > maxBytes) {
+          toast({
+            title: 'PDF muito grande',
+            description: 'O arquivo ultrapassou 10MB. Considere usar a versão compacta sem fotos.',
+            variant: 'default',
+            duration: 6000
+          });
+          showToast.info('PDF excedeu 10MB', 'Considere gerar a versão compacta sem fotos.');
+        }
+      }
+
       onShare(blob, format, config);
       const formatName = format === 'pdf' ? 'PDF' : 'Excel';
       toast({
@@ -275,7 +339,6 @@ export function ReportCustomizationModal({
       );
       onClose();
     } catch (error) {
-      // Error já tratado pelo toast
       toast({
         title: 'Erro ao gerar relatório',
         description: 'Não foi possível criar o relatório. Verifique as configurações e tente novamente',
@@ -289,6 +352,8 @@ export function ReportCustomizationModal({
     } finally {
       setIsGenerating(false);
       setGeneratingFormat(null);
+      setGenerationProgress(0);
+      setGenerationMessage('');
     }
   }, [config, hasSelectedSections, onGenerate, onShare, onClose, toast]);
 
@@ -517,6 +582,69 @@ export function ReportCustomizationModal({
 
                     <Card>
                       <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Opções do PDF</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Controle a versão do relatório em PDF e como as fotos serão apresentadas.
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg">
+                          <div>
+                            <Label htmlFor="pdf-include-photos" className="text-sm font-medium">
+                              Incluir Fotos no PDF
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              {config.pdfOptions.includePhotos
+                                ? 'Versão completa com galeria de miniaturas.'
+                                : 'Versão compacta sem fotos para reduzir o tamanho do arquivo.'}
+                            </p>
+                          </div>
+                          <Switch
+                            id="pdf-include-photos"
+                            checked={config.pdfOptions.includePhotos}
+                            onCheckedChange={handlePdfIncludePhotosToggle}
+                            disabled={isGenerating}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Versão do PDF</Label>
+                          <RadioGroup
+                            value={config.pdfOptions.variant}
+                            onValueChange={(value: 'compact' | 'complete') => handlePdfVariantChange(value)}
+                            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                          >
+                            <div className={`border rounded-lg p-3 space-y-1 ${config.pdfOptions.variant === 'compact' ? 'border-primary bg-primary/5' : ''}`}>
+                              <RadioGroupItem value="compact" id="pdf-variant-compact" className="sr-only" />
+                              <Label htmlFor="pdf-variant-compact" className="cursor-pointer font-medium">
+                                Compacta
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Ideal para envio rápido. Fotos são desativadas automaticamente.
+                              </p>
+                            </div>
+                            <div className={`border rounded-lg p-3 space-y-1 ${config.pdfOptions.variant === 'complete' ? 'border-primary bg-primary/5' : ''}`}>
+                              <RadioGroupItem value="complete" id="pdf-variant-complete" className="sr-only" />
+                              <Label htmlFor="pdf-variant-complete" className="cursor-pointer font-medium">
+                                Completa
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Inclui miniaturas comprimidas (até {config.pdfOptions.maxPhotosPerItem} fotos por item).
+                              </p>
+                            </div>
+                          </RadioGroup>
+                        </div>
+
+                        {config.pdfOptions.includePhotos && (
+                          <p className="text-xs text-muted-foreground">
+                            As imagens são otimizadas automaticamente para 150x150px antes de serem adicionadas ao PDF.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
                         <CardTitle className="text-base sm:text-lg">Colunas Visíveis</CardTitle>
                         <p className="text-xs text-muted-foreground">
                           Personalize quais colunas estarão disponíveis na exportação em Excel.
@@ -644,6 +772,14 @@ export function ReportCustomizationModal({
                                     config.sortBy === 'tipologia' ? 'Por tipologia' : 'Por data de atualização'}
                                 </div>
                                 <div>
+                                  <strong>Versão do PDF:</strong> {config.pdfOptions.variant === 'complete' ? 'Completa (com fotos)' : 'Compacta (sem fotos)'}
+                                </div>
+                                {config.pdfOptions.variant === 'complete' && (
+                                  <div>
+                                    <strong>Fotos por item:</strong> Até {config.pdfOptions.maxPhotosPerItem}
+                                  </div>
+                                )}
+                                <div>
                                   <strong>Incluir fotos:</strong> {config.includeDetails.photos ? 'Sim' : 'Não'}
                                 </div>
                                 <div>
@@ -677,8 +813,22 @@ export function ReportCustomizationModal({
         </div>
 
         <DialogFooter className="gap-2 flex-col sm:flex-row pt-4 flex-shrink-0 border-t mt-4">
-          <Button 
-            variant="outline" 
+          {isGenerating && generatingFormat === 'pdf' && (
+            <div className="w-full space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{generationMessage || 'Gerando PDF...'}</span>
+                <span>{`${Math.round(Math.max(0, Math.min(1, generationProgress)) * 100)}%`}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-primary transition-all"
+                  style={{ width: `${Math.round(Math.max(0, Math.min(1, generationProgress)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <Button
+            variant="outline"
             onClick={handleRestoreDefaults}
             className="gap-2 w-full sm:w-auto"
             disabled={isGenerating}
