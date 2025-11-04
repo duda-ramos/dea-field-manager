@@ -15,9 +15,21 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
     timestamps: true,
     pavimentoSummary: true,
     storageChart: true,
+    thumbnails: false,
   },
   groupBy: 'pavimento',
   sortBy: 'codigo',
+  visibleColumns: {
+    pavimento: true,
+    tipologia: true,
+    codigo: true,
+    descricao: true,
+    status: true,
+    observations: true,
+    supplierComments: true,
+    updatedAt: true,
+    photos: true,
+  },
 };
 
 export const REPORT_CONFIG_STORAGE_KEY = 'report-config-preferences';

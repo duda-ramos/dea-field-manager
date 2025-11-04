@@ -24,9 +24,21 @@ export interface ReportConfig {
     timestamps: boolean;
     pavimentoSummary: boolean;
     storageChart: boolean;
+    thumbnails: boolean;
   };
   groupBy: 'none' | 'pavimento' | 'tipologia';
   sortBy: 'codigo' | 'pavimento' | 'tipologia' | 'updated_at';
+  visibleColumns: {
+    pavimento: boolean;
+    tipologia: boolean;
+    codigo: boolean;
+    descricao: boolean;
+    status: boolean;
+    observations: boolean;
+    supplierComments: boolean;
+    updatedAt: boolean;
+    photos: boolean;
+  };
   stats?: {
     pendencias: number;
     concluidas: number;
