@@ -22,6 +22,41 @@ import type { ReportCustomizationModalProps, ReportConfig } from './ReportCustom
 import type { ItemVersion } from '@/types';
 import { DEFAULT_REPORT_CONFIG, REPORT_CONFIG_STORAGE_KEY } from './ReportCustomizationModal.constants';
 
+const mergeConfigWithDefaults = (config: Partial<ReportConfig> | null | undefined): ReportConfig => {
+  if (!config) {
+    return DEFAULT_REPORT_CONFIG;
+  }
+
+  return {
+    ...DEFAULT_REPORT_CONFIG,
+    ...config,
+    sections: {
+      ...DEFAULT_REPORT_CONFIG.sections,
+      ...config.sections,
+    },
+    includeDetails: {
+      ...DEFAULT_REPORT_CONFIG.includeDetails,
+      ...config.includeDetails,
+    },
+    visibleColumns: {
+      ...DEFAULT_REPORT_CONFIG.visibleColumns,
+      ...config.visibleColumns,
+    },
+  };
+};
+
+const COLUMN_LABELS: Record<keyof ReportConfig['visibleColumns'], string> = {
+  pavimento: 'Pavimento',
+  tipologia: 'Tipologia',
+  codigo: 'Código',
+  descricao: 'Descrição',
+  status: 'Status',
+  observations: 'Observações',
+  supplierComments: 'Comentários do Fornecedor',
+  updatedAt: 'Atualizado em',
+  photos: 'Fotos',
+};
+
 export function ReportCustomizationModal({
   isOpen,
   onClose,
@@ -31,7 +66,7 @@ export function ReportCustomizationModal({
   installations,
 }: ReportCustomizationModalProps) {
   const { toast } = useToast();
-  const [config, setConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG);
+  const [config, setConfig] = useState<ReportConfig>(() => mergeConfigWithDefaults(DEFAULT_REPORT_CONFIG));
   const [previewData, setPreviewData] = useState<{
     sections: ReportSections;
     pavimentoSummary: PavimentoSummary[];
@@ -52,8 +87,8 @@ export function ReportCustomizationModal({
     try {
       const saved = localStorage.getItem(REPORT_CONFIG_STORAGE_KEY);
       if (saved) {
-        const savedConfig = JSON.parse(saved);
-        setConfig(savedConfig);
+        const savedConfig = JSON.parse(saved) as Partial<ReportConfig>;
+        setConfig(mergeConfigWithDefaults(savedConfig));
       }
     } catch (_error) {
       // Error já tratado com valores padrão
@@ -125,6 +160,19 @@ export function ReportCustomizationModal({
     return Object.values(config.sections).some(value => value);
   }, [config.sections]);
 
+  const selectedColumnLabels = useMemo(() => {
+    return Object.entries(config.visibleColumns)
+      .filter(([key, value]) => {
+        if (!value) return false;
+        if (key === 'supplierComments' && config.interlocutor !== 'fornecedor') return false;
+        if (key === 'observations' && !config.includeDetails.observations) return false;
+        if (key === 'photos' && !config.includeDetails.photos) return false;
+        if (key === 'updatedAt' && !config.includeDetails.timestamps) return false;
+        return true;
+      })
+      .map(([key]) => COLUMN_LABELS[key as keyof ReportConfig['visibleColumns']]);
+  }, [config.visibleColumns, config.includeDetails, config.interlocutor]);
+
   // Memoized handlers with useCallback
   const handleSectionToggle = useCallback((section: keyof ReportConfig['sections']) => {
     setConfig(prev => ({
@@ -137,17 +185,59 @@ export function ReportCustomizationModal({
   }, []);
 
   const handleDetailToggle = useCallback((detail: keyof ReportConfig['includeDetails']) => {
-    setConfig(prev => ({
-      ...prev,
-      includeDetails: {
+    setConfig(prev => {
+      const nextIncludeDetails = {
         ...prev.includeDetails,
         [detail]: !prev.includeDetails[detail],
+      };
+
+      const nextVisibleColumns = { ...prev.visibleColumns };
+
+      if (detail === 'photos') {
+        if (!nextIncludeDetails.photos) {
+          nextVisibleColumns.photos = false;
+          nextIncludeDetails.thumbnails = false;
+        } else {
+          nextVisibleColumns.photos = true;
+        }
+      }
+
+      if (detail === 'observations') {
+        nextVisibleColumns.observations = nextIncludeDetails.observations;
+      }
+
+      if (detail === 'supplierComments') {
+        nextVisibleColumns.supplierComments = nextIncludeDetails.supplierComments;
+      }
+
+      if (detail === 'timestamps') {
+        nextVisibleColumns.updatedAt = nextIncludeDetails.timestamps;
+      }
+
+      if (detail === 'thumbnails' && !nextIncludeDetails.photos) {
+        nextIncludeDetails.thumbnails = false;
+      }
+
+      return {
+        ...prev,
+        includeDetails: nextIncludeDetails,
+        visibleColumns: nextVisibleColumns,
+      };
+    });
+  }, []);
+
+  const handleColumnToggle = useCallback((column: keyof ReportConfig['visibleColumns']) => {
+    setConfig(prev => ({
+      ...prev,
+      visibleColumns: {
+        ...prev.visibleColumns,
+        [column]: !prev.visibleColumns[column],
       },
     }));
   }, []);
 
   const handleRestoreDefaults = useCallback(() => {
-    setConfig(DEFAULT_REPORT_CONFIG);
+    setConfig(mergeConfigWithDefaults(DEFAULT_REPORT_CONFIG));
     toast({
       title: 'Configurações restauradas',
       description: 'As preferências padrão do relatório foram aplicadas',
@@ -220,6 +310,7 @@ export function ReportCustomizationModal({
       timestamps: 'Datas de Criação/Atualização',
       pavimentoSummary: 'Resumo por Pavimento',
       storageChart: 'Gráfico de Status',
+      thumbnails: 'Incluir Miniaturas',
     };
     return labels[detail as keyof typeof labels] || detail;
   }, []);
@@ -391,20 +482,80 @@ export function ReportCustomizationModal({
                             }
                             return true;
                           })
-                          .map(([key, value]) => (
-                            <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <Checkbox
-                                  id={key}
-                                  checked={value}
-                                  onCheckedChange={() => handleDetailToggle(key as keyof ReportConfig['includeDetails'])}
-                                />
-                                <Label htmlFor={key} className="text-sm font-medium cursor-pointer">
-                                  {getDetailLabel(key)}
-                                </Label>
+                          .map(([key, value]) => {
+                            const detailKey = key as keyof ReportConfig['includeDetails'];
+                            const isThumbnails = detailKey === 'thumbnails';
+                            const isDisabled = isThumbnails && !config.includeDetails.photos;
+
+                            return (
+                              <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex items-center space-x-3">
+                                  <Checkbox
+                                    id={key}
+                                    checked={value}
+                                    disabled={isDisabled}
+                                    onCheckedChange={() => handleDetailToggle(detailKey)}
+                                  />
+                                  <Label
+                                    htmlFor={key}
+                                    className={`text-sm font-medium cursor-pointer ${isDisabled ? 'text-muted-foreground' : ''}`}
+                                  >
+                                    {getDetailLabel(key)}
+                                  </Label>
+                                </div>
+                                {isThumbnails && !config.includeDetails.photos && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Requer fotos
+                                  </Badge>
+                                )}
                               </div>
-                            </div>
-                          ))
+                            );
+                          })
+                        }
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">Colunas Visíveis</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Personalize quais colunas estarão disponíveis na exportação em Excel.
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {Object.entries(config.visibleColumns)
+                          .filter(([key]) => {
+                            if (key === 'supplierComments') {
+                              return config.interlocutor === 'fornecedor';
+                            }
+                            if (key === 'observations') {
+                              return config.includeDetails.observations;
+                            }
+                            if (key === 'photos') {
+                              return config.includeDetails.photos;
+                            }
+                            if (key === 'updatedAt') {
+                              return config.includeDetails.timestamps;
+                            }
+                            return true;
+                          })
+                          .map(([key, value]) => {
+                            const columnKey = key as keyof ReportConfig['visibleColumns'];
+                            return (
+                              <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex items-center space-x-3">
+                                  <Checkbox
+                                    id={`column-${key}`}
+                                    checked={value}
+                                    onCheckedChange={() => handleColumnToggle(columnKey)}
+                                  />
+                                  <Label htmlFor={`column-${key}`} className="text-sm font-medium cursor-pointer">
+                                    {COLUMN_LABELS[columnKey]}
+                                  </Label>
+                                </div>
+                              </div>
+                            );
+                          })
                         }
                       </CardContent>
                     </Card>
@@ -497,6 +648,20 @@ export function ReportCustomizationModal({
                                 </div>
                                 <div>
                                   <strong>Incluir observações:</strong> {config.includeDetails.observations ? 'Sim' : 'Não'}
+                                </div>
+                                {config.interlocutor === 'fornecedor' && (
+                                  <div>
+                                    <strong>Comentários do fornecedor:</strong> {config.includeDetails.supplierComments ? 'Sim' : 'Não'}
+                                  </div>
+                                )}
+                                <div>
+                                  <strong>Datas:</strong> {config.includeDetails.timestamps ? 'Sim' : 'Não'}
+                                </div>
+                                <div>
+                                  <strong>Miniaturas:</strong> {config.includeDetails.photos && config.includeDetails.thumbnails ? 'Sim' : 'Não'}
+                                </div>
+                                <div>
+                                  <strong>Colunas visíveis:</strong> {selectedColumnLabels.length > 0 ? selectedColumnLabels.join(', ') : 'Padrão'}
                                 </div>
                               </div>
                             </div>

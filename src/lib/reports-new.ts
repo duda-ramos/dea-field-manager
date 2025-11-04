@@ -1,13 +1,293 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import Chart from 'chart.js/auto';
 import { Project, Installation, ItemVersion } from '@/types';
 import type { ReportConfig } from '@/components/reports/ReportCustomizationModal.types';
+import { DEFAULT_REPORT_CONFIG } from '@/components/reports/ReportCustomizationModal.constants';
 import { storage } from './storage';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 
+type WorksheetCell = string | number | XLSX.CellObject;
+type WorksheetRow = WorksheetCell[];
+
+interface WorksheetImage {
+  name: string;
+  data: string;
+  extension?: string;
+  opts: {
+    base64: boolean;
+    origin: { r: number; c: number };
+    width?: number;
+    height?: number;
+  };
+}
+
+const STATUS_STYLE_MAP: Record<string, { fill: string; font: string }> = {
+  pendente: { fill: 'FFFDE68A', font: 'FF92400E' },
+  pendencia: { fill: 'FFFDE68A', font: 'FF92400E' },
+  'em andamento': { fill: 'FFDBEAFE', font: 'FF1D4ED8' },
+  andamento: { fill: 'FFDBEAFE', font: 'FF1D4ED8' },
+  revisao: { fill: 'FFE0E7FF', font: 'FF3730A3' },
+  'em revisao': { fill: 'FFE0E7FF', font: 'FF3730A3' },
+  concluido: { fill: 'FFDCFCE7', font: 'FF166534' },
+  concluida: { fill: 'FFDCFCE7', font: 'FF166534' },
+  instalado: { fill: 'FFDCFCE7', font: 'FF166534' },
+  ativo: { fill: 'FFE0F2FE', font: 'FF1E3A8A' },
+  'on hold': { fill: 'FFFEF3C7', font: 'FF92400E' },
+  cancelado: { fill: 'FFFEE2E2', font: 'FF991B1B' },
+  suspenso: { fill: 'FFFEF3C7', font: 'FF92400E' },
+};
+
+const DEFAULT_STATUS_STYLE = { fill: 'FFEFF6FF', font: 'FF1F2937' };
+
+const COLUMN_WIDTHS: Record<string, number> = {
+  Pavimento: 18,
+  Tipologia: 24,
+  Código: 12,
+  Descrição: 38,
+  Status: 16,
+  Observação: 30,
+  'Comentários do Fornecedor': 30,
+  'Atualizado em': 22,
+  Foto: 16,
+  Versão: 12,
+  Motivo: 30,
+  Link: 18,
+  Miniatura: 18,
+  Quantidade: 14,
+  Total: 14,
+  Percentual: 14,
+};
+
+const SECTION_LABELS: Record<keyof ReportConfig['sections'], string> = {
+  pendencias: 'Pendências',
+  concluidas: 'Concluídas',
+  emRevisao: 'Em Revisão',
+  emAndamento: 'Em Andamento',
+};
+
+const COLUMN_LABELS_MAP: Record<keyof ReportConfig['visibleColumns'], string> = {
+  pavimento: 'Pavimento',
+  tipologia: 'Tipologia',
+  codigo: 'Código',
+  descricao: 'Descrição',
+  status: 'Status',
+  observations: 'Observações',
+  supplierComments: 'Comentários do Fornecedor',
+  updatedAt: 'Atualizado em',
+  photos: 'Fotos',
+};
+
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
+
+function resolveReportConfig(config?: ReportConfig): ReportConfig {
+  if (!config) {
+    return {
+      ...DEFAULT_REPORT_CONFIG,
+      sections: { ...DEFAULT_REPORT_CONFIG.sections },
+      includeDetails: { ...DEFAULT_REPORT_CONFIG.includeDetails },
+      visibleColumns: { ...DEFAULT_REPORT_CONFIG.visibleColumns },
+    };
+  }
+
+  return {
+    ...DEFAULT_REPORT_CONFIG,
+    ...config,
+    sections: {
+      ...DEFAULT_REPORT_CONFIG.sections,
+      ...config.sections,
+    },
+    includeDetails: {
+      ...DEFAULT_REPORT_CONFIG.includeDetails,
+      ...config.includeDetails,
+    },
+    visibleColumns: {
+      ...DEFAULT_REPORT_CONFIG.visibleColumns,
+      ...config.visibleColumns,
+    },
+  };
+}
+
+function normalizeStatusKey(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function formatStatusLabel(value?: string): string {
+  if (!value) return 'Sem status';
+  return value
+    .toString()
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function getStatusDisplay(
+  item: Installation,
+  sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
+): { label: string; key: string } {
+  if (item.status) {
+    const key = normalizeStatusKey(item.status);
+    return {
+      label: formatStatusLabel(item.status),
+      key,
+    };
+  }
+
+  const fallbackMap: Record<typeof sectionType, string> = {
+    pendencias: 'pendente',
+    concluidas: 'concluido',
+    revisao: 'em revisao',
+    andamento: 'em andamento',
+  };
+
+  const fallback = fallbackMap[sectionType];
+  return {
+    label: formatStatusLabel(fallback),
+    key: normalizeStatusKey(fallback),
+  };
+}
+
+function createStatusCell(display: { label: string; key: string }): XLSX.CellObject {
+  const style = STATUS_STYLE_MAP[display.key] ?? DEFAULT_STATUS_STYLE;
+  return {
+    t: 's',
+    v: display.label,
+    s: {
+      fill: { fgColor: { rgb: style.fill } },
+      font: { color: { rgb: style.font }, bold: true },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    },
+  };
+}
+
+function formatDateTime(value?: string | number): string {
+  if (!value) return '';
+  try {
+    const date = typeof value === 'number' ? new Date(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return date.toLocaleString('pt-BR');
+  } catch (_error) {
+    return '';
+  }
+}
+
+async function fetchThumbnailDataUrl(photoUrl: string, size = 100): Promise<string | null> {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const response = await fetch(photoUrl);
+    if (!response.ok) {
+      console.warn('[fetchThumbnailDataUrl] Failed to download photo for thumbnail', { photoUrl });
+      return null;
+    }
+
+    const blob = await response.blob();
+
+    return await new Promise(resolve => {
+      const objectUrl = URL.createObjectURL(blob);
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(image, 0, 0, size, size);
+          const dataUrl = canvas.toDataURL('image/png');
+          resolve(dataUrl);
+        } catch (error) {
+          console.error('[fetchThumbnailDataUrl] Failed to render thumbnail', error);
+          resolve(null);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      };
+      image.src = objectUrl;
+    });
+  } catch (error) {
+    console.error('[fetchThumbnailDataUrl] Unexpected error generating thumbnail', error);
+    return null;
+  }
+}
+
+async function generateDoughnutChartImage(totals: {
+  pendencias: number;
+  concluidas: number;
+  emRevisao: number;
+  emAndamento: number;
+}): Promise<string | null> {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 360;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    canvas.remove();
+    return null;
+  }
+
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Pendências', 'Concluídas', 'Em Revisão', 'Em Andamento'],
+      datasets: [
+        {
+          data: [totals.pendencias, totals.concluidas, totals.emRevisao, totals.emAndamento],
+          backgroundColor: [
+            '#F59E0B',
+            '#10B981',
+            '#3B82F6',
+            '#6B7280',
+          ],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            boxWidth: 16,
+          },
+        },
+      },
+    },
+  });
+
+  const dataUrl = canvas.toDataURL('image/png');
+  chart.destroy();
+  canvas.remove();
+  return dataUrl;
+}
 
 /**
  * Upload report file to Supabase Storage and save metadata to database
@@ -133,6 +413,7 @@ export interface ReportData {
   generatedBy: string;
   generatedAt: string;
   interlocutor: 'cliente' | 'fornecedor';
+  customConfig?: ReportConfig;
 }
 
 export interface ReportSections {
@@ -144,6 +425,15 @@ export interface ReportSections {
 
 export interface PavimentoSummary {
   pavimento: string;
+  pendentes: number;
+  instalados: number;
+  emRevisao: number;
+  emAndamento: number;
+  total: number;
+}
+
+export interface TipologiaSummary {
+  tipologia: string;
   pendentes: number;
   instalados: number;
   emRevisao: number;
@@ -216,9 +506,9 @@ export function calculateReportSections(data: ReportData): ReportSections {
 // Calculate pavimento summary
 export function calculatePavimentoSummary(data: ReportSections): PavimentoSummary[] {
   const pavimentoMap = new Map<string, PavimentoSummary>();
-  
+
   const allItems = [...data.pendencias, ...data.concluidas, ...data.emRevisao, ...data.emAndamento];
-  
+
   allItems.forEach(item => {
     if (!pavimentoMap.has(item.pavimento)) {
       pavimentoMap.set(item.pavimento, {
@@ -241,8 +531,41 @@ export function calculatePavimentoSummary(data: ReportSections): PavimentoSummar
     summary.total++;
   });
   
-  return Array.from(pavimentoMap.values()).sort((a, b) => 
+  return Array.from(pavimentoMap.values()).sort((a, b) =>
     a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true })
+  );
+}
+
+function calculateTipologiaSummary(data: ReportSections): TipologiaSummary[] {
+  const tipologiaMap = new Map<string, TipologiaSummary>();
+
+  const allItems = [...data.pendencias, ...data.concluidas, ...data.emRevisao, ...data.emAndamento];
+
+  allItems.forEach(item => {
+    const tipologiaKey = item.tipologia || 'Sem Tipologia';
+    if (!tipologiaMap.has(tipologiaKey)) {
+      tipologiaMap.set(tipologiaKey, {
+        tipologia: tipologiaKey,
+        pendentes: 0,
+        instalados: 0,
+        emRevisao: 0,
+        emAndamento: 0,
+        total: 0,
+      });
+    }
+
+    const summary = tipologiaMap.get(tipologiaKey)!;
+
+    if (data.pendencias.includes(item)) summary.pendentes++;
+    else if (data.concluidas.includes(item)) summary.instalados++;
+    else if (data.emRevisao.includes(item)) summary.emRevisao++;
+    else if (data.emAndamento.includes(item)) summary.emAndamento++;
+
+    summary.total++;
+  });
+
+  return Array.from(tipologiaMap.values()).sort((a, b) =>
+    a.tipologia.localeCompare(b.tipologia, 'pt-BR', { numeric: true })
   );
 }
 
@@ -801,7 +1124,7 @@ async function addEnhancedSectionToPDF(
     }
 
     // Prepare table data (full columns including Pavimento and Tipologia)
-    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
+    const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, undefined, projectId);
 
     // Generate single flat table
     autoTable(doc, {
@@ -1421,83 +1744,128 @@ async function prepareDynamicTableData(
   options: {
     includePavimento: boolean;
     includeTipologia: boolean;
+    config?: ReportConfig;
   } = { includePavimento: true, includeTipologia: true },
-  _projectId?: string
-): Promise<{ columns: string[], rows: unknown[][] }> {
-  let columns: string[] = [];
-  let rows: unknown[][] = [];
+  _projectId?: string,
+): Promise<{ columns: string[]; rows: WorksheetRow[] }> {
+  const cfg = options.config ? resolveReportConfig(options.config) : DEFAULT_REPORT_CONFIG;
+  const hasCustomConfig = Boolean(options.config);
 
-  // Build columns based on options and section type
-  const baseColumns: string[] = [];
-  if (options.includePavimento) baseColumns.push('Pavimento');
-  if (options.includeTipologia) baseColumns.push('Tipologia');
-  baseColumns.push('Código', 'Descrição');
+  const includePavimento = options.includePavimento && (cfg.visibleColumns.pavimento ?? true);
+  const includeTipologia = options.includeTipologia && (cfg.visibleColumns.tipologia ?? true);
+  const includeStatus = hasCustomConfig ? (cfg.visibleColumns.status ?? true) : false;
+  const includeObservations = hasCustomConfig
+    ? cfg.includeDetails.observations && (cfg.visibleColumns.observations ?? false)
+    : sectionType === 'pendencias';
+  const includeSupplierComments = hasCustomConfig
+    ? interlocutor === 'fornecedor' && cfg.includeDetails.supplierComments && (cfg.visibleColumns.supplierComments ?? false)
+    : sectionType === 'pendencias' && interlocutor === 'fornecedor';
+  const includeUpdatedAt = hasCustomConfig
+    ? cfg.includeDetails.timestamps && (cfg.visibleColumns.updatedAt ?? false)
+    : false;
+  const includePhotos = hasCustomConfig
+    ? cfg.includeDetails.photos && (cfg.visibleColumns.photos ?? false)
+    : sectionType === 'pendencias';
+
+  let columns: string[] = [];
+  const rows: WorksheetRow[] = [];
 
   if (sectionType === 'pendencias') {
-    if (interlocutor === 'cliente') {
-      columns = [...baseColumns, 'Observação', 'Foto'];
-      rows = items.map((item) => {
-        const row: unknown[] = [];
-        if (options.includePavimento) row.push(item.pavimento);
-        if (options.includeTipologia) row.push(item.tipologia);
-        row.push(
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        );
-        return row;
-      });
-    } else {
-      columns = [...baseColumns, 'Observação', 'Comentários do Fornecedor', 'Foto'];
-      rows = items.map((item) => {
-        const row: unknown[] = [];
-        if (options.includePavimento) row.push(item.pavimento);
-        if (options.includeTipologia) row.push(item.tipologia);
-        row.push(
-          item.codigo.toString(),
-          item.descricao,
-          item.observacoes || '',
-          item.comentarios_fornecedor || '',
-          (item.photos && item.photos.length > 0) ? 'Ver foto' : ''
-        );
-        return row;
-      });
-    }
+    columns = [];
+    if (includePavimento) columns.push('Pavimento');
+    if (includeTipologia) columns.push('Tipologia');
+    columns.push('Código', 'Descrição');
+    if (includeStatus) columns.push('Status');
+    if (includeObservations) columns.push('Observação');
+    if (includeSupplierComments) columns.push('Comentários do Fornecedor');
+    if (includePhotos) columns.push('Foto');
+    if (includeUpdatedAt) columns.push('Atualizado em');
+
+    items.forEach(item => {
+      const row: WorksheetRow = [];
+      if (includePavimento) row.push(item.pavimento || '');
+      if (includeTipologia) row.push(item.tipologia || '');
+      row.push(item.codigo != null ? item.codigo.toString() : '', item.descricao || '');
+
+      if (includeStatus) {
+        row.push(createStatusCell(getStatusDisplay(item, sectionType)));
+      }
+
+      if (includeObservations) {
+        row.push(item.observacoes || '');
+      }
+
+      if (includeSupplierComments) {
+        row.push(item.comentarios_fornecedor || '');
+      }
+
+      if (includePhotos) {
+        row.push(item.photos && item.photos.length > 0 ? `Ver foto (${item.photos.length})` : 'Sem foto');
+      }
+
+      if (includeUpdatedAt) {
+        row.push(formatDateTime(item.updated_at ?? item.updatedAt));
+      }
+
+      rows.push(row);
+    });
   } else if (sectionType === 'revisao') {
-    columns = [...baseColumns, 'Versão', 'Motivo'];
-    
-    // PERFORMANCE: Batch fetch all versions at once instead of sequential calls
+    columns = [];
+    if (includePavimento) columns.push('Pavimento');
+    if (includeTipologia) columns.push('Tipologia');
+    columns.push('Código', 'Descrição', 'Versão', 'Motivo');
+    if (includeStatus) columns.push('Status');
+    if (includeUpdatedAt) columns.push('Atualizado em');
+
     const itemIds = items.map(item => item.id);
     const revisionHints = new Map(items.map(item => [item.id, item.revisao ?? 0]));
     const versionsMap = await batchFetchVersions(itemIds, revisionHints);
-    
-    rows = items.map(item => {
-      const row: unknown[] = [];
-      if (options.includePavimento) row.push(item.pavimento);
-      if (options.includeTipologia) row.push(item.tipologia);
-      
+
+    items.forEach(item => {
+      const row: WorksheetRow = [];
+      if (includePavimento) row.push(item.pavimento || '');
+      if (includeTipologia) row.push(item.tipologia || '');
+      row.push(item.codigo != null ? item.codigo.toString() : '', item.descricao || '');
+
       const versions = versionsMap.get(item.id) || [];
       const latestVersion = versions[versions.length - 1];
       const motivo = latestVersion ? getMotivoPtBr(latestVersion.motivo) : '';
-      
-      row.push(
-        item.codigo.toString(),
-        item.descricao,
-        item.revisao.toString(),
-        motivo
-      );
-      return row;
+
+      row.push(item.revisao != null ? item.revisao.toString() : '', motivo);
+
+      if (includeStatus) {
+        row.push(createStatusCell(getStatusDisplay(item, sectionType)));
+      }
+
+      if (includeUpdatedAt) {
+        row.push(formatDateTime(item.updated_at ?? item.updatedAt));
+      }
+
+      rows.push(row);
     });
   } else {
-    // concluidas or andamento
-    columns = baseColumns;
-    rows = items.map(item => {
-      const row: unknown[] = [];
-      if (options.includePavimento) row.push(item.pavimento);
-      if (options.includeTipologia) row.push(item.tipologia);
-      row.push(item.codigo.toString(), item.descricao);
-      return row;
+    columns = [];
+    if (includePavimento) columns.push('Pavimento');
+    if (includeTipologia) columns.push('Tipologia');
+    columns.push('Código', 'Descrição');
+    if (includeStatus) columns.push('Status');
+    if (includeUpdatedAt) columns.push('Atualizado em');
+
+    items.forEach(item => {
+      const row: WorksheetRow = [];
+      if (includePavimento) row.push(item.pavimento || '');
+      if (includeTipologia) row.push(item.tipologia || '');
+      row.push(item.codigo != null ? item.codigo.toString() : '', item.descricao || '');
+
+      if (includeStatus) {
+        row.push(createStatusCell(getStatusDisplay(item, sectionType)));
+      }
+
+      if (includeUpdatedAt) {
+        row.push(formatDateTime(item.updated_at ?? item.updatedAt));
+      }
+
+      rows.push(row);
     });
   }
 
@@ -1510,12 +1878,14 @@ async function prepareFlatTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
-  _projectId?: string
-): Promise<{ columns: string[], rows: unknown[][] }> {
+  config?: ReportConfig,
+  projectId?: string,
+): Promise<{ columns: string[]; rows: WorksheetRow[] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: true,
-    includeTipologia: true
-  }, _projectId);
+    includeTipologia: true,
+    config,
+  }, projectId);
 }
 
 // Aggregate items by Pavimento and Tipologia for summary sections
@@ -1601,11 +1971,13 @@ async function prepareCompactTableData(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento',
-  projectId?: string
-): Promise<{ columns: string[], rows: unknown[][] }> {
+  config?: ReportConfig,
+  projectId?: string,
+): Promise<{ columns: string[]; rows: WorksheetRow[] }> {
   return prepareDynamicTableData(items, interlocutor, sectionType, {
     includePavimento: false,
-    includeTipologia: false
+    includeTipologia: false,
+    config,
   }, projectId);
 }
 
@@ -1811,99 +2183,94 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
       return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
 
+    const config = resolveReportConfig(data.customConfig);
     const sections = calculateReportSections(data);
     const pavimentoSummary = calculatePavimentoSummary(sections);
+    const tipologiaSummary = calculateTipologiaSummary(sections);
     const workbook = XLSX.utils.book_new();
 
-  // Add enhanced summary sheet
-  const summaryData = [
-    ['Relatório de Instalações', ''],
-    ['Projeto', data.project.name],
-    ['Cliente', data.project.client],
-    ['Data', new Date(data.generatedAt).toLocaleDateString('pt-BR')],
-    
-    ['', ''],
-    ['Resumo Geral', ''],
-    ['Pendências', sections.pendencias.length],
-    ['Concluídas', sections.concluidas.length],
-    ['Em Revisão', sections.emRevisao.length],
-    [data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento', sections.emAndamento.length],
-    ['Total', sections.pendencias.length + sections.concluidas.length + sections.emRevisao.length + sections.emAndamento.length]
-  ];
-  
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
+    const totals = {
+      pendencias: sections.pendencias.length,
+      concluidas: sections.concluidas.length,
+      emRevisao: sections.emRevisao.length,
+      emAndamento: sections.emAndamento.length,
+      total: data.installations.length,
+    };
 
-  // Add enhanced pavimento summary sheet
-  if (pavimentoSummary.length > 0) {
-    const pavimentoHeaders = [
-      'Pavimento', 'Pendentes', 'Em_Andamento', 'Instalados', 'Total', 
-      '%Pendentes', '%Em_Andamento', '%Instalados'
-    ];
-    
-    const pavimentoData = pavimentoSummary.map(item => {
-      const total = item.pendentes + item.emAndamento + item.instalados;
-      const percentPendentes = total > 0 ? Math.round((item.pendentes / total) * 100) : 0;
-      const percentEmAndamento = total > 0 ? Math.round((item.emAndamento / total) * 100) : 0;
-      const percentInstalados = total > 0 ? Math.round((item.instalados / total) * 100) : 0;
-      
-      return [
-        item.pavimento,
-        item.pendentes,
-        item.emAndamento,
-        item.instalados,
-        total,
-        `${percentPendentes}%`,
-        `${percentEmAndamento}%`,
-        `${percentInstalados}%`
-      ];
-    });
-    
-    const pavimentoSheet = XLSX.utils.aoa_to_sheet([pavimentoHeaders, ...pavimentoData]);
-    // Freeze top row
-    pavimentoSheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-    // Auto filter
-    pavimentoSheet['!autofilter'] = { ref: `A1:H${pavimentoSummary.length + 1}` };
-    
-    XLSX.utils.book_append_sheet(workbook, pavimentoSheet, 'Resumo_Pavimento');
-  }
+    addResumoGeralSheet(workbook, data, totals, pavimentoSummary, tipologiaSummary, config);
+    addPavimentoOverviewSheet(workbook, pavimentoSummary);
+    addTipologiaOverviewSheet(workbook, tipologiaSummary);
 
-  // Add sections only if they have items - each section wrapped in try/catch
-  if (sections.pendencias.length > 0) {
-    try {
-      await addFlatSectionToXLSX(workbook, 'Pendências', sections.pendencias, data.interlocutor, 'pendencias', data.project.id);
-    } catch (error) {
-      console.error('[generateXLSXReport] Error adding Pendências section, skipping:', error);
+    const hasPhotos = config.includeDetails.photos && data.installations.some(item => item.photos && item.photos.length > 0);
+    if (hasPhotos) {
+      await addPhotosSheet(workbook, data.installations, config);
     }
-  }
 
-  if (sections.concluidas.length > 0) {
-    try {
-      addAggregatedSectionToXLSX(workbook, 'Concluídas', sections.concluidas, data.interlocutor, 'concluidas');
-    } catch (error) {
-      console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
+    await addAnalysisSheet(workbook, sections, totals, config);
+
+    if (config.sections.pendencias && sections.pendencias.length > 0) {
+      try {
+        await addFlatSectionToXLSX(
+          workbook,
+          'Pendências',
+          sections.pendencias,
+          data.interlocutor,
+          'pendencias',
+          config,
+          data.project.id,
+        );
+      } catch (error) {
+        console.error('[generateXLSXReport] Error adding Pendências section, skipping:', error);
+      }
     }
-  }
 
-  if (sections.emRevisao.length > 0) {
-    try {
-      await addFlatSectionToXLSX(workbook, 'Em Revisão', sections.emRevisao, data.interlocutor, 'revisao', data.project.id);
-    } catch (error) {
-      console.error('[generateXLSXReport] Error adding Em Revisão section, skipping:', error);
+    if (config.sections.concluidas && sections.concluidas.length > 0) {
+      try {
+        addAggregatedSectionToXLSX(
+          workbook,
+          'Concluídas',
+          sections.concluidas,
+          data.interlocutor,
+          'concluidas',
+        );
+      } catch (error) {
+        console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
+      }
     }
-  }
 
-  if (sections.emAndamento.length > 0) {
-    try {
-      const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
-      addAggregatedSectionToXLSX(workbook, sheetName, sections.emAndamento, data.interlocutor, 'andamento');
-    } catch (error) {
-      console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
+    if (config.sections.emRevisao && sections.emRevisao.length > 0) {
+      try {
+        await addFlatSectionToXLSX(
+          workbook,
+          'Em Revisão',
+          sections.emRevisao,
+          data.interlocutor,
+          'revisao',
+          config,
+          data.project.id,
+        );
+      } catch (error) {
+        console.error('[generateXLSXReport] Error adding Em Revisão section, skipping:', error);
+      }
     }
-  }
 
-  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if (config.sections.emAndamento && sections.emAndamento.length > 0) {
+      try {
+        const sheetName = data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento';
+        addAggregatedSectionToXLSX(
+          workbook,
+          sheetName,
+          sections.emAndamento,
+          data.interlocutor,
+          'andamento',
+        );
+      } catch (error) {
+        console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
+      }
+    }
+
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   } catch (error) {
     // Critical error - log detailed context and return empty blob
     logger.error('Falha crítica ao gerar relatório Excel', {
@@ -2009,7 +2376,7 @@ async function _addEnhancedSectionToXLSX(
   projectId?: string
 ) {
   // Use compact columns (without Pavimento and Tipologia)
-  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, projectId);
+  const { columns: compactColumns } = await prepareCompactTableData([], interlocutor, sectionType, undefined, projectId);
   const allData: (string | number)[][] = [compactColumns]; // Headers
 
   // Group by pavimento
@@ -2072,7 +2439,7 @@ async function _addEnhancedSectionToXLSX(
       });
 
       // Add items data (compact format)
-      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, projectId);
+      const { rows } = await prepareCompactTableData(sortedItems, interlocutor, sectionType, undefined, projectId);
       allData.push(...(rows as (string | number)[][]));
     }
 
@@ -2105,14 +2472,360 @@ function _dataUrlToBase64(dataUrl: string): string {
  * @param text - Display text (default: 'Ver Foto')
  * @returns Cell object with hyperlink and styling
  */
-function createHyperlinkCell(url: string, text: string = 'Ver Foto'): { content: string; styles: { textColor: number[]; fontStyle: string } } {
+function createHyperlinkCell(url: string, text: string = 'Ver Foto'): XLSX.CellObject {
   return {
-    content: text,
-    styles: {
-      textColor: [0, 0, 255],
-      fontStyle: 'underline'
-    }
+    t: 's',
+    v: text,
+    l: { Target: url, Tooltip: text },
+    s: {
+      font: { color: { rgb: 'FF1D4ED8' }, underline: true },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    },
   };
+}
+
+function addResumoGeralSheet(
+  workbook: XLSX.WorkBook,
+  data: ReportData,
+  totals: { pendencias: number; concluidas: number; emRevisao: number; emAndamento: number; total: number },
+  pavimentoSummary: PavimentoSummary[],
+  tipologiaSummary: TipologiaSummary[],
+  config: ReportConfig,
+) {
+  const percent = (value: number) => (totals.total > 0 ? `${((value / totals.total) * 100).toFixed(1)}%` : '0%');
+  const rows: WorksheetRow[] = [];
+
+  const headerCell: XLSX.CellObject = {
+    t: 's',
+    v: 'Resumo Geral do Projeto',
+    s: {
+      font: { bold: true, sz: 16 },
+      alignment: { horizontal: 'left' },
+    },
+  };
+  rows.push([headerCell, '', '']);
+
+  rows.push(['Projeto', data.project.name ?? '', '']);
+  rows.push(['Cliente', data.project.client ?? '', '']);
+  rows.push(['Destinatário', config.interlocutor === 'fornecedor' ? 'Fornecedor' : 'Cliente', '']);
+  rows.push(['Gerado por', data.generatedBy || 'Sistema', '']);
+  rows.push(['Gerado em', new Date(data.generatedAt).toLocaleString('pt-BR'), '']);
+  rows.push(['', '', '']);
+
+  const statsHeader: XLSX.CellObject = {
+    t: 's',
+    v: 'Estatísticas',
+    s: {
+      font: { bold: true, sz: 14 },
+    },
+  };
+  rows.push([statsHeader, '', '']);
+  rows.push([
+    { t: 's', v: 'Status', s: { font: { bold: true } } },
+    { t: 's', v: 'Quantidade', s: { font: { bold: true } } },
+    { t: 's', v: 'Percentual', s: { font: { bold: true } } },
+  ]);
+  rows.push(['Pendências', totals.pendencias, percent(totals.pendencias)]);
+  rows.push(['Concluídas', totals.concluidas, percent(totals.concluidas)]);
+  rows.push(['Em Revisão', totals.emRevisao, percent(totals.emRevisao)]);
+  rows.push([
+    data.interlocutor === 'fornecedor' ? 'Aguardando Instalação' : 'Em Andamento',
+    totals.emAndamento,
+    percent(totals.emAndamento),
+  ]);
+  rows.push(['Total de Instalações', totals.total, '100%']);
+  rows.push(['', '', '']);
+
+  const selectedSections = Object.entries(config.sections)
+    .filter(([, value]) => value)
+    .map(([key]) => SECTION_LABELS[key as keyof ReportConfig['sections']]);
+
+  const visibleColumns = Object.entries(config.visibleColumns)
+    .filter(([key, value]) => {
+      if (!value) return false;
+      if (key === 'supplierComments' && config.interlocutor !== 'fornecedor') return false;
+      if (key === 'observations' && !config.includeDetails.observations) return false;
+      if (key === 'photos' && !config.includeDetails.photos) return false;
+      if (key === 'updatedAt' && !config.includeDetails.timestamps) return false;
+      return true;
+    })
+    .map(([key]) => COLUMN_LABELS_MAP[key as keyof ReportConfig['visibleColumns']]);
+
+  rows.push(['Pavimentos monitorados', pavimentoSummary.length, '']);
+  rows.push(['Tipologias monitoradas', tipologiaSummary.length, '']);
+  rows.push([
+    'Seções incluídas',
+    selectedSections.length > 0 ? selectedSections.join(', ') : 'Nenhuma seção selecionada',
+    '',
+  ]);
+  rows.push([
+    'Colunas visíveis',
+    visibleColumns.length > 0 ? visibleColumns.join(', ') : 'Padrão do sistema',
+    '',
+  ]);
+  rows.push([
+    'Miniaturas',
+    config.includeDetails.photos && config.includeDetails.thumbnails ? 'Ativadas' : 'Desativadas',
+    '',
+  ]);
+  rows.push(['Gráfico de status', config.includeDetails.storageChart ? 'Ativado' : 'Desativado', '']);
+  rows.push(['Resumo por pavimento', config.includeDetails.pavimentoSummary ? 'Ativado' : 'Desativado', '']);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!cols'] = [{ wch: 32 }, { wch: 36 }, { wch: 20 }];
+  worksheet['!rows'] = rows.map((_, index) => {
+    if (index === 0) return { hpt: 30 };
+    if (index === 7) return { hpt: 26 };
+    return { hpt: 20 };
+  });
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo Geral');
+}
+
+function addPavimentoOverviewSheet(workbook: XLSX.WorkBook, summary: PavimentoSummary[]) {
+  if (!summary.length) {
+    return;
+  }
+
+  const headers = ['Pavimento', 'Pendências', 'Concluídas', 'Em Revisão', 'Em Andamento', 'Total', '% Concluído'];
+  const rows: WorksheetRow[] = [
+    headers.map(header => ({ t: 's', v: header, s: { font: { bold: true } } })),
+  ];
+
+  summary.forEach(item => {
+    const percentDone = item.total > 0 ? `${((item.instalados / item.total) * 100).toFixed(1)}%` : '0%';
+    rows.push([
+      item.pavimento,
+      item.pendentes,
+      item.instalados,
+      item.emRevisao,
+      item.emAndamento,
+      item.total,
+      percentDone,
+    ]);
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  worksheet['!autofilter'] = { ref: `A1:G${rows.length}` };
+  worksheet['!cols'] = headers.map(header => ({ wch: COLUMN_WIDTHS[header] ?? 18 }));
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Por Pavimento');
+}
+
+function addTipologiaOverviewSheet(workbook: XLSX.WorkBook, summary: TipologiaSummary[]) {
+  if (!summary.length) {
+    return;
+  }
+
+  const headers = ['Tipologia', 'Pendências', 'Concluídas', 'Em Revisão', 'Em Andamento', 'Total', '% Concluído'];
+  const rows: WorksheetRow[] = [
+    headers.map(header => ({ t: 's', v: header, s: { font: { bold: true } } })),
+  ];
+
+  summary.forEach(item => {
+    const percentDone = item.total > 0 ? `${((item.instalados / item.total) * 100).toFixed(1)}%` : '0%';
+    rows.push([
+      item.tipologia,
+      item.pendentes,
+      item.instalados,
+      item.emRevisao,
+      item.emAndamento,
+      item.total,
+      percentDone,
+    ]);
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  worksheet['!autofilter'] = { ref: `A1:G${rows.length}` };
+  worksheet['!cols'] = headers.map(header => ({ wch: COLUMN_WIDTHS[header] ?? 18 }));
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Por Tipologia');
+}
+
+async function addPhotosSheet(workbook: XLSX.WorkBook, installations: Installation[], config: ReportConfig) {
+  const photoEntries: Array<{ item: Installation; url: string; label: string }> = [];
+
+  installations.forEach(item => {
+    if (item.photos && item.photos.length > 0) {
+      item.photos.forEach((url, index) => {
+        photoEntries.push({
+          item,
+          url,
+          label: item.photos.length > 1 ? `Foto ${index + 1}` : 'Foto',
+        });
+      });
+    }
+  });
+
+  if (!photoEntries.length) {
+    return;
+  }
+
+  const headers = ['Pavimento', 'Tipologia', 'Código', 'Descrição', 'Link', 'Miniatura'];
+  const rows: WorksheetRow[] = [
+    headers.map(header => ({ t: 's', v: header, s: { font: { bold: true } } })),
+  ];
+  const rowHeights: Array<{ hpt: number }> = [{ hpt: 24 }];
+
+  photoEntries.forEach(entry => {
+    const row: WorksheetRow = [
+      entry.item.pavimento || '—',
+      entry.item.tipologia || '—',
+      entry.item.codigo != null ? entry.item.codigo.toString() : '',
+      entry.item.descricao || '',
+      createHyperlinkCell(entry.url, entry.label),
+      config.includeDetails.thumbnails ? '' : '—',
+    ];
+    rows.push(row);
+    rowHeights.push({ hpt: config.includeDetails.thumbnails ? 86 : 22 });
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!cols'] = headers.map(header => ({ wch: COLUMN_WIDTHS[header] ?? 22 }));
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+  worksheet['!autofilter'] = { ref: `A1:F${rows.length}` };
+  worksheet['!rows'] = rowHeights;
+
+  if (config.includeDetails.thumbnails) {
+    const thumbnailResults = await Promise.all(
+      photoEntries.map(async (entry, index) => ({
+        index,
+        dataUrl: await fetchThumbnailDataUrl(entry.url),
+      })),
+    );
+
+    const images: WorksheetImage[] = [];
+    thumbnailResults.forEach(result => {
+      const rowIndex = result.index + 1;
+      const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: headers.length - 1 });
+      if (result.dataUrl) {
+        images.push({
+          name: `thumb-${result.index}.png`,
+          data: _dataUrlToBase64(result.dataUrl),
+          extension: 'png',
+          opts: {
+            base64: true,
+            origin: { r: rowIndex, c: headers.length - 1 },
+            width: 100,
+            height: 100,
+          },
+        });
+        worksheet[cellAddress] = { t: 's', v: '' };
+      } else {
+        worksheet[cellAddress] = {
+          t: 's',
+          v: 'Miniatura indisponível',
+          s: {
+            font: { color: { rgb: 'FF6B7280' }, italic: true },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          },
+        };
+      }
+    });
+
+    if (images.length) {
+      (worksheet as unknown as { ['!images']?: WorksheetImage[] })['!images'] = images;
+    }
+  }
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Fotos');
+}
+
+async function addAnalysisSheet(
+  workbook: XLSX.WorkBook,
+  sections: ReportSections,
+  totals: { pendencias: number; concluidas: number; emRevisao: number; emAndamento: number; total: number },
+  config: ReportConfig,
+) {
+  const rows: WorksheetRow[] = [];
+  rows.push([
+    {
+      t: 's',
+      v: 'Análise de Progresso',
+      s: { font: { bold: true, sz: 16 }, alignment: { horizontal: 'left' } },
+    },
+    '',
+    '',
+  ]);
+
+  const completionPercent = totals.total > 0 ? (totals.concluidas / totals.total) * 100 : 0;
+  rows.push(['Progresso Geral', `${completionPercent.toFixed(1)}%`, '']);
+  rows.push(['Pendências Abertas', totals.pendencias, '']);
+  rows.push(['Itens em Revisão', totals.emRevisao, '']);
+  rows.push(['Itens em Andamento', totals.emAndamento, '']);
+  rows.push(['Total de Instalações', totals.total, '']);
+  rows.push(['', '', '']);
+  rows.push([
+    { t: 's', v: 'Gráfico de Status (Barra)', s: { font: { bold: true } } },
+    '',
+    '',
+  ]);
+  rows.push(['', '', '']);
+  rows.push(['', '', '']);
+  rows.push(['', '', '']);
+  rows.push([
+    { t: 's', v: 'Distribuição de Status (Pizza)', s: { font: { bold: true } } },
+    '',
+    '',
+  ]);
+  rows.push(['', '', '']);
+  rows.push(['', '', '']);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!cols'] = [{ wch: 34 }, { wch: 22 }, { wch: 22 }];
+  worksheet['!rows'] = rows.map((_, index) => {
+    if (index === 0) return { hpt: 30 };
+    if (index === 8 || index === 12) return { hpt: 180 };
+    return { hpt: 22 };
+  });
+
+  const images: WorksheetImage[] = [];
+
+  if (config.includeDetails.storageChart) {
+    const storageChart = await generateStorageBarImage(sections);
+    if (storageChart) {
+      images.push({
+        name: 'status-bar.png',
+        data: _dataUrlToBase64(storageChart),
+        extension: 'png',
+        opts: {
+          base64: true,
+          origin: { r: 8, c: 0 },
+          width: 640,
+          height: 160,
+        },
+      });
+    }
+  }
+
+  const doughnutChart = await generateDoughnutChartImage({
+    pendencias: totals.pendencias,
+    concluidas: totals.concluidas,
+    emRevisao: totals.emRevisao,
+    emAndamento: totals.emAndamento,
+  });
+
+  if (doughnutChart) {
+    images.push({
+      name: 'status-doughnut.png',
+      data: _dataUrlToBase64(doughnutChart),
+      extension: 'png',
+      opts: {
+        base64: true,
+        origin: { r: 12, c: 0 },
+        width: 420,
+        height: 260,
+      },
+    });
+  }
+
+  if (images.length) {
+    (worksheet as unknown as { ['!images']?: WorksheetImage[] })['!images'] = images;
+  }
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Análise');
 }
 
 // Add flat section to XLSX for Pendencias and Em Revisao (single table without subgroups)
@@ -2122,9 +2835,9 @@ async function addFlatSectionToXLSX(
   items: Installation[],
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'revisao',
-  projectId?: string
+  config: ReportConfig,
+  projectId?: string,
 ) {
-  // Sort items by Pavimento, Tipologia, Código
   const sortedItems = [...items].sort((a, b) => {
     if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
     if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
@@ -2133,9 +2846,9 @@ async function addFlatSectionToXLSX(
     return codeA - codeB;
   });
 
-  // Pre-upload photos and create galleries for pendencias section
-  const galleryUrlsMap = new Map<string, { url: string, count: number }>();
-  if (sectionType === 'pendencias' && projectId) {
+  const includePhotos = config.includeDetails.photos && config.visibleColumns.photos;
+  const galleryUrlsMap = new Map<string, { url: string; count: number }>();
+  if (sectionType === 'pendencias' && includePhotos && projectId) {
     for (const item of sortedItems) {
       if (item.photos && item.photos.length > 0) {
         const galleryUrl = await uploadPhotosForReport(item.photos, item.id);
@@ -2146,81 +2859,54 @@ async function addFlatSectionToXLSX(
     }
   }
 
-  // Prepare flat table data (includes Pavimento and Tipologia)
-  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, projectId);
+  const { columns, rows } = await prepareFlatTableData(sortedItems, interlocutor, sectionType, config, projectId);
+  const worksheet = XLSX.utils.aoa_to_sheet([columns, ...rows]);
 
-  // For XLSX with pendencias section, create hyperlink cells for photos
-  const xlsxRows = rows;
+  worksheet['!cols'] = columns.map(column => ({ wch: COLUMN_WIDTHS[column] ?? 18 }));
 
-  const wsData = [columns, ...xlsxRows];
-  const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths
-  const colWidths = columns.map((col, _idx) => {
-    if (col === 'Foto') return { wch: 15 };
-    if (col === 'Pavimento') return { wch: 15 };
-    if (col === 'Tipologia') return { wch: 20 };
-    if (col === 'Código') return { wch: 10 };
-    if (col === 'Descrição') return { wch: 30 };
-    if (col === 'Observação') return { wch: 25 };
-    if (col === 'Comentários do Fornecedor') return { wch: 25 };
-    return { wch: 12 };
-  });
-  worksheet['!cols'] = colWidths;
-  
-  // Set row heights for data rows if there are photos
-  const rowHeights: Array<{ hpt: number }> = [{ hpt: 20 }]; // Header row
-  
-  // Add hyperlink cells for photos in pendencias section
-  if (sectionType === 'pendencias') {
+  const rowHeights: Array<{ hpt: number }> = [{ hpt: 24 }];
+  for (let i = 0; i < sortedItems.length; i += 1) {
+    rowHeights.push({ hpt: 22 });
+  }
+
+  if (sectionType === 'pendencias' && includePhotos) {
     const photoColIndex = columns.indexOf('Foto');
     if (photoColIndex !== -1) {
-      // Add hyperlinks and styling for each row that has photos
-      for (let rowIdx = 0; rowIdx < sortedItems.length; rowIdx++) {
-        const item = sortedItems[rowIdx];
+      sortedItems.forEach((item, index) => {
         const galleryInfo = galleryUrlsMap.get(item.id);
-        
-        // Set row height
-        rowHeights.push({ hpt: 20 });
-        
-        const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: photoColIndex });
-        
+        const cellAddress = XLSX.utils.encode_cell({ r: index + 1, c: photoColIndex });
+
         if (galleryInfo) {
-          // Create clickable hyperlink cell
-          const linkText = `Ver Fotos (${galleryInfo.count})`;
-          worksheet[cellAddress] = createHyperlinkCell(galleryInfo.url, linkText);
+          worksheet[cellAddress] = createHyperlinkCell(galleryInfo.url, `Ver Fotos (${galleryInfo.count})`);
         } else if (item.photos && item.photos.length > 0) {
-          // If upload failed, show "Sem foto" instead of breaking
           worksheet[cellAddress] = {
             t: 's',
-            v: 'Sem foto',
+            v: 'Arquivo indisponível',
             s: {
-              font: { color: { rgb: '999999' } },
-              alignment: { horizontal: 'center', vertical: 'center' }
-            }
+              font: { color: { rgb: 'FF6B7280' }, italic: true },
+              alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            },
           };
         } else {
-          // Add "Sem foto" for items without photos
           worksheet[cellAddress] = {
             t: 's',
             v: 'Sem foto',
             s: {
-              font: { color: { rgb: '999999' } },
-              alignment: { horizontal: 'center', vertical: 'center' }
-            }
+              font: { color: { rgb: 'FF9CA3AF' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+            },
           };
         }
-      }
-      
-      worksheet['!rows'] = rowHeights;
+      });
     }
   }
-  
-  // Freeze top row (header)
+
+  worksheet['!rows'] = rowHeights;
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-  // Auto filter on header row
-  worksheet['!autofilter'] = { ref: `A1:${String.fromCharCode(65 + columns.length - 1)}${sortedItems.length + 1}` };
-  
+  worksheet['!autofilter'] = {
+    ref: `A1:${XLSX.utils.encode_col(columns.length - 1)}${rows.length + 1}`,
+  };
+
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
 
