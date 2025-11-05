@@ -313,8 +313,13 @@ export function ReportCustomizationModal({
 
       if (format === 'pdf') {
         setGenerationProgress(1);
-        setGenerationMessage('PDF gerado com sucesso');
         const maxBytes = 10 * 1024 * 1024;
+        setGenerationMessage(prev => {
+          if (blob.size > maxBytes) {
+            return prev || 'PDF gerado acima de 10MB. Considere a versão compacta.';
+          }
+          return prev || 'PDF gerado com sucesso';
+        });
         if (blob.size > maxBytes) {
           toast({
             title: 'PDF muito grande',

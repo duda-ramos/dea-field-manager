@@ -93,6 +93,34 @@ const COLUMN_LABELS_MAP: Record<keyof ReportConfig['visibleColumns'], string> = 
 
 const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string;
 
+function getPageHeight(doc: jsPDF): number {
+  const pageSize = doc.internal.pageSize as unknown as { height?: number; getHeight?: () => number };
+  if (typeof pageSize.height === 'number') {
+    return pageSize.height;
+  }
+  if (typeof pageSize.getHeight === 'function') {
+    const height = pageSize.getHeight();
+    if (typeof height === 'number') {
+      return height;
+    }
+  }
+  // Fallback to standard A4 height in mm
+  return 297;
+}
+
+function ensureSmartPageBreak(doc: jsPDF, currentY: number, requiredSpace = 40): number {
+  const pageHeight = getPageHeight(doc);
+  const margin = reportTheme.spacing.margin;
+  const safeBottom = pageHeight - margin;
+
+  if (currentY + requiredSpace > safeBottom) {
+    doc.addPage();
+    return margin;
+  }
+
+  return currentY;
+}
+
 function resolveReportConfig(config?: ReportConfig): ReportConfig {
   if (!config) {
     return {
@@ -1197,15 +1225,11 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
 
 // Add pavimento summary with mini storage bars to PDF
 async function addPavimentoSummaryToPDF(
-  doc: jsPDF, 
-  summary: PavimentoSummary[], 
+  doc: jsPDF,
+  summary: PavimentoSummary[],
   yPosition: number
 ): Promise<number> {
-  // Check if new page needed
-  if (yPosition > 200) {
-    doc.addPage();
-    yPosition = reportTheme.spacing.margin;
-  }
+  yPosition = ensureSmartPageBreak(doc, yPosition, 30);
 
   doc.setFontSize(reportTheme.fonts.subtitle);
   doc.setTextColor('#000000');
@@ -1214,15 +1238,11 @@ async function addPavimentoSummaryToPDF(
 
   // Generate mini storage bars for each pavimento
   for (const item of summary) {
-    // Check if new page needed
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = reportTheme.spacing.margin;
-    }
+    yPosition = ensureSmartPageBreak(doc, yPosition, 20);
 
     // Generate mini storage bar image
     const miniBarImage = await generateMiniStorageBar(
-      item.pendentes, 
+      item.pendentes,
       item.emAndamento, 
       item.instalados
     );
@@ -1295,11 +1315,7 @@ async function addEnhancedSectionToPDF(
 ): Promise<number> {
   if (items.length === 0) return yPosition;
 
-  // Check if new page needed for section title
-  if (yPosition > 220) {
-    doc.addPage();
-    yPosition = reportTheme.spacing.margin;
-  }
+  yPosition = ensureSmartPageBreak(doc, yPosition, 35);
 
   // Section title
   doc.setFontSize(reportTheme.fonts.subtitle);
@@ -1349,10 +1365,12 @@ async function addEnhancedSectionToPDF(
     const shouldRenderInline = renderInlinePhotos && photoColumnIndices.size > 0;
 
     // Generate single flat table
+    const tableStartY = ensureSmartPageBreak(doc, yPosition, 60);
+
     autoTable(doc, {
       head: [columns],
       body: rows,
-      startY: yPosition,
+      startY: tableStartY,
       margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
       styles: { 
         fontSize: 10,
@@ -1462,9 +1480,9 @@ async function addEnhancedSectionToPDF(
     });
 
     const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    const lastY = docWithTable.lastAutoTable?.finalY ?? tableStartY;
     yPosition = lastY + 10;
-  } 
+  }
   // For aggregated sections (Concluidas, Em Andamento) - grouped by Pavimento and Tipologia
   else {
     const aggregatedData = aggregateByPavimentoTipologia(items);
@@ -1483,10 +1501,12 @@ async function addEnhancedSectionToPDF(
     ]);
 
     // Generate aggregated table
+    const tableStartY = ensureSmartPageBreak(doc, yPosition, 50);
+
     autoTable(doc, {
       head: [columns],
       body: rows,
-      startY: yPosition,
+      startY: tableStartY,
       margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
       styles: { 
         fontSize: 10,
@@ -1519,7 +1539,7 @@ async function addEnhancedSectionToPDF(
     });
 
     const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-    const lastY = docWithTable.lastAutoTable?.finalY ?? yPosition;
+    const lastY = docWithTable.lastAutoTable?.finalY ?? tableStartY;
     yPosition = lastY + 10;
   }
 
@@ -2301,21 +2321,17 @@ function _getCompactColumnStyles(columns: string[]): Record<number, { halign: st
 }
 
 async function _addSectionToPDF(
-  doc: jsPDF, 
-  title: string, 
-  items: Installation[], 
-  yPosition: number, 
+  doc: jsPDF,
+  title: string,
+  items: Installation[],
+  yPosition: number,
   interlocutor: 'cliente' | 'fornecedor',
   sectionType: 'pendencias' | 'concluidas' | 'revisao' | 'andamento'
 ): Promise<number> {
-  // Add new page if needed
-  if (yPosition > 250) {
-    doc.addPage();
-    yPosition = 20;
-  }
+  yPosition = ensureSmartPageBreak(doc, yPosition, 30);
 
   doc.setFontSize(14);
-  doc.text(title, 20, yPosition);
+  doc.text(title, reportTheme.spacing.margin, yPosition);
   yPosition += 10;
 
   // Prepare table data based on section type and interlocutor
@@ -2384,16 +2400,19 @@ async function _addSectionToPDF(
     ]);
   }
 
+  const tableStartY = ensureSmartPageBreak(doc, yPosition, 60);
+
   autoTable(doc, {
     head: [columns],
     body: rows,
-    startY: yPosition,
+    startY: tableStartY,
+    margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
     styles: { fontSize: 8 },
     headStyles: { fillColor: [100, 100, 100] },
   });
 
   const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-  const finalY = docWithTable.lastAutoTable?.finalY ?? 0;
+  const finalY = docWithTable.lastAutoTable?.finalY ?? tableStartY;
   return finalY + 20;
 }
 
