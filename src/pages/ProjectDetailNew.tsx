@@ -15,9 +15,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import {
   ArrowLeft, CheckCircle2, Clock,
   FileSpreadsheet, Plus, Edit, ExternalLink,
-  ChevronDown, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2, Trash2, MoreVertical
+  ChevronDown, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2, Trash2, MoreVertical, History
 } from "lucide-react";
-import { Project, Installation, ItemVersion } from "@/types";
+import { Project, Installation } from "@/types";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuthContext';
@@ -78,6 +78,7 @@ type InstallationCardProps = {
   onSelectChange: (id: string, selected: boolean) => void;
   onToggleInstallation: (id: string) => void;
   onOpenDetails: (installation: Installation) => void;
+  onOpenHistory: (installation: Installation) => void;
   isDetailsOpen: boolean;
   onEdit: (installation: Installation) => void;
   onDelete: (id: string) => void;
@@ -89,6 +90,7 @@ const InstallationCard = memo(function InstallationCard({
   onSelectChange,
   onToggleInstallation,
   onOpenDetails,
+  onOpenHistory,
   isDetailsOpen,
   onEdit,
   onDelete,
@@ -155,6 +157,17 @@ const InstallationCard = memo(function InstallationCard({
                   Pendente
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenHistory(installation)}
+              className="shrink-0"
+              aria-label={`Ver histórico da instalação ${installation.codigo}`}
+              aria-haspopup="dialog"
+            >
+              <History className="h-4 w-4 mr-0 sm:mr-2" aria-hidden="true" />
+              <span className="hidden sm:inline">Histórico</span>
             </Button>
             <Button
               variant="ghost"
@@ -257,6 +270,7 @@ export default function ProjectDetailNew() {
   });
   const [groupByTipologia, setGroupByTipologia] = useState(true);
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
+  const [detailInitialView, setDetailInitialView] = useState<'details' | 'history'>('details');
   const [isImporting, setIsImporting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -816,6 +830,12 @@ export default function ProjectDetailNew() {
   }, []);
 
   const handleOpenDetails = useCallback((installation: Installation) => {
+    setDetailInitialView('details');
+    setSelectedInstallation(installation);
+  }, []);
+
+  const handleOpenHistory = useCallback((installation: Installation) => {
+    setDetailInitialView('history');
     setSelectedInstallation(installation);
   }, []);
 
@@ -925,33 +945,20 @@ export default function ProjectDetailNew() {
         for (const installation of result.data) {
           const now = new Date();
           const nowIso = now.toISOString();
-          const nowTimestamp = now.getTime();
-          
           const installationData = {
             ...installation,
             project_id: project.id,
             updated_at: nowIso,
             revisao: 0 // Garantir que comece em 0
           };
-          const installResult = await storage.upsertInstallation(installationData);
+          const installResult = await storage.upsertInstallation(installationData, {
+            actionType: 'created',
+            motivo: 'created',
+            descricaoMotivo: 'Versão inicial (importada)',
+            type: 'created',
+            forceRevision: true,
+          });
           results.push(installResult);
-          
-          // Criar versão inicial (Revisão 0) para instalações importadas
-          const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = installResult;
-
-          const initialVersion: ItemVersion = {
-            id: crypto.randomUUID(),
-            installationId: installResult.id,
-            snapshot,
-            revisao: 0,
-            motivo: 'created' as const,
-            type: 'created' as const,
-            descricao_motivo: 'Versão inicial (importada)',
-            criadoEm: nowIso,
-            createdAt: nowTimestamp,
-          };
-
-          await storage.upsertItemVersion(initialVersion);
         }
       }
       
@@ -1677,6 +1684,7 @@ export default function ProjectDetailNew() {
                                       onSelectChange={handleSelectChange}
                                       onToggleInstallation={handleToggleInstallationClick}
                                       onOpenDetails={handleOpenDetails}
+                                      onOpenHistory={handleOpenHistory}
                                       isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
                                       onEdit={handleEditInstallation}
                                       onDelete={handleDeleteInstallation}
@@ -1694,6 +1702,7 @@ export default function ProjectDetailNew() {
                                 onSelectChange={handleSelectChange}
                                 onToggleInstallation={handleToggleInstallationClick}
                                 onOpenDetails={handleOpenDetails}
+                                onOpenHistory={handleOpenHistory}
                                 isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
                                 onEdit={handleEditInstallation}
                                 onDelete={handleDeleteInstallation}
@@ -1724,6 +1733,7 @@ export default function ProjectDetailNew() {
                           onSelectChange={handleSelectChange}
                           onToggleInstallation={handleToggleInstallationClick}
                           onOpenDetails={handleOpenDetails}
+                          onOpenHistory={handleOpenHistory}
                           isDetailsOpen={!!selectedInstallation && selectedInstallation.id === sortedInstallations[index].id}
                           onEdit={handleEditInstallation}
                           onDelete={handleDeleteInstallation}
@@ -1741,6 +1751,7 @@ export default function ProjectDetailNew() {
                     onSelectChange={handleSelectChange}
                     onToggleInstallation={handleToggleInstallationClick}
                     onOpenDetails={handleOpenDetails}
+                    onOpenHistory={handleOpenHistory}
                     isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
                     onEdit={handleEditInstallation}
                     onDelete={handleDeleteInstallation}
@@ -2015,8 +2026,12 @@ export default function ProjectDetailNew() {
           <InstallationDetailModalNew
             installation={selectedInstallation}
             isOpen={!!selectedInstallation}
-            onClose={() => setSelectedInstallation(null)}
+            onClose={() => {
+              setSelectedInstallation(null);
+              setDetailInitialView('details');
+            }}
             onUpdate={loadProjectData}
+            initialView={detailInitialView}
           />
         </Suspense>
       )}

@@ -1,4 +1,4 @@
-export type RevisionType = 'created' | 'edited' | 'restored';
+export type RevisionType = 'created' | 'edited' | 'restored' | 'deleted' | 'installed';
 
 export interface InstallationBase {
   id: string;

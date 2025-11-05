@@ -1,5 +1,14 @@
 import type { Installation, InstallationVersionSnapshot, RevisionType } from "./installation";
 
+export type RevisionActionType = 'created' | 'updated' | 'deleted' | 'installed';
+
+export interface ChangeSummaryEntry {
+  before: unknown;
+  after: unknown;
+}
+
+export type ChangeSummary = Record<string, ChangeSummaryEntry>;
+
 export type {
   Installation,
   InstallationRevision,
@@ -47,11 +56,16 @@ export interface ItemVersion {
     | 'outros'
     | 'restored'
     | 'created'
-    | 'edited';
+    | 'edited'
+    | 'deleted'
+    | 'installed';
   type?: RevisionType;
   descricao_motivo?: string;
   criadoEm: string;
   createdAt?: number;
+  action_type?: RevisionActionType;
+  user_email?: string | null;
+  changes_summary?: ChangeSummary | null;
   // Sync flags
   _dirty?: number;
   _deleted?: number;
