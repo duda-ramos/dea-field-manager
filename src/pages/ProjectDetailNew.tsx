@@ -22,6 +22,9 @@ import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuthContext';
 import { logger } from '@/lib/logger';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { fetchProjectMembers, updateProjectMemberRole, type ProjectMember } from '@/lib/supabase';
+import type { UserRole } from '@/middleware/permissions';
 import { EnhancedImageUpload } from "@/components/image-upload";
 import { importExcelFile, syncImportedPhotosToGallery } from "@/lib/excel-import";
 import { StorageBar } from "@/components/storage-bar";
@@ -37,6 +40,7 @@ import type { ReportConfig } from "@/components/reports/ReportCustomizationModal
 import { CardLoadingState } from "@/components/ui/loading-spinner";
 import { InstallationFilters } from "@/components/InstallationFilters";
 import { DEFAULT_INSTALLATION_SORT_OPTION, INSTALLATION_SORT_OPTIONS, type InstallationSortOption } from "@/components/installationFilters.options";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Lazy load heavy components - Modals and Panels (loaded on demand when user interacts)
 const InstallationDetailModalNew = lazy(() => import("@/components/installation-detail-modal-new").then(mod => ({ default: mod.InstallationDetailModalNew })));
@@ -69,6 +73,15 @@ const SORT_OPTION_VALUES = new Set(
   INSTALLATION_SORT_OPTIONS.map((option) => option.value)
 );
 
+const MEMBER_ROLE_OPTIONS: UserRole[] = ['admin', 'manager', 'viewer', 'field_tech'];
+
+const MEMBER_ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrador',
+  manager: 'Gerente',
+  viewer: 'Visualizador',
+  field_tech: 'Técnico de Campo'
+};
+
 const isInstallationSortOption = (value: unknown): value is InstallationSortOption =>
   typeof value === 'string' && SORT_OPTION_VALUES.has(value as InstallationSortOption);
 
@@ -81,6 +94,9 @@ type InstallationCardProps = {
   isDetailsOpen: boolean;
   onEdit: (installation: Installation) => void;
   onDelete: (id: string) => void;
+  canUpdateInstallation: boolean;
+  canEditInstallation: boolean;
+  canDeleteInstallation: boolean;
 };
 
 const InstallationCard = memo(function InstallationCard({
@@ -92,6 +108,9 @@ const InstallationCard = memo(function InstallationCard({
   isDetailsOpen,
   onEdit,
   onDelete,
+  canUpdateInstallation,
+  canEditInstallation,
+  canDeleteInstallation,
 }: InstallationCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -143,6 +162,7 @@ const InstallationCard = memo(function InstallationCard({
               className="flex-1 gap-2"
               aria-label={installation.installed ? `Marcar ${installation.codigo} como pendente` : `Marcar ${installation.codigo} como instalado`}
               aria-pressed={installation.installed}
+              disabled={!canUpdateInstallation}
             >
               {installation.installed ? (
                 <>
@@ -180,13 +200,14 @@ const InstallationCard = memo(function InstallationCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(installation)}>
+                <DropdownMenuItem onClick={() => onEdit(installation)} disabled={!canEditInstallation}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}
                   className="text-destructive focus:text-destructive"
+                  disabled={!canDeleteInstallation}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Excluir
@@ -237,7 +258,7 @@ export default function ProjectDetailNew() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { addAction, undo } = useUndo();
 
   const sortStorageKey = `${INSTALLATION_SORT_STORAGE_PREFIX}:${id ?? 'default'}`;
@@ -273,6 +294,14 @@ export default function ProjectDetailNew() {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [updatingMemberIds, setUpdatingMemberIds] = useState<string[]>([]);
+
+  const canUpdateInstallations = hasPermission('installations:update');
+  const canManageProject = hasPermission('projects:edit');
+  const canManageFiles = hasPermission('files:manage');
+  const canManageMembers = hasPermission('members:manage');
 
   const enqueueInstallationUpdate = (
     installationId: string,
@@ -318,6 +347,33 @@ export default function ProjectDetailNew() {
     setSortOption(isInstallationSortOption(storedValue) ? storedValue : DEFAULT_INSTALLATION_SORT_OPTION);
   }, [sortStorageKey]);
 
+  const loadProjectMembers = useCallback(async (projectId: string) => {
+    setIsLoadingMembers(true);
+    try {
+      const { data, error } = await fetchProjectMembers(projectId);
+      if (error) {
+        logger.error('[ProjectDetail] Falha ao carregar membros', error);
+        toast({
+          title: 'Erro ao carregar colaboradores',
+          description: 'Não foi possível carregar os membros do projeto.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setProjectMembers(data ?? []);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  }, [toast]);
+
+  const refreshProjectMembers = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+    await loadProjectMembers(id);
+  }, [id, loadProjectMembers]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -346,6 +402,7 @@ export default function ProjectDetailNew() {
       setProject(projectData);
       const projectInstallations = await storage.getInstallationsByProject(id);
       setInstallations(projectInstallations);
+      await loadProjectMembers(id);
     } catch (error) {
       logger.error('Erro ao carregar dados do projeto', {
         error: error instanceof Error ? error.message : String(error),
@@ -385,6 +442,31 @@ export default function ProjectDetailNew() {
       console.error('Error loading last report date:', error);
     }
   };
+
+  const handleMemberRoleChange = useCallback(async (memberId: string, newRole: UserRole) => {
+    setUpdatingMemberIds(prev => (prev.includes(memberId) ? prev : [...prev, memberId]));
+
+    const { error } = await updateProjectMemberRole(memberId, newRole);
+
+    if (error) {
+      logger.error('[ProjectDetail] Falha ao atualizar papel do membro', error);
+      toast({
+        title: 'Erro ao atualizar colaborador',
+        description: 'Não foi possível atualizar a permissão do colaborador.',
+        variant: 'destructive'
+      });
+      setUpdatingMemberIds(prev => prev.filter(id => id !== memberId));
+      return;
+    }
+
+    setProjectMembers(prev => prev.map(member => member.id === memberId ? { ...member, role: newRole } : member));
+    setUpdatingMemberIds(prev => prev.filter(id => id !== memberId));
+
+    toast({
+      title: 'Permissão atualizada',
+      description: 'A permissão do colaborador foi atualizada com sucesso.'
+    });
+  }, [logger, toast]);
 
   const handleProjectUpdated = (updatedProject: Project) => {
     setProject(updatedProject);
@@ -649,7 +731,22 @@ export default function ProjectDetailNew() {
     setGroupByTipologia(true);
   }, []);
 
-  const isOwner = project?.user_id ? project.user_id === user?.id : true;
+  const isOwner = project?.user_id ? project.user_id === user?.id : false;
+  const canManageMembersForProject = canManageMembers || isOwner;
+
+  const getMemberInitials = useCallback((name?: string | null, email?: string | null) => {
+    if (name) {
+      const parts = name.trim().split(' ').filter(Boolean);
+      if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+      }
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  }, []);
 
   const currentSection = location.pathname.includes('/pecas') ? 'pecas' : 
                         location.pathname.includes('/relatorios') ? 'relatorios' :
@@ -666,6 +763,15 @@ export default function ProjectDetailNew() {
         title: "Erro",
         description: "Projeto não carregado. Tente novamente.",
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (!canUpdateInstallations) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para atualizar o status das instalações.',
+        variant: 'destructive'
       });
       return;
     }
@@ -809,7 +915,7 @@ export default function ProjectDetailNew() {
     } catch {
       // Errors are handled inside persistToggle
     }
-  }, [addAction, logger, project, storage, toast, undo, user?.id]);
+  }, [addAction, canUpdateInstallations, logger, project, storage, toast, undo, user?.id]);
 
   const handleSelectChange = useCallback((id: string, selected: boolean) => {
     setSelectedInstallations(prev => selected ? [...prev, id] : prev.filter(itemId => itemId !== id));
@@ -824,9 +930,17 @@ export default function ProjectDetailNew() {
   }, [toggleInstallation]);
 
   const handleEditInstallation = useCallback((installation: Installation) => {
+    if (!canManageProject) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para editar instalações.',
+        variant: 'destructive'
+      });
+      return;
+    }
     setEditingInstallation(installation);
     setShowAddModal(true);
-  }, []);
+  }, [canManageProject, toast]);
 
   const handleDeleteInstallation = useCallback(async (installationId: string) => {
     if (!project) {
@@ -834,6 +948,15 @@ export default function ProjectDetailNew() {
         title: "Erro",
         description: "Projeto não carregado. Tente novamente.",
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (!canManageProject) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para excluir instalações.',
+        variant: 'destructive'
       });
       return;
     }
@@ -880,7 +1003,7 @@ export default function ProjectDetailNew() {
         variant: "destructive"
       });
     }
-  }, [installations, project, storage, toast, user?.id, logger]);
+  }, [canManageProject, installations, project, storage, toast, user?.id, logger]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -891,6 +1014,15 @@ export default function ProjectDetailNew() {
         title: "Erro",
         description: "Projeto não carregado. Tente recarregar a página.",
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (!canManageFiles) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não possui permissão para importar arquivos.',
+        variant: 'destructive'
       });
       return;
     }
@@ -1161,11 +1293,85 @@ export default function ProjectDetailNew() {
                 </div>
               </div>
             )}
+
+            <div className="pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Colaboradores</Label>
+                {canManageMembersForProject && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshProjectMembers}
+                    className="h-8 px-2"
+                    disabled={isLoadingMembers}
+                  >
+                    Atualizar lista
+                  </Button>
+                )}
+              </div>
+              <div className="mt-3 space-y-3">
+                {isLoadingMembers ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Carregando colaboradores...
+                  </div>
+                ) : projectMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum colaborador cadastrado.</p>
+                ) : (
+                  projectMembers.map(member => (
+                    <div
+                      key={member.id}
+                      className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage
+                            src={member.profile?.avatar_url ?? undefined}
+                            alt={member.profile?.display_name ?? member.profile?.email ?? 'Colaborador'}
+                          />
+                          <AvatarFallback>
+                            {getMemberInitials(member.profile?.display_name, member.profile?.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {member.profile?.display_name ?? member.profile?.email ?? 'Usuário sem nome'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{member.profile?.email ?? member.user_id}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canManageMembersForProject ? (
+                          <Select
+                            value={member.role}
+                            onValueChange={value => handleMemberRoleChange(member.id, value as UserRole)}
+                            disabled={updatingMemberIds.includes(member.id)}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {MEMBER_ROLE_OPTIONS.map(option => (
+                                <SelectItem key={option} value={option}>
+                                  {MEMBER_ROLE_LABELS[option]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="secondary">{MEMBER_ROLE_LABELS[member.role]}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Collaboration Card - New! */}
-        {isOwner && (
+        {canManageMembersForProject && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1528,8 +1734,8 @@ export default function ProjectDetailNew() {
         <Suspense fallback={<CardLoadingState message="Carregando painel de colaboração..." />}>
           <CollaborationPanel
             projectId={project.id}
-            isOwner={isOwner}
-            onCollaboratorAdded={loadProjectData}
+            isOwner={canManageMembersForProject}
+            onCollaboratorAdded={refreshProjectMembers}
           />
         </Suspense>
       </div>
@@ -1680,6 +1886,9 @@ export default function ProjectDetailNew() {
                                       isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
                                       onEdit={handleEditInstallation}
                                       onDelete={handleDeleteInstallation}
+                                      canUpdateInstallation={canUpdateInstallations}
+                                      canEditInstallation={canManageProject}
+                                      canDeleteInstallation={canManageProject}
                                     />
                                   </div>
                                 )}
@@ -1697,6 +1906,9 @@ export default function ProjectDetailNew() {
                                 isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
                                 onEdit={handleEditInstallation}
                                 onDelete={handleDeleteInstallation}
+                                canUpdateInstallation={canUpdateInstallations}
+                                canEditInstallation={canManageProject}
+                                canDeleteInstallation={canManageProject}
                               />
                             ))
                           )}
@@ -1727,6 +1939,9 @@ export default function ProjectDetailNew() {
                           isDetailsOpen={!!selectedInstallation && selectedInstallation.id === sortedInstallations[index].id}
                           onEdit={handleEditInstallation}
                           onDelete={handleDeleteInstallation}
+                          canUpdateInstallation={canUpdateInstallations}
+                          canEditInstallation={canManageProject}
+                          canDeleteInstallation={canManageProject}
                         />
                       </div>
                     )}
@@ -1744,6 +1959,9 @@ export default function ProjectDetailNew() {
                     isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
                     onEdit={handleEditInstallation}
                     onDelete={handleDeleteInstallation}
+                    canUpdateInstallation={canUpdateInstallations}
+                    canEditInstallation={canManageProject}
+                    canDeleteInstallation={canManageProject}
                   />
                 ))
               )

@@ -506,24 +506,150 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string
           id: string
+          role: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email: string
           id: string
+          role?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string
           id?: string
+          role?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      project_members: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          role: string | null
+          invited_at: string
+          invited_by: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          role?: string | null
+          invited_at?: string
+          invited_by?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          role?: string | null
+          invited_at?: string
+          invited_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_invites: {
+        Row: {
+          id: string
+          email: string
+          role: string | null
+          token: string
+          invited_by: string | null
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          role?: string | null
+          token: string
+          invited_by?: string | null
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          role?: string | null
+          token?: string
+          invited_by?: string | null
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      access_audit_logs: {
+        Row: {
+          id: string
+          user_id: string
+          action: string
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          action: string
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          action?: string
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       project_activities: {
         Row: {

@@ -12,6 +12,7 @@ import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useAuth } from "@/hooks/useAuthContext";
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -33,6 +34,8 @@ export default function ProjectsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
+  const canCreateProject = hasPermission('projects:create');
 
   useEffect(() => {
     loadProjects();
@@ -89,6 +92,15 @@ export default function ProjectsPage() {
   };
 
   const handleCreateProject = async () => {
+    if (!canCreateProject) {
+      toast({
+        title: "Acesso restrito",
+        description: "Você não possui permissão para criar projetos.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!validateForm()) {
       toast({
         title: "Erro de validação",
@@ -164,9 +176,22 @@ export default function ProjectsPage() {
             Gerencie seus projetos
           </p>
         </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <Dialog
+          open={isCreateModalOpen && canCreateProject}
+          onOpenChange={open => {
+            if (!canCreateProject) {
+              toast({
+                title: "Acesso restrito",
+                description: "Você não possui permissão para criar projetos.",
+                variant: "destructive"
+              });
+              return;
+            }
+            setIsCreateModalOpen(open);
+          }}
+        >
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!canCreateProject}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Projeto
             </Button>
@@ -255,19 +280,20 @@ export default function ProjectsPage() {
                     />
                   </div>
                 ))}
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={addSupplierField} 
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addSupplierField}
                   className="mt-2"
+                  disabled={!canCreateProject}
                 >
                   + Adicionar Fornecedor
                 </Button>
               </div>
-              <Button 
-                onClick={handleCreateProject} 
+              <Button
+                onClick={handleCreateProject}
                 className="w-full"
-                disabled={isCreating || Object.keys(errors).some(key => errors[key] !== '')}
+                disabled={!canCreateProject || isCreating || Object.keys(errors).some(key => errors[key] !== '')}
               >
                 {isCreating ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Salvando Projeto...</>

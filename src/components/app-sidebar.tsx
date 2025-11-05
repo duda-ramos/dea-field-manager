@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { Home, FolderOpen, Users, BarChart3, Plus, Calendar } from "lucide-react"
+import { Home, FolderOpen, Users, BarChart3, Plus, Calendar, ShieldCheck } from "lucide-react"
 
 import {
   Sidebar,
@@ -16,8 +16,17 @@ import {
 import { useSidebar } from "@/components/ui/sidebar.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuthContext"
+import type { PermissionAction } from "@/middleware/permissions"
 
-const navigationItems = [
+interface NavigationItem {
+  title: string
+  url: string
+  icon: typeof Home
+  permission?: PermissionAction
+}
+
+const navigationItems: NavigationItem[] = [
   {
     title: "Dashboard",
     url: "/",
@@ -43,12 +52,19 @@ const navigationItems = [
     url: "/relatorios",
     icon: BarChart3,
   },
+  {
+    title: "Usuários",
+    url: "/admin/usuarios",
+    icon: ShieldCheck,
+    permission: "users:manage"
+  }
 ]
 
 export function AppSidebar() {
   const { open } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
+  const { hasPermission } = useAuth()
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -89,19 +105,21 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-9">
-                    <NavLink
-                      to={item.url}
-                      className={getNavClasses(item.url)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span className="ml-2">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navigationItems
+                .filter(item => !item.permission || hasPermission(item.permission))
+                .map(item => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="h-9">
+                      <NavLink
+                        to={item.url}
+                        className={getNavClasses(item.url)}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {open && <span className="ml-2">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -110,7 +128,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-border p-2">
         {open && (
-          <Button variant="outline" size="sm" className="w-full">
+          <Button variant="outline" size="sm" className="w-full" disabled={!hasPermission('projects:create')}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Projeto
           </Button>

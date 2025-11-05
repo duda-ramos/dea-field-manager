@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
@@ -6,11 +6,14 @@ import { errorMonitoring } from '@/services/errorMonitoring';
 import { authRateLimiter } from '@/services/auth/rateLimiter';
 import { autoSyncManager } from '@/services/sync/autoSync';
 import { AuthContext } from '@/contexts/AuthContext';
+import { resolvePermissions, type PermissionAction, type UserRole } from '@/middleware/permissions';
+import { createUserInvite, recordAccessLog } from '@/lib/supabase';
 
 interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  role: UserRole;
   created_at: string;
   updated_at: string;
 }
@@ -69,9 +72,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [role, setRole] = useState<UserRole>('viewer');
+  const [permissions, setPermissions] = useState<PermissionAction[]>(() => resolvePermissions('viewer'));
   const [loading, setLoading] = useState(true);
+  const userId = user?.id ?? null;
 
-  const fetchProfile = async (userId: string) => {
+  const applyRole = useCallback((nextRole: UserRole | null | undefined) => {
+    const normalizedRole: UserRole = (nextRole && ['admin', 'manager', 'viewer', 'field_tech'].includes(nextRole))
+      ? (nextRole as UserRole)
+      : 'viewer';
+    setRole(normalizedRole);
+    setPermissions(resolvePermissions(normalizedRole));
+    return normalizedRole;
+  }, []);
+
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -85,7 +100,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       if (data) {
-        setProfile(data);
+        const nextRole = applyRole((data as Partial<Profile>).role);
+        setProfile({
+          id: data.id,
+          display_name: data.display_name,
+          avatar_url: data.avatar_url,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          role: nextRole
+        });
+      } else {
+        applyRole('viewer');
+        setProfile(null);
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -96,23 +122,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         userId: userId
       });
     }
-  };
+  }, [applyRole]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        logger.debug('Auth state changed:', { event, userId: session?.user?.id });
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer profile fetch with setTimeout to prevent recursion
-        if (session?.user) {
+      (event, nextSession) => {
+        logger.debug('Auth state changed:', { event, userId: nextSession?.user?.id });
+
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+
+        if (nextSession?.user) {
+          // Log access asynchronously so UI is not blocked
+          recordAccessLog({
+            userId: nextSession.user.id,
+            action: event === 'TOKEN_REFRESHED' ? 'session_refresh' : 'signin'
+          }).catch(error => {
+            logger.warn('[useAuth] Falha ao registrar log de acesso', error);
+          });
+
+          // Defer profile fetch with setTimeout to prevent recursion
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfile(nextSession.user!.id);
           }, 0);
-          
+
           // Initialize auto-sync when user logs in (only once globally)
           setTimeout(() => {
             initializeAutoSyncOnce().catch(_error => {
@@ -121,15 +155,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }, 100);
         } else {
           setProfile(null);
-          
-          // Reset flags when user signs out
+          applyRole('viewer');
+
           if (event === 'SIGNED_OUT') {
+            recordAccessLog({
+              userId: session?.user?.id ?? null,
+              action: 'signout'
+            }).catch(error => {
+              logger.warn('[useAuth] Falha ao registrar log de saída', error);
+            });
+
             logger.debug('[useAuth] SIGNED_OUT event - resetting auto-sync flags');
             _autoSyncInitialized = false;
             _autoSyncInitializing = false;
           }
         }
-        
+
         setLoading(false);
       }
     );
@@ -138,20 +179,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         setTimeout(() => {
-          fetchProfile(session.user.id);
+          fetchProfile(session.user!.id);
         }, 0);
-        
-        // Initialize auto-sync for existing session (only once globally)
+
         setTimeout(() => {
           initializeAutoSyncOnce().catch(_error => {
             // Error already logged in initializeAutoSyncOnce
           });
         }, 100);
+      } else {
+        setProfile(null);
+        applyRole('viewer');
       }
-      
+
       setLoading(false);
     });
 
@@ -168,7 +211,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const signUp = async (email: string, password: string, displayName?: string, requestedRole: UserRole = 'viewer') => {
     // Check rate limit
     const rateCheck = authRateLimiter.checkLimit('signup', email);
     if (!rateCheck.allowed) {
@@ -183,7 +226,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: displayName ? { display_name: displayName } : undefined
+        data: {
+          ...(displayName ? { display_name: displayName } : {}),
+          role: requestedRole
+        }
       }
     });
     
@@ -230,11 +276,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    
+
     if (error) {
       logger.error('Sign out error:', error);
+    } else {
+      recordAccessLog({
+        userId: user?.id ?? null,
+        action: 'signout'
+      }).catch(logError => {
+        logger.warn('Falha ao registrar log de saída manual', logError);
+      });
     }
-    
+
     return { error };
   };
 
@@ -280,6 +333,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       // Refresh profile data
       await fetchProfile(user.id);
+      if (updates.role) {
+        applyRole(updates.role as UserRole);
+      }
       return { error: null };
     } catch (error) {
       console.error('[useAuth] Falha ao atualizar perfil:', error, {
@@ -291,16 +347,57 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const refreshProfile = useCallback(async () => {
+    if (userId) {
+      await fetchProfile(userId);
+    }
+  }, [userId, fetchProfile]);
+
+  const hasPermission = useCallback(
+    (permission: PermissionAction | PermissionAction[], requireAll = false) => {
+      const permissionList = Array.isArray(permission) ? permission : [permission];
+
+      if (role === 'admin') {
+        return true;
+      }
+
+      if (requireAll) {
+        return permissionList.every(value => permissions.includes(value));
+      }
+
+      return permissionList.some(value => permissions.includes(value));
+    },
+    [permissions, role]
+  );
+
+  const inviteUser = async (email: string, inviteRole: UserRole) => {
+    if (!userId) {
+      return { data: null, error: new Error('Usuário não autenticado') };
+    }
+
+    return createUserInvite({
+      email,
+      role: inviteRole,
+      invitedBy: userId
+    });
+  };
+
   const value = {
     user,
     session,
     profile,
     loading,
+    role,
+    permissions,
+    isAdmin: role === 'admin',
+    hasPermission,
     signUp,
     signIn,
     signOut,
     resetPassword,
-    updateProfile
+    updateProfile,
+    refreshProfile,
+    inviteUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
