@@ -6,7 +6,9 @@ import type {
   ProjectBudget,
   ItemVersion,
   ProjectFile,
-  ReportHistoryEntry
+  ReportHistoryEntry,
+  ChangeSummary,
+  RevisionActionType
 } from '@/types';
 import { autoSyncManager } from '@/services/sync/autoSync';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +16,7 @@ import { syncStateManager } from '@/services/sync/syncState';
 import { realtimeManager } from '@/services/realtime/realtime';
 import { withRetry, isRetryableNetworkError } from '@/services/sync/utils';
 import { logger } from '@/lib/logger';
-import { scheduleTemporaryDeletion, undoDeletion, isPendingDeletion } from '@/lib/utils';
+import { scheduleTemporaryDeletion } from '@/lib/utils';
 
 const now = () => Date.now();
 
@@ -23,6 +25,275 @@ const isOnline = () => navigator.onLine;
 
 // Fila de sincronização para operações offline
 const syncQueue: Array<{ type: string; data: unknown }> = [];
+
+type InstallationRevisionOptions = {
+  motivo?: ItemVersion['motivo'];
+  descricaoMotivo?: string;
+  actionType?: RevisionActionType;
+  type?: ItemVersion['type'];
+  forceRevision?: boolean;
+  userEmail?: string | null;
+  changesSummaryOverride?: ChangeSummary | null;
+  snapshotOverride?: Partial<Installation>;
+};
+
+const TRACKED_INSTALLATION_FIELDS: Array<keyof Installation> = [
+  'tipologia',
+  'codigo',
+  'descricao',
+  'quantidade',
+  'pavimento',
+  'diretriz_altura_cm',
+  'diretriz_dist_batente_cm',
+  'installed',
+  'status',
+  'pendencia_tipo',
+  'pendencia_descricao',
+  'observacoes',
+  'comentarios_fornecedor',
+  'photos',
+  'revisao',
+  'revisado',
+];
+
+const generateRevisionId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `rev_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+};
+
+const resolveUserEmail = async (explicit?: string | null): Promise<string | null> => {
+  if (typeof explicit !== 'undefined') {
+    return explicit;
+  }
+
+  try {
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    return user?.email ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const valuesAreDifferent = (current: unknown, previous: unknown): boolean => {
+  if (Array.isArray(current) || Array.isArray(previous)) {
+    return JSON.stringify(current ?? []) !== JSON.stringify(previous ?? []);
+  }
+  if (current instanceof Date || previous instanceof Date) {
+    const currentTime = current instanceof Date ? current.getTime() : new Date(String(current ?? '')).getTime();
+    const previousTime = previous instanceof Date ? previous.getTime() : new Date(String(previous ?? '')).getTime();
+    return currentTime !== previousTime;
+  }
+  if (typeof current === 'number' && typeof previous === 'number') {
+    return Number.isNaN(current) ? !Number.isNaN(previous) : current !== previous;
+  }
+  return (current ?? null) !== (previous ?? null);
+};
+
+const computeChangesSummary = (
+  previous: Installation | undefined,
+  current: Installation
+): ChangeSummary => {
+  const summary: ChangeSummary = {};
+
+  for (const field of TRACKED_INSTALLATION_FIELDS) {
+    const currentValue = (current as Record<string, unknown>)[field as string];
+    const previousValue = previous ? (previous as Record<string, unknown>)[field as string] : undefined;
+
+    if (field === 'photos') {
+      const currentCount = Array.isArray(currentValue) ? currentValue.length : 0;
+      const previousCount = Array.isArray(previousValue) ? previousValue.length : 0;
+
+      if (!previous) {
+        if (currentCount > 0) {
+          summary[field as string] = { before: null, after: currentCount };
+        }
+      } else if (currentCount !== previousCount) {
+        summary[field as string] = { before: previousCount, after: currentCount };
+      }
+      continue;
+    }
+
+    if (!previous) {
+      if (typeof currentValue !== 'undefined' && currentValue !== null && currentValue !== '') {
+        summary[field as string] = { before: null, after: currentValue };
+      }
+      continue;
+    }
+
+    if (valuesAreDifferent(currentValue, previousValue)) {
+      summary[field as string] = {
+        before: typeof previousValue === 'undefined' ? null : previousValue,
+        after: typeof currentValue === 'undefined' ? null : currentValue
+      };
+    }
+  }
+
+  return summary;
+};
+
+const determineActionType = (
+  previous: Installation | undefined,
+  summary: ChangeSummary,
+  explicit?: RevisionActionType
+): RevisionActionType => {
+  if (explicit) {
+    return explicit;
+  }
+
+  if (!previous) {
+    return 'created';
+  }
+
+  if (summary.installed && summary.installed.after === true && summary.installed.before !== true) {
+    return 'installed';
+  }
+
+  return 'updated';
+};
+
+const mapActionTypeToMotivo = (
+  actionType: RevisionActionType,
+  provided?: ItemVersion['motivo']
+): ItemVersion['motivo'] => {
+  if (provided) {
+    return provided;
+  }
+
+  switch (actionType) {
+    case 'created':
+      return 'created';
+    case 'deleted':
+      return 'deleted';
+    case 'installed':
+      return 'installed';
+    default:
+      return 'edited';
+  }
+};
+
+const mapMotivoToRevisionType = (
+  motivo: ItemVersion['motivo'],
+  provided?: ItemVersion['type']
+): ItemVersion['type'] => {
+  if (provided) {
+    return provided;
+  }
+
+  switch (motivo) {
+    case 'created':
+      return 'created';
+    case 'restored':
+      return 'restored';
+    case 'deleted':
+      return 'deleted';
+    case 'installed':
+      return 'installed';
+    default:
+      return 'edited';
+  }
+};
+
+const buildDefaultDescription = (
+  motivo: ItemVersion['motivo'],
+  action: RevisionActionType
+): string => {
+  switch (motivo) {
+    case 'created':
+      return 'Versão inicial registrada automaticamente';
+    case 'restored':
+      return 'Versão restaurada a partir do histórico';
+    case 'deleted':
+      return 'Instalação removida';
+    case 'installed':
+      return 'Instalação marcada como concluída';
+    default:
+      if (action === 'installed') {
+        return 'Instalação marcada como concluída';
+      }
+      return 'Alterações registradas automaticamente';
+  }
+};
+
+const buildSnapshot = (
+  installation: Installation,
+  override?: Partial<Installation>
+): Record<string, unknown> => {
+  const {
+    id: _id,
+    revisado: _revisado,
+    revisao: _revisao,
+    revisions: _revisions,
+    _dirty: _dirtyFlag,
+    _deleted: _deletedFlag,
+    ...rest
+  } = installation as unknown as Record<string, unknown>;
+
+  return {
+    ...rest,
+    ...(override ?? {})
+  };
+};
+
+const persistItemVersion = async (version: ItemVersion) => {
+  const withDates = {
+    ...version,
+    createdAt: version.createdAt ?? now(),
+    _dirty: 1,
+    _deleted: 0
+  } as ItemVersion;
+
+  await db.itemVersions.put(withDates);
+  syncStateManager.incrementPending('itemVersions', 1);
+  autoSyncManager.triggerDebouncedSync();
+
+  return withDates;
+};
+
+const recordInstallationRevision = async (
+  current: Installation,
+  previous: Installation | undefined,
+  options: InstallationRevisionOptions = {}
+) => {
+  const summary = options.changesSummaryOverride ?? computeChangesSummary(previous, current);
+  const hasChanges = Object.keys(summary).length > 0;
+  const shouldPersist = options.forceRevision || !previous || hasChanges;
+
+  if (!shouldPersist) {
+    return;
+  }
+
+  const actionType = determineActionType(previous, summary, options.actionType);
+  const motivo = mapActionTypeToMotivo(actionType, options.motivo);
+  const revisionType = mapMotivoToRevisionType(motivo, options.type);
+  const descricao = options.descricaoMotivo ?? buildDefaultDescription(motivo, actionType);
+  const timestamp = new Date();
+  const timestampIso = timestamp.toISOString();
+  const timestampMs = timestamp.getTime();
+  const userEmail = await resolveUserEmail(options.userEmail);
+
+  const snapshot = buildSnapshot(current, options.snapshotOverride);
+
+  const version: ItemVersion = {
+    id: generateRevisionId(),
+    installationId: current.id,
+    snapshot: snapshot as ItemVersion['snapshot'],
+    revisao: current.revisao ?? previous?.revisao ?? 0,
+    motivo,
+    type: revisionType,
+    descricao_motivo: descricao,
+    criadoEm: timestampIso,
+    createdAt: timestampMs,
+    action_type: actionType,
+    user_email: userEmail,
+    changes_summary: hasChanges ? summary : options.forceRevision ? summary : null,
+  };
+
+  await persistItemVersion(version);
+};
 
 // Sincronizar item imediatamente se online
 async function syncToServerImmediate(entityType: string, data: Record<string, unknown>) {
@@ -520,10 +791,39 @@ export const StorageManagerDexie = {
 
     return installationsWithLatest;
   },
-  async upsertInstallation(installation: Installation) {
-    const withDates = { 
-      ...installation, 
-      updatedAt: now(), 
+  async upsertInstallation(installation: Installation, options: InstallationRevisionOptions = {}) {
+    const existing = installation.id ? await db.installations.get(installation.id) : undefined;
+
+    const candidateState = {
+      ...(existing ?? {}),
+      ...installation
+    } as Installation;
+
+    const hasTrackedChanges =
+      !existing ||
+      TRACKED_INSTALLATION_FIELDS.filter(field => field !== 'revisao').some(field => {
+        const nextValue = (candidateState as Record<string, unknown>)[field as string];
+        const previousValue = existing
+          ? (existing as Record<string, unknown>)[field as string]
+          : undefined;
+        return valuesAreDifferent(nextValue, previousValue);
+      });
+
+    const previousRevisionNumber = existing?.revisao ?? 0;
+    const incomingRevisionNumber =
+      typeof installation.revisao === 'number' ? installation.revisao : undefined;
+
+    let nextRevisionNumber = previousRevisionNumber;
+    if (incomingRevisionNumber && incomingRevisionNumber > previousRevisionNumber) {
+      nextRevisionNumber = incomingRevisionNumber;
+    } else if (options.forceRevision || hasTrackedChanges) {
+      nextRevisionNumber = previousRevisionNumber + 1;
+    }
+
+    const withDates = {
+      ...installation,
+      revisao: nextRevisionNumber,
+      updatedAt: now(),
       createdAt: (installation as Partial<Installation>)?.createdAt ?? now(),
       _dirty: 0,
       _deleted: 0
@@ -534,18 +834,40 @@ export const StorageManagerDexie = {
     await db.installations.put(withDates);
     realtimeManager.trackLocalOperation('installations');
     autoSyncManager.triggerDebouncedSync();
-    
+
+    await recordInstallationRevision(withDates as Installation, existing as Installation | undefined, options);
+
     return withDates;
   },
   async deleteInstallation(id: string) {
     // Mark as deleted instead of actually deleting (tombstone)
     const existing = await db.installations.get(id);
     if (existing) {
-      await db.installations.put({ ...existing, _deleted: 1, _dirty: 1, updatedAt: now() });
+      const deletedInstallation = {
+        ...existing,
+        _deleted: 1,
+        _dirty: 1,
+        updatedAt: now(),
+        revisao: (existing.revisao ?? 0) + 1
+      } as Installation;
+      await db.installations.put(deletedInstallation);
+      await recordInstallationRevision(
+        deletedInstallation,
+        existing as Installation,
+        {
+          actionType: 'deleted',
+          motivo: 'deleted',
+          descricaoMotivo: `Instalação ${existing.codigo} removida`,
+          forceRevision: true,
+          changesSummaryOverride: {
+            deleted: { before: false, after: true }
+          }
+        }
+      );
       realtimeManager.trackLocalOperation('installations');
       syncStateManager.incrementPending('installations', 1);
     }
-    
+
     // Also mark related records as deleted
     const itemVersions = await db.itemVersions.where('installationId').equals(id).toArray();
     for (const itemVersion of itemVersions) {
@@ -639,19 +961,7 @@ export const StorageManagerDexie = {
     return db.itemVersions.where('installationId').equals(installationId).toArray();
   },
   async upsertItemVersion(version: ItemVersion) {
-    const withDates = { 
-      ...version, 
-      createdAt: (version as Partial<ItemVersion>)?.createdAt ?? now(),
-      _dirty: 1,
-      _deleted: 0
-    };
-    await db.itemVersions.put(withDates);
-    syncStateManager.incrementPending('itemVersions', 1);
-    
-    // Trigger debounced auto-sync
-    autoSyncManager.triggerDebouncedSync();
-    
-    return withDates;
+    return persistItemVersion(version);
   },
 
   // -------- CONTACTS ----------

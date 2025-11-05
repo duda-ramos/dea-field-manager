@@ -199,35 +199,23 @@ export function AddInstallationModal({
         const newRevisionNumber = isRevision ? currentRevisionNum + 1 : currentRevisionNum;
         
         // Update existing installation
-        savedInstallation = await storage.upsertInstallation({ 
-          ...editingInstallation, 
-          ...installationData,
-          revisao: newRevisionNumber,
-          revisado: isRevision ? true : editingInstallation.revisado
-        });
-
-        // Se for uma revisão, criar um registro no item_versions
-        if (isRevision) {
-          const now = new Date();
-          const nowIso = now.toISOString();
-          const nowTimestamp = now.getTime();
-
-          const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
-
-          const newVersion: ItemVersion = {
-            id: crypto.randomUUID(),
-            installationId: editingInstallation.id,
-            snapshot,
+        savedInstallation = await storage.upsertInstallation(
+          {
+            ...editingInstallation,
+            ...installationData,
             revisao: newRevisionNumber,
-            motivo: (revisionMotivo || 'edited') as any,
-            type: 'edited' as const,
-            descricao_motivo: revisionDescricao || `Revisão ${newRevisionNumber}`,
-            criadoEm: nowIso,
-            createdAt: nowTimestamp,
-          };
-
-          await storage.upsertItemVersion(newVersion);
-        }
+            revisado: isRevision ? true : editingInstallation.revisado
+          },
+          isRevision
+            ? {
+                motivo: (revisionMotivo || 'edited') as ItemVersion['motivo'],
+                descricaoMotivo: revisionDescricao || `Revisão ${newRevisionNumber}`,
+                type: 'edited',
+                actionType: 'updated',
+                forceRevision: true,
+              }
+            : undefined
+        );
         
         // Add undo action for edition
         addAction({
@@ -270,35 +258,25 @@ export function AddInstallationModal({
         // Create new installation
         const now = new Date();
         const nowIso = now.toISOString();
-        const nowTimestamp = now.getTime();
-        
-        savedInstallation = await storage.upsertInstallation({
-          ...installationData,
-          id: `installation_${Date.now()}`,
-          project_id: projectId,
-          installed: false,
-          photos: [],
-          revisado: false,
-          revisao: 0,
-          updated_at: nowIso
-        });
-
-        // Criar versão inicial (Revisão 0)
-        const { id: _id, revisado: _revisado, revisao: _revisao, revisions: _revisions, ...snapshot } = savedInstallation;
-
-        const initialVersion: ItemVersion = {
-          id: crypto.randomUUID(),
-          installationId: savedInstallation.id,
-          snapshot,
-          revisao: 0,
-          motivo: 'created' as const,
-          type: 'created' as const,
-          descricao_motivo: 'Versão inicial',
-          criadoEm: nowIso,
-          createdAt: nowTimestamp,
-        };
-
-        await storage.upsertItemVersion(initialVersion);
+        savedInstallation = await storage.upsertInstallation(
+          {
+            ...installationData,
+            id: `installation_${Date.now()}`,
+            project_id: projectId,
+            installed: false,
+            photos: [],
+            revisado: false,
+            revisao: 0,
+            updated_at: nowIso
+          },
+          {
+            actionType: 'created',
+            motivo: 'created',
+            descricaoMotivo: 'Versão inicial',
+            type: 'created',
+            forceRevision: true,
+          }
+        );
 
         // Add undo action for creation
         addAction({

@@ -150,6 +150,51 @@ class DeaFieldManagerDB extends Dexie {
         reportPayloads: 'id, projectId',
         deletedItems: 'id, entityId, entityType, expiresAt'
       });
+
+      this.version(9)
+        .stores({
+          projects: 'id, updatedAt, name, _dirty, _deleted',
+          installations: 'id, project_id, updatedAt, status, _dirty, _deleted',
+          contacts: 'id, projetoId, tipo, nome, email, telefone, atualizadoEm, _dirty, _deleted',
+          budgets: 'id, projectId, updatedAt, _dirty, _deleted',
+          itemVersions: 'id, installationId, createdAt, action_type, user_email, _dirty, _deleted',
+          files: 'id, projectId, installationId, uploadedAt, needsUpload, _dirty, _deleted',
+          meta: 'key',
+          reports: 'id, projectId, project_id, createdAt, generatedAt, payloadId',
+          reportPayloads: 'id, projectId',
+          deletedItems: 'id, entityId, entityType, expiresAt'
+        })
+        .upgrade(async (tx) => {
+          const versionsTable = tx.table('itemVersions');
+          await versionsTable.toCollection().modify((version: any) => {
+            if (!version.action_type) {
+              switch (version.type) {
+                case 'created':
+                  version.action_type = 'created';
+                  break;
+                case 'restored':
+                  version.action_type = 'updated';
+                  break;
+                case 'deleted':
+                  version.action_type = 'deleted';
+                  break;
+                case 'installed':
+                  version.action_type = 'installed';
+                  break;
+                default:
+                  version.action_type = 'updated';
+              }
+            }
+
+            if (typeof version.user_email === 'undefined') {
+              version.user_email = null;
+            }
+
+            if (typeof version.changes_summary === 'undefined') {
+              version.changes_summary = null;
+            }
+          });
+        });
   }
 }
 

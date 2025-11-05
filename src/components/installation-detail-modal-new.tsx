@@ -23,13 +23,15 @@ interface InstallationDetailModalNewProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
+  initialView?: 'details' | 'history';
 }
 
-export function InstallationDetailModalNew({ 
-  installation, 
-  isOpen, 
-  onClose, 
-  onUpdate 
+export function InstallationDetailModalNew({
+  installation,
+  isOpen,
+  onClose,
+  onUpdate,
+  initialView = 'details'
 }: InstallationDetailModalNewProps) {
   const { toast } = useToast();
   const [installed, setInstalled] = useState(installation.installed);
@@ -99,6 +101,15 @@ export function InstallationDetailModalNew({
       setSupplierCommentHistory([]);
     }
   }, [installation]);
+
+  useEffect(() => {
+    if (isOpen && initialView === 'history') {
+      setShowRevisionHistoryModal(true);
+    }
+    if (!isOpen) {
+      setShowRevisionHistoryModal(false);
+    }
+  }, [initialView, isOpen]);
 
   const handleSave = async () => {
     if (isSaving) return;
@@ -270,31 +281,15 @@ export function InstallationDetailModalNew({
         ],
       };
 
-      const updated = await storage.upsertInstallation(restoredInstallation);
+      const updated = await storage.upsertInstallation(restoredInstallation, {
+        motivo: 'restored',
+        descricaoMotivo: `Restaurado a partir da revisão ${version.revisao}`,
+        type: 'restored',
+        actionType: 'updated',
+        forceRevision: true,
+      });
 
       if (updated) {
-        const {
-          id: _id,
-          revisado: _revisado,
-          revisao: _revisao,
-          revisions: _revisions,
-          ...snapshot
-        } = updated;
-
-        const restoredVersion: ItemVersion = {
-          id: crypto.randomUUID(),
-          installationId: installation.id,
-          snapshot,
-          revisao: newRevisionNumber,
-          motivo: "restored",
-          type: "restored",
-          descricao_motivo: `Restaurado a partir da revisão ${version.revisao}`,
-          criadoEm: nowIso,
-          createdAt: nowTimestamp,
-        };
-
-        await storage.upsertItemVersion(restoredVersion);
-
         const updatedVersions = await storage.getItemVersions(installation.id);
         setVersions(updatedVersions);
 

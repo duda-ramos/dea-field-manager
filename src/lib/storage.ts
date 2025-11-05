@@ -1,13 +1,26 @@
 import { StorageManagerDexie } from '@/services/StorageManager';
-import type { 
-  Project, 
-  Installation, 
-  ItemVersion, 
-  ProjectContact, 
-  ProjectBudget, 
-  ProjectFile, 
-  ReportHistoryEntry 
+import type {
+  Project,
+  Installation,
+  ItemVersion,
+  ProjectContact,
+  ProjectBudget,
+  ProjectFile,
+  ReportHistoryEntry,
+  ChangeSummary,
+  RevisionActionType
 } from '@/types';
+
+export interface InstallationUpsertOptions {
+  motivo?: ItemVersion['motivo'];
+  descricaoMotivo?: string;
+  actionType?: RevisionActionType;
+  type?: ItemVersion['type'];
+  forceRevision?: boolean;
+  userEmail?: string | null;
+  changesSummaryOverride?: ChangeSummary | null;
+  snapshotOverride?: Partial<Installation>;
+}
 
 interface StorageLike {
   // Projects
@@ -21,7 +34,7 @@ interface StorageLike {
 
   // Installations
   getInstallationsByProject(projectId: string): Promise<Installation[]>;
-  upsertInstallation(installation: Installation): Promise<Installation>;
+  upsertInstallation(installation: Installation, options?: InstallationUpsertOptions): Promise<Installation>;
   deleteInstallation(id: string): Promise<void>;
   deleteInstallationWithUndo(
     id: string
