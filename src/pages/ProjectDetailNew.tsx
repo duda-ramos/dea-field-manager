@@ -7,16 +7,15 @@ import { showUndoToast } from "@/lib/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  ArrowLeft, Upload, CheckCircle2, Clock, 
-  Search, FileSpreadsheet, RefreshCw, Plus, Edit, ExternalLink,
-  ChevronDown, Filter, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2, Trash2, MoreVertical
+import {
+  ArrowLeft, CheckCircle2, Clock,
+  FileSpreadsheet, Plus, Edit, ExternalLink,
+  ChevronDown, Menu, Home, FileText, Calculator, Archive, Users, UserCog, Loader2, Trash2, MoreVertical
 } from "lucide-react";
 import { Project, Installation, ItemVersion } from "@/types";
 import { storage } from "@/lib/storage";
@@ -36,6 +35,8 @@ import {
 } from '@/components/error-fallbacks';
 import type { ReportConfig } from "@/components/reports/ReportCustomizationModal.types";
 import { CardLoadingState } from "@/components/ui/loading-spinner";
+import { InstallationFilters } from "@/components/InstallationFilters";
+import { DEFAULT_INSTALLATION_SORT_OPTION, INSTALLATION_SORT_OPTIONS, type InstallationSortOption } from "@/components/installationFilters.options";
 
 // Lazy load heavy components - Modals and Panels (loaded on demand when user interacts)
 const InstallationDetailModalNew = lazy(() => import("@/components/installation-detail-modal-new").then(mod => ({ default: mod.InstallationDetailModalNew })));
@@ -48,7 +49,7 @@ const ReportShareModal = lazy(() => import("@/components/reports/ReportShareModa
 const ReportHistoryPanel = lazy(() => import("@/components/reports/ReportHistoryPanel").then(mod => ({ default: mod.ReportHistoryPanel })));
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { archiveProject, softDeleteProject, downloadProjectZip } from '@/services/projectLifecycle';
+import { archiveProject, downloadProjectZip } from '@/services/projectLifecycle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,12 +63,14 @@ import {
 
 type ItemStatusFilterValue = 'all' | NonNullable<Installation['status']>;
 
-const ITEM_STATUS_OPTIONS: Array<{ value: NonNullable<Installation['status']>; label: string }> = [
-  { value: 'ativo', label: 'Ativo' },
-  { value: 'on hold', label: 'Em espera' },
-  { value: 'cancelado', label: 'Cancelado' },
-  { value: 'pendente', label: 'Pendente' },
-];
+const INSTALLATION_SORT_STORAGE_PREFIX = 'project:installation-sort';
+
+const SORT_OPTION_VALUES = new Set(
+  INSTALLATION_SORT_OPTIONS.map((option) => option.value)
+);
+
+const isInstallationSortOption = (value: unknown): value is InstallationSortOption =>
+  typeof value === 'string' && SORT_OPTION_VALUES.has(value as InstallationSortOption);
 
 type InstallationCardProps = {
   installation: Installation;
@@ -236,13 +239,23 @@ export default function ProjectDetailNew() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { addAction, undo } = useUndo();
-  
+
+  const sortStorageKey = `${INSTALLATION_SORT_STORAGE_PREFIX}:${id ?? 'default'}`;
+
   const [project, setProject] = useState<Project | null>(null);
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "installed" | "pending">("all");
   const [pavimentoFilter, setPavimentoFilter] = useState<string>("all");
+  const [sortOption, setSortOption] = useState<InstallationSortOption>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_INSTALLATION_SORT_OPTION;
+    }
+    const storedValue = window.localStorage.getItem(sortStorageKey);
+    return isInstallationSortOption(storedValue) ? storedValue : DEFAULT_INSTALLATION_SORT_OPTION;
+  });
+  const [groupByTipologia, setGroupByTipologia] = useState(true);
   const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -295,6 +308,23 @@ export default function ProjectDetailNew() {
     };
     if (id) loadContadores();
   }, [id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const storedValue = window.localStorage.getItem(sortStorageKey);
+    setSortOption(isInstallationSortOption(storedValue) ? storedValue : DEFAULT_INSTALLATION_SORT_OPTION);
+  }, [sortStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(sortStorageKey, sortOption);
+  }, [sortOption, sortStorageKey]);
 
   const loadProjectData = async () => {
     if (!id) return;
@@ -464,34 +494,160 @@ export default function ProjectDetailNew() {
     };
   }, [installations]);
 
-  const pavimentos = useMemo(() => 
+  const pavimentos = useMemo(() =>
     Array.from(new Set(installations.map(i => i.pavimento))).sort(),
     [installations]
   );
+  const hasMultiplePavimentos = pavimentos.length > 1;
+
+  useEffect(() => {
+    if (!hasMultiplePavimentos && sortOption === 'pavimento') {
+      setSortOption(DEFAULT_INSTALLATION_SORT_OPTION);
+    }
+  }, [hasMultiplePavimentos, sortOption]);
 
   const filteredInstallations = useMemo(() => {
     return installations.filter(installation => {
       // Converter searchTerm para lowercase uma única vez
       const searchLower = searchTerm.toLowerCase();
-      
+
       // Busca case-insensitive nos campos
-      const matchesSearch = searchLower === '' || 
+      const matchesSearch = searchLower === '' ||
                             installation.descricao.toLowerCase().includes(searchLower) ||
                             installation.tipologia.toLowerCase().includes(searchLower) ||
                             String(installation.codigo).toLowerCase().includes(searchLower);
-      
+
       const matchesStatus = statusFilter === "all" ||
                             (statusFilter === "installed" && installation.installed) ||
                             (statusFilter === "pending" && !installation.installed);
 
       const matchesItemStatus = itemStatusFilter === "all" ||
                                installation.status === itemStatusFilter;
-                            
+
       const matchesPavimento = pavimentoFilter === "all" || installation.pavimento === pavimentoFilter;
-      
+
       return matchesSearch && matchesStatus && matchesItemStatus && matchesPavimento;
     });
   }, [installations, searchTerm, statusFilter, itemStatusFilter, pavimentoFilter]);
+
+  const sortedInstallations = useMemo(() => {
+    const sorted = [...filteredInstallations];
+
+    const getCodigoValue = (installation: Installation) => {
+      const value = installation.codigo;
+      if (typeof value === 'number' && !Number.isNaN(value)) {
+        return value;
+      }
+      const parsed = parseInt(String(value), 10);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const compareString = (a: string, b: string, direction: 'asc' | 'desc' = 'asc') =>
+      direction === 'asc'
+        ? a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
+        : b.localeCompare(a, 'pt-BR', { sensitivity: 'base' });
+
+    const compareNumber = (a: number, b: number, direction: 'asc' | 'desc' = 'asc') =>
+      direction === 'asc' ? a - b : b - a;
+
+    const getStatusPriority = (installation: Installation) => {
+      switch (installation.status) {
+        case 'pendente':
+          return 0;
+        case 'on hold':
+          return 1;
+        case 'ativo':
+          return 2;
+        case 'cancelado':
+          return 3;
+        default:
+          return 4;
+      }
+    };
+
+    const getUpdatedTimestamp = (installation: Installation) => {
+      if (typeof installation.updatedAt === 'number') {
+        return installation.updatedAt;
+      }
+      if (installation.updated_at) {
+        const parsed = Date.parse(installation.updated_at);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+      return 0;
+    };
+
+    sorted.sort((a, b) => {
+      switch (sortOption) {
+        case 'code-desc':
+          return compareNumber(getCodigoValue(a), getCodigoValue(b), 'desc');
+        case 'tipologia-asc':
+          return compareString(a.tipologia ?? '', b.tipologia ?? '', 'asc')
+            || compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+        case 'tipologia-desc':
+          return compareString(a.tipologia ?? '', b.tipologia ?? '', 'desc')
+            || compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+        case 'status-pending': {
+          const priorityDiff = getStatusPriority(a) - getStatusPriority(b);
+          if (priorityDiff !== 0) {
+            return priorityDiff;
+          }
+          return compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+        }
+        case 'updated-recent': {
+          const updatedDiff = getUpdatedTimestamp(b) - getUpdatedTimestamp(a);
+          if (updatedDiff !== 0) {
+            return updatedDiff;
+          }
+          return compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+        }
+        case 'pavimento': {
+          const pavimentoDiff = compareString(a.pavimento ?? '', b.pavimento ?? '', 'asc');
+          if (pavimentoDiff !== 0) {
+            return pavimentoDiff;
+          }
+          return compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+        }
+        case 'code-asc':
+        default:
+          return compareNumber(getCodigoValue(a), getCodigoValue(b), 'asc');
+      }
+    });
+
+    return sorted;
+  }, [filteredInstallations, sortOption]);
+
+  const groupedInstallations = useMemo(() => {
+    if (!groupByTipologia) {
+      return [] as Array<{ tipologia: string; installations: Installation[] }>;
+    }
+
+    const groups = new Map<string, Installation[]>();
+
+    sortedInstallations.forEach((installation) => {
+      const key = installation.tipologia && installation.tipologia.trim() !== ''
+        ? installation.tipologia
+        : 'Sem tipologia';
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+
+      groups.get(key)!.push(installation);
+    });
+
+    return Array.from(groups, ([tipologia, installations]) => ({ tipologia, installations }));
+  }, [groupByTipologia, sortedInstallations]);
+
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setItemStatusFilter('all');
+    setPavimentoFilter('all');
+    setSortOption(DEFAULT_INSTALLATION_SORT_OPTION);
+    setGroupByTipologia(true);
+  }, []);
 
   const isOwner = project?.user_id ? project.user_id === user?.id : true;
 
@@ -1382,22 +1538,7 @@ export default function ProjectDetailNew() {
 
   // Peças Section (wrapped with LoadingBoundary for data loading)
   const renderPecasSection = () => {
-    const groupedInstallations = filteredInstallations.reduce((groups, installation) => {
-      const tipologia = installation.tipologia;
-      if (!groups[tipologia]) {
-        groups[tipologia] = [];
-      }
-      groups[tipologia].push(installation);
-      return groups;
-    }, {} as Record<string, Installation[]>);
-
-    Object.keys(groupedInstallations).forEach(tipologia => {
-      groupedInstallations[tipologia].sort((a, b) => {
-        const codeA = typeof a.codigo === 'number' ? a.codigo : parseInt(String(a.codigo)) || 0;
-        const codeB = typeof b.codigo === 'number' ? b.codigo : parseInt(String(b.codigo)) || 0;
-        return codeA - codeB;
-      });
-    });
+    const hasInstallations = sortedInstallations.length > 0;
 
     return (
       <LoadingBoundary
@@ -1405,240 +1546,210 @@ export default function ProjectDetailNew() {
         loadingMessage="Importando planilha Excel..."
         fallback={UploadErrorFallback}
       >
-      <div className="space-y-4">
-        {/* Compact Summary Cards - Mobile Optimized */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="text-center">
-            <CardContent className="p-3 sm:p-4">
-              <div className="text-lg sm:text-2xl font-bold text-primary">{installations.length}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Total</div>
-            </CardContent>
-          </Card>
-          <Card className="text-center">
-            <CardContent className="p-3 sm:p-4">
-              <div className="text-lg sm:text-2xl font-bold text-green-600">{completedInstallations}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Instaladas</div>
-            </CardContent>
-          </Card>
-          <Card className="text-center">
-            <CardContent className="p-3 sm:p-4">
-              <div className="text-lg sm:text-2xl font-bold text-orange-600">{pendingInstallations}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Pendentes</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Progress Card - Mobile Optimized */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Progresso Geral</span>
-              <span className="text-lg font-bold">{Math.round(progressPercentage)}%</span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>{completedInstallations} concluídas</span>
-              <span>{installationsWithObservations} com observações</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Search and Filters - Mobile Optimized */}
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Buscar por código, tipologia..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => document.getElementById('excel-upload-input')?.click()}
-              disabled={isImporting}
-              className="gap-2"
-            >
-              {isImporting ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Importando...</>
-              ) : (
-                <><Upload className="h-4 w-4" /> Importar Excel</>
-              )}
-            </Button>
-            <input
-              id="excel-upload-input"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 justify-between" aria-label="Abrir filtros">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtros
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <div className="p-2 space-y-2">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Status</label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                      className="w-full mt-1 px-2 py-1 border border-input bg-background rounded text-sm"
-                    >
-                      <option value="all">Todos</option>
-                      <option value="installed">Instalados</option>
-                      <option value="pending">Pendentes</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Situação do item</label>
-                    <select
-                      value={itemStatusFilter}
-                      onChange={(e) => setItemStatusFilter(e.target.value as ItemStatusFilterValue)}
-                      className="w-full mt-1 px-2 py-1 border border-input bg-background rounded text-sm"
-                    >
-                      <option value="all">Todas</option>
-                      {ITEM_STATUS_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Pavimento</label>
-                    <select
-                      value={pavimentoFilter}
-                      onChange={(e) => setPavimentoFilter(e.target.value)}
-                      className="w-full mt-1 px-2 py-1 border border-input bg-background rounded text-sm"
-                    >
-                      <option value="all">Todos</option>
-                      {pavimentos.map(pavimento => (
-                        <option key={pavimento} value={pavimento}>{pavimento}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button variant="outline" size="sm" aria-label="Recarregar lista" title="Recarregar">
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Mobile-Optimized Installation List */}
         <div className="space-y-4">
-          {isLoadingData || isImporting ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <Card key={i}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="h-4 w-4 mt-1" />
-                      <div className="flex-1 space-y-2">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                          <Skeleton className="h-6 w-16" />
-                          <Skeleton className="h-5 w-3/4" />
-                        </div>
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-2/3" />
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Skeleton className="h-9 flex-1" />
-                          <Skeleton className="h-9 w-9" />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : Object.keys(groupedInstallations).length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all"
-                    ? "Tente ajustar os filtros de busca"
-                    : "Importe uma planilha Excel para começar"
-                  }
-                </p>
+          {/* Compact Summary Cards - Mobile Optimized */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <Card className="text-center">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold text-primary">{installations.length}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total</div>
               </CardContent>
             </Card>
-          ) : (
-            <Accordion type="multiple" className="space-y-2">
-              {Object.entries(groupedInstallations)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([tipologia, installations]) => (
-                  <AccordionItem key={tipologia} value={tipologia} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 hover:no-underline text-left">
-                      <div className="flex items-center justify-between w-full pr-4 min-w-0">
-                        <span className="font-semibold text-left break-words min-w-0 flex-1">{tipologia}</span>
-                        <Badge variant="outline" className="ml-2 shrink-0">
-                          {installations.length}
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4">
-                      <div className="space-y-3">
-                        {installations.length > 100 ? (
-                          <div style={{ height: 600 }}>
-                            <VirtualList
-                              height={600}
-                              width={"100%"}
-                              itemCount={installations.length}
-                              itemSize={160}
-                              itemKey={(index) => installations[index].id}
-                            >
-                              {({ index, style }) => (
-                                <div style={style}>
-                                  <InstallationCard
-                                    installation={installations[index]}
-                                    isSelected={selectedInstallations.includes(installations[index].id)}
-                                    onSelectChange={handleSelectChange}
-                                    onToggleInstallation={handleToggleInstallationClick}
-                                    onOpenDetails={handleOpenDetails}
-                                    isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
-                                    onEdit={handleEditInstallation}
-                                    onDelete={handleDeleteInstallation}
-                                  />
-                                </div>
-                              )}
-                            </VirtualList>
+            <Card className="text-center">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold text-green-600">{completedInstallations}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Instaladas</div>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold text-orange-600">{pendingInstallations}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Pendentes</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Progress Card - Mobile Optimized */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Progresso Geral</span>
+                <span className="text-lg font-bold">{Math.round(progressPercentage)}%</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+              <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                <span>{completedInstallations} concluídas</span>
+                <span>{installationsWithObservations} com observações</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <InstallationFilters
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            itemStatusFilter={itemStatusFilter}
+            onItemStatusFilterChange={setItemStatusFilter}
+            pavimentos={pavimentos}
+            pavimentoFilter={pavimentoFilter}
+            onPavimentoFilterChange={setPavimentoFilter}
+            sortOption={sortOption}
+            onSortOptionChange={setSortOption}
+            groupByTipologia={groupByTipologia}
+            onGroupByTipologiaChange={setGroupByTipologia}
+            onResetFilters={handleResetFilters}
+            isImporting={isImporting}
+            onFileUpload={handleFileUpload}
+          />
+
+          {/* Mobile-Optimized Installation List */}
+          <div className="space-y-4">
+            {isLoadingData || isImporting ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="h-4 w-4 mt-1" />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                            <Skeleton className="h-6 w-16" />
+                            <Skeleton className="h-5 w-3/4" />
                           </div>
-                        ) : (
-                          installations.map((installation) => (
-                            <InstallationCard
-                              key={installation.id}
-                              installation={installation}
-                              isSelected={selectedInstallations.includes(installation.id)}
-                              onSelectChange={handleSelectChange}
-                              onToggleInstallation={handleToggleInstallationClick}
-                              onOpenDetails={handleOpenDetails}
-                              isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
-                              onEdit={handleEditInstallation}
-                              onDelete={handleDeleteInstallation}
-                            />
-                          ))
-                        )}
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <Skeleton className="h-9 flex-1" />
+                            <Skeleton className="h-9 w-9" />
+                          </div>
+                        </div>
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                    </CardContent>
+                  </Card>
                 ))}
-            </Accordion>
-          )}
+              </div>
+            ) : !hasInstallations ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    {searchTerm || statusFilter !== "all" || pavimentoFilter !== "all" || itemStatusFilter !== 'all'
+                      ? "Tente ajustar os filtros de busca"
+                      : "Importe uma planilha Excel para começar"
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            ) : groupByTipologia ? (
+              <Accordion type="multiple" className="space-y-2">
+                {groupedInstallations.map(({ tipologia, installations }) => {
+                  const groupValue = tipologia || 'sem-tipologia';
+                  return (
+                    <AccordionItem key={groupValue} value={groupValue} className="border rounded-lg">
+                      <AccordionTrigger className="px-4 hover:no-underline text-left">
+                        <div className="flex items-center justify-between w-full pr-4 min-w-0">
+                          <span className="font-semibold text-left break-words min-w-0 flex-1">{tipologia}</span>
+                          <Badge variant="outline" className="ml-2 shrink-0">
+                            {installations.length}
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="space-y-3">
+                          {installations.length > 100 ? (
+                            <div style={{ height: 600 }}>
+                              <VirtualList
+                                height={600}
+                                width={"100%"}
+                                itemCount={installations.length}
+                                itemSize={160}
+                                itemKey={(index) => installations[index].id}
+                              >
+                                {({ index, style }) => (
+                                  <div style={style}>
+                                    <InstallationCard
+                                      installation={installations[index]}
+                                      isSelected={selectedInstallations.includes(installations[index].id)}
+                                      onSelectChange={handleSelectChange}
+                                      onToggleInstallation={handleToggleInstallationClick}
+                                      onOpenDetails={handleOpenDetails}
+                                      isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installations[index].id}
+                                      onEdit={handleEditInstallation}
+                                      onDelete={handleDeleteInstallation}
+                                    />
+                                  </div>
+                                )}
+                              </VirtualList>
+                            </div>
+                          ) : (
+                            installations.map((installation) => (
+                              <InstallationCard
+                                key={installation.id}
+                                installation={installation}
+                                isSelected={selectedInstallations.includes(installation.id)}
+                                onSelectChange={handleSelectChange}
+                                onToggleInstallation={handleToggleInstallationClick}
+                                onOpenDetails={handleOpenDetails}
+                                isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
+                                onEdit={handleEditInstallation}
+                                onDelete={handleDeleteInstallation}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            ) : (
+              sortedInstallations.length > 100 ? (
+                <div style={{ height: 600 }}>
+                  <VirtualList
+                    height={600}
+                    width={"100%"}
+                    itemCount={sortedInstallations.length}
+                    itemSize={160}
+                    itemKey={(index) => sortedInstallations[index].id}
+                  >
+                    {({ index, style }) => (
+                      <div style={style}>
+                        <InstallationCard
+                          installation={sortedInstallations[index]}
+                          isSelected={selectedInstallations.includes(sortedInstallations[index].id)}
+                          onSelectChange={handleSelectChange}
+                          onToggleInstallation={handleToggleInstallationClick}
+                          onOpenDetails={handleOpenDetails}
+                          isDetailsOpen={!!selectedInstallation && selectedInstallation.id === sortedInstallations[index].id}
+                          onEdit={handleEditInstallation}
+                          onDelete={handleDeleteInstallation}
+                        />
+                      </div>
+                    )}
+                  </VirtualList>
+                </div>
+              ) : (
+                sortedInstallations.map((installation) => (
+                  <InstallationCard
+                    key={installation.id}
+                    installation={installation}
+                    isSelected={selectedInstallations.includes(installation.id)}
+                    onSelectChange={handleSelectChange}
+                    onToggleInstallation={handleToggleInstallationClick}
+                    onOpenDetails={handleOpenDetails}
+                    isDetailsOpen={!!selectedInstallation && selectedInstallation.id === installation.id}
+                    onEdit={handleEditInstallation}
+                    onDelete={handleDeleteInstallation}
+                  />
+                ))
+              )
+            )}
+          </div>
         </div>
-      </div>
       </LoadingBoundary>
     );
   };
