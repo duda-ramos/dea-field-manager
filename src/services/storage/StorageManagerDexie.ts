@@ -793,8 +793,36 @@ export const StorageManagerDexie = {
   },
   async upsertInstallation(installation: Installation, options: InstallationRevisionOptions = {}) {
     const existing = installation.id ? await db.installations.get(installation.id) : undefined;
+
+    const candidateState = {
+      ...(existing ?? {}),
+      ...installation
+    } as Installation;
+
+    const hasTrackedChanges =
+      !existing ||
+      TRACKED_INSTALLATION_FIELDS.filter(field => field !== 'revisao').some(field => {
+        const nextValue = (candidateState as Record<string, unknown>)[field as string];
+        const previousValue = existing
+          ? (existing as Record<string, unknown>)[field as string]
+          : undefined;
+        return valuesAreDifferent(nextValue, previousValue);
+      });
+
+    const previousRevisionNumber = existing?.revisao ?? 0;
+    const incomingRevisionNumber =
+      typeof installation.revisao === 'number' ? installation.revisao : undefined;
+
+    let nextRevisionNumber = previousRevisionNumber;
+    if (incomingRevisionNumber && incomingRevisionNumber > previousRevisionNumber) {
+      nextRevisionNumber = incomingRevisionNumber;
+    } else if (options.forceRevision || hasTrackedChanges) {
+      nextRevisionNumber = previousRevisionNumber + 1;
+    }
+
     const withDates = {
       ...installation,
+      revisao: nextRevisionNumber,
       updatedAt: now(),
       createdAt: (installation as Partial<Installation>)?.createdAt ?? now(),
       _dirty: 0,
@@ -815,7 +843,13 @@ export const StorageManagerDexie = {
     // Mark as deleted instead of actually deleting (tombstone)
     const existing = await db.installations.get(id);
     if (existing) {
-      const deletedInstallation = { ...existing, _deleted: 1, _dirty: 1, updatedAt: now() } as Installation;
+      const deletedInstallation = {
+        ...existing,
+        _deleted: 1,
+        _dirty: 1,
+        updatedAt: now(),
+        revisao: (existing.revisao ?? 0) + 1
+      } as Installation;
       await db.installations.put(deletedInstallation);
       await recordInstallationRevision(
         deletedInstallation,
