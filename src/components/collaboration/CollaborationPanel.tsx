@@ -6,17 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Users, 
-  UserPlus, 
-  Mail, 
-  Crown, 
-  Eye, 
-  Edit, 
+import {
+  Users,
+  UserPlus,
+  Mail,
+  Crown,
+  Eye,
+  Edit,
   Trash2,
   Clock,
   CheckCircle2,
-  Activity
+  Activity,
+  Wrench
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuthContext';
@@ -24,6 +25,14 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { logger } from '@/services/logger';
+import {
+  addProjectMember,
+  fetchProjectMembers,
+  findProfileByEmail,
+  removeProjectMember,
+  type ProjectMember
+} from '@/lib/supabase';
+import type { UserRole } from '@/middleware/permissions';
 
 interface RealtimeEvent {
   id: string;
@@ -33,19 +42,6 @@ interface RealtimeEvent {
   created_at: string;
 }
 
-interface Collaborator {
-  id: string;
-  user_id: string;
-  role: string;
-  permissions: Record<string, boolean>;
-  invited_by: string;
-  invited_at: string;
-  accepted_at?: string;
-  status: string;
-  user_email?: string;
-  user_name?: string;
-}
-
 interface CollaborationPanelProps {
   projectId: string;
   isOwner: boolean;
@@ -53,16 +49,19 @@ interface CollaborationPanelProps {
 }
 
 export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: CollaborationPanelProps) {
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [collaborators, setCollaborators] = useState<ProjectMember[]>([]);
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('viewer');
+  const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
+
+  const canManageMembers = isOwner || hasPermission('members:manage');
+  const canAssignAdmin = hasPermission('users:manage');
 
   useEffect(() => {
     loadCollaborators();
@@ -123,18 +122,13 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
   const loadCollaborators = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('project_collaborators')
-        .select(`
-          *,
-          profiles:user_id (
-            display_name
-          )
-        `)
-        .eq('project_id', projectId);
+      const { data, error } = await fetchProjectMembers(projectId);
 
-      if (error) throw error;
-      setCollaborators((data as any) || []);
+      if (error) {
+        throw error;
+      }
+
+      setCollaborators(data ?? []);
     } catch (error) {
       console.error('[CollaborationPanel] Falha ao carregar colaboradores:', error, {
         projectId
@@ -143,6 +137,11 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         error,
         projectId,
         operacao: 'loadCollaborators'
+      });
+      toast({
+        title: 'Erro ao carregar colaboradores',
+        description: 'Não foi possível carregar os membros do projeto.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -158,7 +157,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       .limit(10);
 
     if (data) {
-      setEvents(data as any);
+      setEvents(data as RealtimeEvent[]);
     }
   };
 
@@ -171,16 +170,17 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         project_id: projectId,
         user_id: user.id,
         event_type: eventType,
-        event_data: eventData as any
+        event_data: eventData ?? null
       }]);
   };
 
   const handleInviteUser = async () => {
-    if (!user || !inviteEmail.trim()) return;
+    if (!user || !inviteEmail.trim() || !canManageMembers) return;
 
-    // Validate email format
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteEmail)) {
+    if (!emailRegex.test(normalizedEmail)) {
       toast({
         title: 'Email inválido',
         description: 'Verifique o endereço de email e tente novamente',
@@ -193,15 +193,13 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
     try {
       setInviting(true);
 
-      // Search for user by email using the security definer function
-      const { data: foundUserId, error: searchError } = await supabase
-        .rpc('get_user_by_email', { user_email: inviteEmail.toLowerCase().trim() });
+      const { data: profile, error: profileError } = await findProfileByEmail(normalizedEmail);
 
-      if (searchError) {
+      if (profileError) {
         logger.error('Error searching user by email', {
-          error: searchError,
-          email: inviteEmail,
-          operacao: 'get_user_by_email'
+          error: profileError,
+          email: normalizedEmail,
+          operacao: 'findProfileByEmail'
         });
         toast({
           title: 'Erro ao buscar usuário',
@@ -212,99 +210,79 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         return;
       }
 
-      if (!foundUserId) {
+      if (!profile) {
         toast({
           title: 'Usuário não encontrado',
-          description: `"${inviteEmail}" não possui conta. Convide-o a se cadastrar primeiro`,
+          description: `"${normalizedEmail}" não possui conta ativa. Utilize o gerenciamento de usuários para enviar um convite.`,
           variant: 'destructive',
           duration: 5000
         });
         return;
       }
 
-      // Check if user is the project owner
-      if (foundUserId === user.id) {
+      if (profile.id === user.id) {
         toast({
           title: 'Operação inválida',
-          description: 'Você já é o proprietário deste projeto',
+          description: 'Você já possui acesso completo a este projeto',
           variant: 'destructive',
           duration: 4000
         });
         return;
       }
 
-      // Check if user is already a collaborator
-      const { data: existingCollaborator } = await supabase
-        .from('project_collaborators')
-        .select('id')
-        .eq('project_id', projectId)
-        .eq('user_id', foundUserId)
-        .maybeSingle();
-
-      if (existingCollaborator) {
+      const alreadyMember = collaborators.some(member => member.user_id === profile.id);
+      if (alreadyMember) {
         toast({
           title: 'Colaborador já existe',
-          description: `"${inviteEmail}" já tem acesso a este projeto`,
+          description: `"${profile.email}" já tem acesso a este projeto`,
           variant: 'destructive',
           duration: 4000
         });
         return;
       }
 
-      const permissions = {
-        read: true,
-        write: inviteRole === 'editor' || inviteRole === 'admin',
-        admin: inviteRole === 'admin'
-      };
+      const { data: member, error: addError } = await addProjectMember({
+        projectId,
+        userId: profile.id,
+        role: inviteRole,
+        invitedBy: user.id
+      });
 
-      const { error } = await supabase
-        .from('project_collaborators')
-        .insert([{
-          project_id: projectId,
-          user_id: foundUserId,
-          role: inviteRole,
-          permissions,
-          invited_by: user.id,
-          status: 'accepted' // User exists, so mark as accepted immediately
-        }]);
-
-      if (error) {
+      if (addError || !member) {
         logger.error('Error adding collaborator', {
-          error,
+          error: addError,
           projectId,
-          email: inviteEmail,
+          email: normalizedEmail,
           role: inviteRole,
-          operacao: 'handleInviteUser_insert'
+          operacao: 'addProjectMember'
         });
-        throw error;
+        throw addError ?? new Error('Erro ao adicionar colaborador');
       }
 
-      // Publish collaboration event
-      await publishEvent('collaborator_added', { email: inviteEmail, role: inviteRole });
+      await publishEvent('collaborator_added', { email: normalizedEmail, role: inviteRole });
 
-      const roleLabel = inviteRole === 'admin' ? 'administrador' : inviteRole === 'editor' ? 'editor' : 'visualizador';
+      setCollaborators(prev => [...prev, member]);
+
       toast({
         title: 'Colaborador adicionado com sucesso',
-        description: `"${inviteEmail}" agora tem acesso como ${roleLabel}`,
+        description: `"${profile.display_name ?? profile.email}" agora tem acesso ao projeto.`,
         duration: 3000
       });
 
       setIsInviteModalOpen(false);
       setInviteEmail('');
       setInviteRole('viewer');
-      loadCollaborators();
       onCollaboratorAdded?.();
-
     } catch (error) {
       console.error('[CollaborationPanel] Falha ao convidar usuário:', error, {
         projectId,
-        email: inviteEmail,
+        email: normalizedEmail,
         role: inviteRole
       });
       logger.error('Error inviting user', {
         error,
         projectId,
-        email: inviteEmail,
+        email: normalizedEmail,
         role: inviteRole,
         operacao: 'handleInviteUser'
       });
@@ -320,13 +298,22 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
   };
 
   const handleRemoveCollaborator = async (collaboratorId: string) => {
-    try {
-      const { error } = await supabase
-        .from('project_collaborators')
-        .delete()
-        .eq('id', collaboratorId);
+    if (!canManageMembers) {
+      toast({
+        title: 'Permissão insuficiente',
+        description: 'Você não tem permissão para remover colaboradores.',
+        variant: 'destructive',
+        duration: 4000
+      });
+      return;
+    }
 
-      if (error) throw error;
+    try {
+      const { error } = await removeProjectMember(collaboratorId);
+
+      if (error) {
+        throw error;
+      }
 
       toast({
         title: 'Colaborador removido com sucesso',
@@ -334,7 +321,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
         duration: 3000
       });
 
-      loadCollaborators();
+      setCollaborators(prev => prev.filter(member => member.id !== collaboratorId));
     } catch (error) {
       console.error('[CollaborationPanel] Falha ao remover colaborador:', error, {
         collaboratorId,
@@ -355,26 +342,42 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
     }
   };
 
-  const getRoleIcon = (role: string) => {
+  const getRoleIcon = (role: UserRole) => {
     switch (role) {
-      case 'admin': return <Crown className="h-4 w-4" />;
-      case 'editor': return <Edit className="h-4 w-4" />;
-      default: return <Eye className="h-4 w-4" />;
+      case 'admin':
+        return <Crown className="h-4 w-4" />;
+      case 'manager':
+        return <Edit className="h-4 w-4" />;
+      case 'field_tech':
+        return <Wrench className="h-4 w-4" />;
+      default:
+        return <Eye className="h-4 w-4" />;
     }
   };
 
-  const getRoleBadgeVariant = (role: string) => {
+  const getRoleBadgeVariant = (role: UserRole) => {
     switch (role) {
-      case 'admin': return 'default' as const;
-      case 'editor': return 'secondary' as const;
-      default: return 'outline' as const;
+      case 'admin':
+        return 'default' as const;
+      case 'manager':
+        return 'secondary' as const;
+      case 'field_tech':
+        return 'outline' as const;
+      default:
+        return 'outline' as const;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'accepted': return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-      default: return <Clock className="h-4 w-4 text-orange-600" />;
+  const getRoleLabel = (role: UserRole) => {
+    switch (role) {
+      case 'admin':
+        return 'Administrador';
+      case 'manager':
+        return 'Gerente';
+      case 'field_tech':
+        return 'Técnico de Campo';
+      default:
+        return 'Visualizador';
     }
   };
 
@@ -447,7 +450,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
                 Gerencie quem pode acessar e editar este projeto
               </CardDescription>
             </div>
-            {isOwner && (
+            {canManageMembers && (
               <Button onClick={() => setIsInviteModalOpen(true)}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Convidar
@@ -465,7 +468,7 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
             <div className="text-center py-6">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">Nenhum colaborador ainda</p>
-              {isOwner && (
+              {canManageMembers && (
                 <Button variant="outline" onClick={() => setIsInviteModalOpen(true)}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Convidar primeiro colaborador
@@ -474,44 +477,50 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
             </div>
           ) : (
             <div className="space-y-4">
-              {collaborators.map((collaborator) => (
-                <div key={collaborator.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        {collaborator.user_email?.substring(0, 2).toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">
-                        {(collaborator as any).profiles?.display_name || collaborator.user_email || 'Usuário'}
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {getStatusIcon(collaborator.status)}
-                        <span>{collaborator.status === 'accepted' ? 'Ativo' : 'Pendente'}</span>
+              {collaborators.map(collaborator => {
+                const profile = collaborator.profile;
+                const displayName = profile?.display_name ?? profile?.email ?? 'Usuário';
+                const email = profile?.email ?? '';
+                const initialsSource = displayName || email || 'Usuário';
+                const initials = initialsSource.substring(0, 2).toUpperCase();
+
+                return (
+                  <div key={collaborator.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>{initials}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{displayName}</p>
+                        {email && (
+                          <p className="text-xs text-muted-foreground">{email}</p>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span>Ativo</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <Badge variant={getRoleBadgeVariant(collaborator.role)} className="gap-1">
-                      {getRoleIcon(collaborator.role)}
-                      {collaborator.role === 'admin' ? 'Admin' : 
-                       collaborator.role === 'editor' ? 'Editor' : 'Visualizador'}
-                    </Badge>
-                    
-                    {isOwner && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveCollaborator(collaborator.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getRoleBadgeVariant(collaborator.role)} className="gap-1">
+                        {getRoleIcon(collaborator.role)}
+                        {getRoleLabel(collaborator.role)}
+                      </Badge>
+
+                      {canManageMembers && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveCollaborator(collaborator.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -586,18 +595,26 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
                       Visualizador - Apenas visualizar
                     </div>
                   </SelectItem>
-                  <SelectItem value="editor">
+                  <SelectItem value="field_tech">
+                    <div className="flex items-center gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Técnico de Campo - Atualizar instalações e fotos
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="manager">
                     <div className="flex items-center gap-2">
                       <Edit className="h-4 w-4" />
-                      Editor - Visualizar e editar
+                      Gerente - Gerenciar informações do projeto
                     </div>
                   </SelectItem>
-                  <SelectItem value="admin">
-                    <div className="flex items-center gap-2">
-                      <Crown className="h-4 w-4" />
-                      Admin - Controle total
-                    </div>
-                  </SelectItem>
+                  {canAssignAdmin && (
+                    <SelectItem value="admin">
+                      <div className="flex items-center gap-2">
+                        <Crown className="h-4 w-4" />
+                        Admin - Controle total
+                      </div>
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -610,9 +627,9 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
               >
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleInviteUser}
-                disabled={inviting || !inviteEmail.trim()}
+                disabled={inviting || !inviteEmail.trim() || !canManageMembers}
                 className="flex-1"
               >
                 {inviting ? 'Enviando...' : 'Enviar Convite'}

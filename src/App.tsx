@@ -31,6 +31,7 @@ const ConfiguracoesPage = lazy(() => import("./pages/ConfiguracoesPage"));
 const Debug = lazy(() => import("./pages/Debug"));
 const TestConflictIntegration = lazy(() => import("./components/test-conflict-integration").then(mod => ({ default: mod.TestConflictIntegration })));
 const PublicReportView = lazy(() => import("./components/reports/PublicReportView").then(mod => ({ default: mod.PublicReportView })));
+const UserManagementPage = lazy(() => import("./pages/admin/UserManagementPage"));
 
 // Auth pages - Keep these as regular imports for better UX on login
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -194,6 +195,15 @@ const App = () => {
                         <AppLayout>
                           <ErrorBoundary>
                             <ProjectDetailNew />
+                          </ErrorBoundary>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/usuarios" element={
+                      <ProtectedRoute permission="users:manage">
+                        <AppLayout>
+                          <ErrorBoundary>
+                            <UserManagementPage />
                           </ErrorBoundary>
                         </AppLayout>
                       </ProtectedRoute>
