@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState, ReactNode, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
@@ -6,11 +6,15 @@ import { errorMonitoring } from '@/services/errorMonitoring';
 import { authRateLimiter } from '@/services/auth/rateLimiter';
 import { autoSyncManager } from '@/services/sync/autoSync';
 import { AuthContext } from '@/contexts/AuthContext';
+import type { UserRole } from '@/middleware/permissions';
+import * as permissions from '@/middleware/permissions';
 
 interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  role: UserRole;
+  role_metadata: Record<string, any>;
   created_at: string;
   updated_at: string;
 }
@@ -291,16 +295,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Memoize role-based values to prevent unnecessary re-renders
+  const userRole = useMemo(() => profile?.role || null, [profile?.role]);
+  
+  const isAdmin = useMemo(() => permissions.isAdmin(userRole), [userRole]);
+  const isManager = useMemo(() => permissions.isManager(userRole), [userRole]);
+  const isFieldTech = useMemo(() => permissions.isFieldTech(userRole), [userRole]);
+  const isViewer = useMemo(() => userRole === 'viewer', [userRole]);
+  
+  const hasPermission = useMemo(() => {
+    return (resource: string, action: string) => 
+      permissions.hasPermission(userRole, resource, action);
+  }, [userRole]);
+  
+  const hasMinimumRole = useMemo(() => {
+    return (minRole: UserRole) => 
+      permissions.hasMinimumRole(userRole, minRole);
+  }, [userRole]);
+
   const value = {
     user,
     session,
     profile,
     loading,
+    userRole,
+    isAdmin,
+    isManager,
+    isFieldTech,
+    isViewer,
     signUp,
     signIn,
     signOut,
     resetPassword,
-    updateProfile
+    updateProfile,
+    hasPermission,
+    hasMinimumRole
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
