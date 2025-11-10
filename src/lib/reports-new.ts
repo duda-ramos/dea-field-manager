@@ -2511,6 +2511,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           sections.concluidas,
           data.interlocutor,
           'concluidas',
+          config,
         );
       } catch (error) {
         console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
@@ -2542,6 +2543,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           sections.emAndamento,
           data.interlocutor,
           'andamento',
+          config,
         );
       } catch (error) {
         console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
@@ -3194,9 +3196,11 @@ function addAggregatedSectionToXLSX(
   workbook: XLSX.WorkBook,
   sheetName: string,
   items: Installation[],
-  _interlocutor: 'cliente' | 'fornecedor',
-  _sectionType: 'concluidas' | 'andamento'
+  interlocutor: 'cliente' | 'fornecedor',
+  sectionType: 'concluidas' | 'andamento',
+  config?: ReportConfig
 ) {
+  const cfg = config ? resolveReportConfig(config) : DEFAULT_REPORT_CONFIG;
   const aggregatedData = aggregateByPavimentoTipologia(items);
   
   // Sort by Pavimento, then Tipologia
@@ -3205,20 +3209,58 @@ function addAggregatedSectionToXLSX(
     return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
   });
 
-  const headers = ['Pavimento', 'Tipologia', 'Quantidade Total'];
-  const rows = sortedAggregated.map(item => [
-    item.pavimento,
-    item.tipologia,
-    item.quantidade
-  ]);
+  // Build dynamic headers based on visible columns
+  const headers: string[] = [];
+  const includePavimento = cfg.visibleColumns.pavimento;
+  const includeTipologia = cfg.visibleColumns.tipologia;
+  const includeStatus = cfg.visibleColumns.status;
+  
+  if (includePavimento) headers.push('Pavimento');
+  if (includeTipologia) headers.push('Tipologia');
+  headers.push('Quantidade Total');
+  if (includeStatus) headers.push('Status');
 
-  const wsData = [headers, ...rows];
+  // Build rows with conditional formatting for status
+  const rows: WorksheetRow[] = sortedAggregated.map(item => {
+    const row: WorksheetRow = [];
+    if (includePavimento) row.push(item.pavimento);
+    if (includeTipologia) row.push(item.tipologia);
+    row.push(item.quantidade);
+    
+    if (includeStatus) {
+      // Get a sample item from this group to determine status
+      const sampleItem = items.find(
+        i => i.pavimento === item.pavimento && i.tipologia === item.tipologia
+      );
+      if (sampleItem) {
+        const statusDisplay = getStatusDisplay(sampleItem, sectionType === 'concluidas' ? 'concluidas' : 'andamento');
+        row.push(createStatusCell(statusDisplay));
+      } else {
+        row.push('');
+      }
+    }
+    
+    return row;
+  });
+
+  const headerRow: WorksheetRow = headers.map(header => ({ 
+    t: 's', 
+    v: header, 
+    s: { font: { bold: true } } 
+  }));
+
+  const wsData = [headerRow, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Dynamic column widths
+  const colWidths = headers.map(header => ({ wch: COLUMN_WIDTHS[header] ?? 18 }));
+  worksheet['!cols'] = colWidths;
   
   // Freeze top row (header)
   worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
   // Auto filter on header row
-  worksheet['!autofilter'] = { ref: `A1:C${sortedAggregated.length + 1}` };
+  const lastCol = String.fromCharCode(65 + headers.length - 1); // A, B, C, D...
+  worksheet['!autofilter'] = { ref: `A1:${lastCol}${sortedAggregated.length + 1}` };
   
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }
