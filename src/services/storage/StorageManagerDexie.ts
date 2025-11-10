@@ -93,6 +93,11 @@ const valuesAreDifferent = (current: unknown, previous: unknown): boolean => {
   return (current ?? null) !== (previous ?? null);
 };
 
+// Type-safe helper to access Installation fields
+const getInstallationField = (installation: Installation, field: keyof Installation): unknown => {
+  return installation[field];
+};
+
 const computeChangesSummary = (
   previous: Installation | undefined,
   current: Installation
@@ -100,8 +105,8 @@ const computeChangesSummary = (
   const summary: ChangeSummary = {};
 
   for (const field of TRACKED_INSTALLATION_FIELDS) {
-    const currentValue = (current as Record<string, unknown>)[field as string];
-    const previousValue = previous ? (previous as Record<string, unknown>)[field as string] : undefined;
+    const currentValue = getInstallationField(current, field);
+    const previousValue = previous ? getInstallationField(previous, field) : undefined;
 
     if (field === 'photos') {
       const currentCount = Array.isArray(currentValue) ? currentValue.length : 0;

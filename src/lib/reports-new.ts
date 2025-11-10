@@ -12,6 +12,17 @@ import { logger } from '@/lib/logger';
 type WorksheetCell = string | number | XLSX.CellObject;
 type WorksheetRow = WorksheetCell[];
 
+// Helper to convert WorksheetRow to autoTable-compatible format
+const convertToRowInput = (row: WorksheetRow): (string | number)[] => {
+  return row.map(cell => {
+    if (typeof cell === 'object' && cell !== null && 'v' in cell) {
+      // XLSX.CellObject - extract the value
+      return cell.v as string | number;
+    }
+    return cell as string | number;
+  });
+};
+
 export interface PDFGenerationOptions {
   onProgress?: (progress: number, message?: string) => void;
 }
@@ -1369,7 +1380,7 @@ async function addEnhancedSectionToPDF(
 
     autoTable(doc, {
       head: [columns],
-      body: rows,
+      body: rows.map(convertToRowInput),
       startY: tableStartY,
       margin: { left: reportTheme.spacing.margin, right: reportTheme.spacing.margin },
       styles: { 
