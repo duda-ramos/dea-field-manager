@@ -2,9 +2,13 @@
  * User management service for admin operations
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { UserRole } from '@/middleware/permissions';
-import { logger } from './logger';
+import { supabase } from "@/integrations/supabase/client"
+import { UserRole } from "@/middleware/permissions"
+import { logger } from "./logger"
+
+interface AdminUserListResponse {
+  users: UserProfile[]
+}
 
 export interface UserProfile {
   id: string;
@@ -44,35 +48,26 @@ export interface AccessLog {
 /**
  * Get all users (admin only)
  */
-export async function getAllUsers(): Promise<{ data: UserProfile[] | null; error: Error | null }> {
+export async function getAllUsers(): Promise<{
+  data: UserProfile[] | null
+  error: Error | null
+}> {
   try {
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data: response, error } = await supabase.functions.invoke<AdminUserListResponse>(
+      "admin-user-management",
+      {
+        body: {
+          action: "list_users",
+        },
+      }
+    )
 
-    if (error) throw error;
+    if (error) throw error
 
-    // Get emails from auth.users (requires admin privileges)
-    const usersWithEmails = await Promise.all(
-      (profiles || []).map(async (profile) => {
-        try {
-          const { data: { user } } = await supabase.auth.admin.getUserById(profile.id);
-          return {
-            ...profile,
-            email: user?.email || null,
-          };
-        } catch (err) {
-          logger.error('Error fetching user email:', err);
-          return profile;
-        }
-      })
-    );
-
-    return { data: usersWithEmails, error: null };
+    return { data: response?.users ?? [], error: null }
   } catch (error) {
-    logger.error('Error fetching users:', error);
-    return { data: null, error: error as Error };
+    logger.error("Error fetching users:", error)
+    return { data: null, error: error as Error }
   }
 }
 
