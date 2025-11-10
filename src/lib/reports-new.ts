@@ -241,7 +241,7 @@ async function fetchThumbnailDataUrl(photoUrl: string, size = 100): Promise<stri
   try {
     const response = await fetch(photoUrl);
     if (!response.ok) {
-      console.warn('[fetchThumbnailDataUrl] Failed to download photo for thumbnail', { photoUrl });
+      logger.warn('Failed to download photo for thumbnail', { photoUrl });
       return null;
     }
 
@@ -265,7 +265,7 @@ async function fetchThumbnailDataUrl(photoUrl: string, size = 100): Promise<stri
           const dataUrl = canvas.toDataURL('image/png');
           resolve(dataUrl);
         } catch (error) {
-          console.error('[fetchThumbnailDataUrl] Failed to render thumbnail', error);
+          logger.error('Failed to render thumbnail', error);
           resolve(null);
         } finally {
           URL.revokeObjectURL(objectUrl);
@@ -278,7 +278,7 @@ async function fetchThumbnailDataUrl(photoUrl: string, size = 100): Promise<stri
       image.src = objectUrl;
     });
   } catch (error) {
-    console.error('[fetchThumbnailDataUrl] Unexpected error generating thumbnail', error);
+    logger.error('Unexpected error generating thumbnail', error);
     return null;
   }
 }
@@ -291,7 +291,7 @@ async function fetchCompressedImageDataUrl(photoUrl: string, size = 150, quality
   try {
     const response = await fetch(photoUrl);
     if (!response.ok) {
-      console.warn('[fetchCompressedImageDataUrl] Failed to download photo', { photoUrl, status: response.status });
+      logger.warn('Failed to download photo', { photoUrl, status: response.status });
       return null;
     }
 
@@ -332,13 +332,13 @@ async function fetchCompressedImageDataUrl(photoUrl: string, size = 150, quality
         format: 'JPEG'
       };
     } catch (error) {
-      console.error('[fetchCompressedImageDataUrl] Failed to process image', error);
+      logger.error('Failed to process image', error);
       return null;
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
   } catch (error) {
-    console.error('[fetchCompressedImageDataUrl] Unexpected error', error);
+    logger.error('Unexpected error fetching compressed image', error);
     return null;
   }
 }
@@ -388,7 +388,7 @@ async function buildPdfPhotoCache(
           compressedPhotos.push(compressed);
         }
       } catch (error) {
-        console.warn('[buildPdfPhotoCache] Failed to compress photo', { photoUrl, error });
+        logger.warn('Failed to compress photo', { photoUrl, error });
       } finally {
         processed += 1;
         options.onProgress?.(processed, totalPhotos);
@@ -484,7 +484,7 @@ export async function saveReportToSupabase(
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.error('[saveReportToSupabase] User not authenticated');
+      logger.error('User not authenticated for report save');
       return null;
     }
 
@@ -505,7 +505,7 @@ export async function saveReportToSupabase(
       });
 
     if (uploadError) {
-      console.error('[saveReportToSupabase] Upload error:', uploadError);
+      logger.error('Upload error', uploadError);
       return null;
     }
 
@@ -515,7 +515,7 @@ export async function saveReportToSupabase(
       .getPublicUrl(filePath);
 
     if (!urlData?.publicUrl) {
-      console.error('[saveReportToSupabase] Failed to get public URL');
+      logger.error('Failed to get public URL');
       return null;
     }
 
@@ -552,11 +552,11 @@ export async function saveReportToSupabase(
         });
 
       if (dbError) {
-        console.warn('⚠️ Failed to save metadata (file is safe):', dbError);
+        logger.warn('Failed to save metadata (file is safe)', dbError);
       }
     } catch (metadataError) {
       // Don't break the flow if metadata save fails
-      console.warn('⚠️ Failed to save metadata (file is safe):', metadataError);
+      logger.warn('Failed to save metadata (file is safe)', metadataError);
     }
 
     return {
@@ -768,7 +768,7 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
       const ctx = canvas.getContext('2d');
       
       if (!ctx) {
-        console.error('[generateStorageBarImage] Failed to get canvas context');
+        logger.error('Failed to get canvas context for storage bar');
         canvas.remove(); // Cleanup
         resolve('');
         return;
@@ -848,7 +848,7 @@ export async function generateStorageBarImage(data: ReportSections): Promise<str
     canvas.remove(); // Cleanup to prevent memory leak
     resolve(dataUrl);
     } catch (error) {
-      console.error('[generateStorageBarImage] Error generating storage bar:', error);
+      logger.error('Error generating storage bar', error);
       resolve(''); // Return empty string to continue without chart
     }
   });
@@ -884,7 +884,7 @@ export async function generateMiniStorageBar(
       const ctx = canvas.getContext('2d');
       
       if (!ctx) {
-        console.error('[generateMiniStorageBar] Failed to get canvas context');
+        logger.error('Failed to get canvas context for mini storage bar');
         canvas.remove(); // Cleanup
         resolve('');
         return;
@@ -915,7 +915,7 @@ export async function generateMiniStorageBar(
     canvas.remove(); // Cleanup to prevent memory leak
     resolve(dataUrl);
     } catch (error) {
-      console.error('[generateMiniStorageBar] Error generating mini storage bar:', error);
+      logger.error('Error generating mini storage bar', error);
       resolve(''); // Return empty string to continue without mini chart
     }
   });
@@ -1004,7 +1004,7 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
     try {
       options.onProgress(Math.max(0, Math.min(1, value)), message);
     } catch (error) {
-      console.error('[generatePDFReport] Failed to report progress', error);
+      logger.error('Failed to report progress', error);
     }
   };
 
@@ -1015,19 +1015,19 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
     reportProgress(0.02, 'Validando dados do relatório...');
 
     if (!data) {
-      console.error('[generatePDFReport] Error: data is null or undefined');
+      logger.error('Data is null or undefined for PDF generation');
       reportProgress(1, 'Dados inválidos para gerar o PDF.');
       return new Blob([], { type: 'application/pdf' });
     }
 
     if (!data.project) {
-      console.error('[generatePDFReport] Error: data.project is missing');
+      logger.error('Data.project is missing for PDF generation');
       reportProgress(1, 'Projeto não encontrado para o relatório.');
       return new Blob([], { type: 'application/pdf' });
     }
 
     if (!Array.isArray(data.installations)) {
-      console.error('[generatePDFReport] Error: data.installations is not an array');
+      logger.error('Data.installations is not an array for PDF generation');
       reportProgress(1, 'Instalações inválidas para o relatório.');
       return new Blob([], { type: 'application/pdf' });
     }
@@ -1046,7 +1046,7 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
     try {
       storageBarImage = await generateStorageBarImage(sections);
     } catch (error) {
-      console.error('[generatePDFReport] Error generating storage bar, continuing without chart:', error);
+      logger.error('Error generating storage bar, continuing without chart', error);
       storageBarImage = '';
     }
 
@@ -1104,7 +1104,7 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
 
       doc.addImage(logoImg, 'PNG', reportTheme.spacing.margin, yPosition, maxWidth, logoHeight);
     } catch (error) {
-      console.error('[generatePDFReport] Error loading logo, continuing without logo:', error);
+      logger.error('Error loading logo, continuing without logo', error);
     }
 
     doc.setFontSize(reportTheme.fonts.title);
@@ -1187,7 +1187,7 @@ export async function generatePDFReport(data: ReportData, options: PDFGeneration
           }
         );
       } catch (error) {
-        console.error(`[generatePDFReport] Error adding ${section.title} section, skipping:`, error);
+        logger.error(`Error adding ${section.title} section, skipping`, error);
       }
 
       renderedSections += 1;
@@ -1444,7 +1444,7 @@ async function addEnhancedSectionToPDF(
               try {
                 doc.addImage(photo.dataUrl, format, currentX, offsetY, thumbSize, thumbSize);
               } catch (error) {
-                console.warn('[addEnhancedSectionToPDF] Failed to add inline photo', error);
+                logger.warn('Failed to add inline photo', error);
               }
               currentX += thumbSize + gap;
             });
@@ -1586,7 +1586,7 @@ async function uploadSinglePhotoWithRetry(
     try {
       // Validate bucket is configured
       if (!bucket) {
-        console.error('[uploadSinglePhotoWithRetry] Error: Supabase bucket not configured');
+        logger.error('Supabase bucket not configured');
         return null;
       }
 
@@ -1684,12 +1684,12 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
   try {
     // Input validation
     if (!bucket) {
-      console.error('[uploadPhotosForReport] Error: Supabase bucket not configured');
+      logger.error('Supabase bucket not configured');
       return '';
     }
 
     if (!photos || photos.length === 0) {
-      console.warn('[uploadPhotosForReport] No photos provided for item:', itemId);
+      logger.warn('No photos provided for item', { itemId });
       return '';
     }
     
@@ -1708,7 +1708,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
     const successfulUrls = uploadedPhotoUrls.filter(url => url !== null) as string[];
     
     if (successfulUrls.length === 0) {
-      console.error('[uploadPhotosForReport] All photo uploads failed for item:', {
+      logger.error('All photo uploads failed for item', {
         itemId,
         totalPhotos: photos.length
       });
@@ -1717,7 +1717,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
 
     // Log if some photos failed
     if (successfulUrls.length < photos.length) {
-      console.warn('[uploadPhotosForReport] Some photo uploads failed:', {
+      logger.warn('Some photo uploads failed', {
         itemId,
         successful: successfulUrls.length,
         total: photos.length,
@@ -1866,7 +1866,7 @@ async function uploadPhotosForReport(photos: string[], itemId: string): Promise<
       });
     
     if (htmlUploadError) {
-      console.error('[uploadPhotosForReport] Error uploading HTML gallery:', {
+      logger.error('Error uploading HTML gallery', {
         error: htmlUploadError,
         itemId,
         photoCount: successfulUrls.length
@@ -1910,17 +1910,17 @@ async function _getPhotoPublicUrls(projectId: string, installationId: string): P
   try {
     // Input validation
     if (!bucket) {
-      console.error('[getPhotoPublicUrls] Error: Supabase bucket not configured');
+      logger.error('Supabase bucket not configured');
       return [];
     }
 
     if (!projectId) {
-      console.error('[getPhotoPublicUrls] Error: projectId is missing');
+      logger.error('projectId is missing');
       return [];
     }
 
     if (!installationId) {
-      console.error('[getPhotoPublicUrls] Error: installationId is missing');
+      logger.error('installationId is missing');
       return [];
     }
     
@@ -1944,7 +1944,7 @@ async function _getPhotoPublicUrls(projectId: string, installationId: string): P
         }
       } catch (fileError) {
         // Log error but continue with other files
-        console.error('[getPhotoPublicUrls] Error getting URL for file, continuing:', {
+        logger.error('Error getting URL for file, continuing', {
           error: fileError,
           fileId: file.id,
           storagePath: file.storagePath
@@ -2459,17 +2459,17 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
   try {
     // Input validation
     if (!data) {
-      console.error('[generateXLSXReport] Error: data is null or undefined');
+      logger.error('Data is null or undefined for XLSX generation');
       return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
 
     if (!data.project) {
-      console.error('[generateXLSXReport] Error: data.project is missing');
+      logger.error('Data.project is missing for XLSX generation');
       return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
 
     if (!Array.isArray(data.installations)) {
-      console.error('[generateXLSXReport] Error: data.installations is not an array');
+      logger.error('Data.installations is not an array for XLSX generation');
       return new Blob([], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
 
@@ -2510,7 +2510,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           data.project.id,
         );
       } catch (error) {
-        console.error('[generateXLSXReport] Error adding Pendências section, skipping:', error);
+        logger.error('Error adding Pendências section, skipping', error);
       }
     }
 
@@ -2525,7 +2525,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           config,
         );
       } catch (error) {
-        console.error('[generateXLSXReport] Error adding Concluídas section, skipping:', error);
+        logger.error('Error adding Concluídas section, skipping', error);
       }
     }
 
@@ -2541,7 +2541,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           data.project.id,
         );
       } catch (error) {
-        console.error('[generateXLSXReport] Error adding Em Revisão section, skipping:', error);
+        logger.error('Error adding Em Revisão section, skipping', error);
       }
     }
 
@@ -2557,7 +2557,7 @@ export async function generateXLSXReport(data: ReportData): Promise<Blob> {
           config,
         );
       } catch (error) {
-        console.error('[generateXLSXReport] Error adding Em Andamento section, skipping:', error);
+        logger.error('Error adding Em Andamento section, skipping', error);
       }
     }
 

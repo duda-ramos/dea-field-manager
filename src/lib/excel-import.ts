@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { z } from 'zod';
 import { syncAllInstallationPhotos } from '@/utils/photoSync';
 import { storage } from '@/lib/storage';
+import { logger } from '@/services/logger';
 import type { Installation } from '@/types';
 
 // Zod schema for validating Installation data from Excel
@@ -91,7 +92,7 @@ export async function syncImportedPhotosToGallery(
       
       successCount++;
     } catch (error) {
-      console.error(`❌ Erro ao sincronizar fotos da instalação ${installation.codigo}:`, error);
+      logger.error(`Erro ao sincronizar fotos da instalação ${installation.codigo}`, error);
       errorCount++;
       // Continuar mesmo se uma falhar
     }

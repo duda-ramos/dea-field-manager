@@ -1247,7 +1247,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report blobData:', error);
+      logger.error('Failed to convert legacy report blobData', error);
     }
   }
 
@@ -1257,7 +1257,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report payload string:', error);
+      logger.error('Failed to convert legacy report payload string', error);
     }
   }
 
@@ -1267,7 +1267,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report payloadData string:', error);
+      logger.error('Failed to convert legacy report payloadData string', error);
     }
   }
 
@@ -1277,7 +1277,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report payload_base64 string:', error);
+      logger.error('Failed to convert legacy report payload_base64 string', error);
     }
   }
 
@@ -1287,7 +1287,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report base64 string:', error);
+      logger.error('Failed to convert legacy report base64 string', error);
     }
   }
 
@@ -1297,7 +1297,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report base64Payload string:', error);
+      logger.error('Failed to convert legacy report base64Payload string', error);
     }
   }
 
@@ -1307,7 +1307,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report dataUrl string:', error);
+      logger.error('Failed to convert legacy report dataUrl string', error);
     }
   }
 
@@ -1317,7 +1317,7 @@ function normalizeReportHistoryEntry(report: Record<string, unknown>, payload?: 
       storedBlob = converted.blob;
       mimeType = mimeType ?? converted.mimeType;
     } catch (error) {
-      console.error('Failed to convert legacy report data_url string:', error);
+      logger.error('Failed to convert legacy report data_url string', error);
     }
   }
 
@@ -1393,14 +1393,14 @@ async function migrateLegacyReportHistory() {
             });
           }
         } catch (error) {
-          console.error('Failed to migrate legacy report history entry:', error);
+          logger.error('Failed to migrate legacy report history entry', error);
         }
       }
     });
 
     window.localStorage.removeItem(LEGACY_REPORT_HISTORY_STORAGE_KEY);
   } catch (error) {
-    console.error('Error migrating legacy report history:', error);
+    logger.error('Error migrating legacy report history', error);
   }
 }
 
@@ -1464,7 +1464,7 @@ async function migrateLegacyReportHistory() {
         }
       }
     } catch (error) {
-      console.warn('[getReports] Failed to fetch from Supabase, using local only:', error);
+      logger.warn('Failed to fetch from Supabase, using local only', error);
     }
 
     // Merge and deduplicate reports (prefer Supabase version if exists)
@@ -1482,7 +1482,7 @@ async function migrateLegacyReportHistory() {
     return Array.from(uniqueReports.values())
       .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   } catch (error) {
-    console.error('Error getting reports:', error);
+    logger.error('Error getting reports', error);
     return [];
   }
 };
@@ -1590,7 +1590,7 @@ async function migrateLegacyReportHistory() {
         }
       }
     } catch (error) {
-      console.warn('[deleteReport] Failed to delete from Supabase, continuing with local delete:', error);
+      logger.warn('Failed to delete from Supabase, continuing with local delete', error);
     }
     
     // Delete from local IndexedDB
