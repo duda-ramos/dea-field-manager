@@ -48,11 +48,23 @@ DECLARE
   v_changes_summary JSONB;
   v_motivo TEXT;
   v_snapshot JSONB;
+  v_actor_id UUID;
 BEGIN
-  -- Determinar o email do usuário (pode vir de auth.uid() ou do NEW.user_id)
-  SELECT email INTO v_user_email 
-  FROM auth.users 
-  WHERE id = COALESCE(NEW.user_id, auth.uid());
+  -- Determinar o usuário responsável considerando o tipo de operação
+  IF TG_OP = 'DELETE' THEN
+    v_actor_id := COALESCE(OLD.user_id, auth.uid());
+  ELSE
+    v_actor_id := COALESCE(NEW.user_id, auth.uid());
+  END IF;
+
+  -- Determinar o email do usuário (pode vir de auth.uid() ou do usuário associado)
+  IF v_actor_id IS NOT NULL THEN
+    SELECT email INTO v_user_email
+    FROM auth.users
+    WHERE id = v_actor_id;
+  ELSE
+    v_user_email := NULL;
+  END IF;
 
   -- Determinar o tipo de ação
   IF TG_OP = 'INSERT' THEN
@@ -156,7 +168,7 @@ BEGIN
       v_user_email,
       v_action_type,
       jsonb_build_object('deleted', jsonb_build_object('before', false, 'after', true)),
-      COALESCE(OLD.user_id, auth.uid())
+      v_actor_id
     );
   ELSE
     -- Apenas registrar se houver mudanças significativas ou for INSERT
@@ -191,7 +203,7 @@ BEGIN
         v_user_email,
         v_action_type,
         v_changes_summary,
-        COALESCE(NEW.user_id, auth.uid())
+        v_actor_id
       );
     END IF;
   END IF;
@@ -209,7 +221,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS trigger_auto_record_installation_revision ON public.installations;
 
 CREATE TRIGGER trigger_auto_record_installation_revision
-  AFTER INSERT OR UPDATE OR DELETE ON public.installations
+  BEFORE INSERT OR UPDATE OR DELETE ON public.installations
   FOR EACH ROW
   EXECUTE FUNCTION public.auto_record_installation_revision();
 
