@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { Home, FolderOpen, Users, BarChart3, Plus, Calendar } from "lucide-react"
+import { Home, FolderOpen, Users, BarChart3, Plus, Calendar, Shield } from "lucide-react"
+import { useAuthContext } from "@/hooks/useAuthContext"
 
 import {
   Sidebar,
@@ -49,6 +50,7 @@ export function AppSidebar() {
   const { open } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
+  const auth = useAuthContext()
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -105,6 +107,30 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin Section */}
+        {auth.isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="px-2 text-xs font-medium text-muted-foreground">
+              Administração
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="h-9">
+                    <NavLink
+                      to="/usuarios"
+                      className={getNavClasses("/usuarios")}
+                    >
+                      <Shield className="h-4 w-4" />
+                      {open && <span className="ml-2">Usuários</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
       </SidebarContent>
 

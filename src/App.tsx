@@ -28,6 +28,7 @@ const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const ContatosPage = lazy(() => import("./features/contatos").then(mod => ({ default: mod.ContatosPage })));
 const GlobalContactsPage = lazy(() => import("./pages/GlobalContactsPage"));
 const ConfiguracoesPage = lazy(() => import("./pages/ConfiguracoesPage"));
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const Debug = lazy(() => import("./pages/Debug"));
 const TestConflictIntegration = lazy(() => import("./components/test-conflict-integration").then(mod => ({ default: mod.TestConflictIntegration })));
 const PublicReportView = lazy(() => import("./components/reports/PublicReportView").then(mod => ({ default: mod.PublicReportView })));
@@ -241,6 +242,13 @@ const App = () => {
                       <ProtectedRoute>
                         <AppLayout>
                           <ConfiguracoesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/usuarios" element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <UserManagementPage />
                         </AppLayout>
                       </ProtectedRoute>
                     } />
