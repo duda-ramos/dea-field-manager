@@ -807,9 +807,9 @@ export const StorageManagerDexie = {
     const hasTrackedChanges =
       !existing ||
       TRACKED_INSTALLATION_FIELDS.filter(field => field !== 'revisao').some(field => {
-        const nextValue = (candidateState as Record<string, unknown>)[field as string];
+        const nextValue = getInstallationField(candidateState, field);
         const previousValue = existing
-          ? (existing as Record<string, unknown>)[field as string]
+          ? getInstallationField(existing, field)
           : undefined;
         return valuesAreDifferent(nextValue, previousValue);
       });
