@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
+import { logger } from "@/services/logger";
 
 export interface ProjectLifecycleFilters {
   showActive?: boolean;
