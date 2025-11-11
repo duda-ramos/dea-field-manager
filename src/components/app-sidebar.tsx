@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { Home, FolderOpen, Users, BarChart3, Plus, Calendar, Shield } from "lucide-react"
 import { useAuthContext } from "@/hooks/useAuthContext"
+import { StorageUsageIndicator } from "@/components/storage/StorageUsageIndicator"
 
 import {
   Sidebar,
@@ -135,12 +136,15 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border p-2">
-        {open && (
-          <Button variant="outline" size="sm" className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Projeto
-          </Button>
-        )}
+        <div className="space-y-2">
+          <StorageUsageIndicator />
+          {open && (
+            <Button variant="outline" size="sm" className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Projeto
+            </Button>
+          )}
+        </div>
       </SidebarFooter>
     </Sidebar>
   )
