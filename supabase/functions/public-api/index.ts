@@ -26,7 +26,7 @@ const _CreateInstallationSchema = z.object({
   installed: z.boolean().optional(),
 })
 
-type _Database = {
+type Database = {
   public: {
     Tables: {
       projects: {
@@ -186,7 +186,7 @@ function isApiKeyData(value: unknown): value is ApiKeyData {
 
 // Using runtime validation via type guards for api_keys rows
 
-const supabase = createClient(
+const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
@@ -380,7 +380,7 @@ serve(async (req) => {
 
       const { name, client, city, code, status } = validation.data
 
-      const projectData: Record<string, unknown> = {
+      const projectData: Database['public']['Tables']['projects']['Insert'] = {
         name,
         client,
         city,
