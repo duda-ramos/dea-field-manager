@@ -135,7 +135,7 @@ export async function restoreProject(projectId: string) {
  */
 export async function permanentlyDeleteProject(projectId: string) {
   try {
-    console.log("Attempting to permanently delete project:", projectId);
+    logger.info('Attempting to permanently delete project', { projectId });
     
     // Delete all related data to avoid foreign key constraints
     // Order matters - delete dependent tables first
@@ -216,7 +216,7 @@ export async function permanentlyDeleteProject(projectId: string) {
       throw error;
     }
 
-    console.log("Project permanently deleted successfully");
+    logger.info('Project permanently deleted successfully', { projectId });
     toast.success("Projeto excluído permanentemente");
     return { success: true };
   } catch (error) {

@@ -1,4 +1,5 @@
 import { db } from '@/db/indexedDb';
+import { logger } from '@/services/logger';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
 
@@ -119,7 +120,7 @@ class SyncStateManager {
         pendingByTable 
       });
     } catch (error) {
-      console.error('Error counting pending changes:', error);
+      logger.error('Error counting pending changes', { error });
     }
   }
 
@@ -133,7 +134,7 @@ class SyncStateManager {
         }
       });
     } catch (error) {
-      console.error('Error loading metrics:', error);
+      logger.error('Error loading metrics', { error });
     }
   }
 

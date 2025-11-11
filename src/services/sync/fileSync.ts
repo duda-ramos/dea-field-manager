@@ -225,7 +225,7 @@ export class FileSyncService {
         });
       } catch (error) {
         // Storage deletion failed, but continue with DB deletion
-        console.warn(`Failed to delete file from storage: ${error}`);
+        logger.warn('Failed to delete file from storage', { error, storagePath: file.storage_path });
       }
     }
 

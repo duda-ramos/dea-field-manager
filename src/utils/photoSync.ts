@@ -1,4 +1,5 @@
 import { StorageManagerDexie } from '@/services/StorageManager';
+import { logger } from '@/services/logger';
 import type { ProjectFile } from '@/types';
 
 /**
@@ -15,17 +16,13 @@ export async function syncPhotoToProjectAlbum(
   sequencial?: number
 ): Promise<void> {
   try {
-    console.log('📸 Sync com metadados:', { fileSize, fileType, fileName: `peca_${installationCode}` });
-    console.log(`🔄 Sincronizando foto da peça ${installationCode} com álbum do projeto...`);
-    console.log(`📁 Storage path: ${storagePath}`);
+    logger.debug('Syncing photo to project album', { fileSize, fileType, fileName: `peca_${installationCode}`, installationCode, storagePath });
     
     // Gerar nome do arquivo padronizado: peca_[codigo]_[data]_[seq].jpg
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const nextSequencial = sequencial || await getNextSequentialForProject(projectId);
     const paddedSequencial = String(nextSequencial).padStart(3, '0');
     const fileName = `peca_${installationCode}_${date}_${paddedSequencial}.jpg`;
-    
-    console.log(`📝 Nome gerado: ${fileName}`);
     
     // Criar registro no álbum do projeto (apenas referência, sem upload)
     const projectFile: Omit<ProjectFile, 'id'> = {
@@ -50,9 +47,9 @@ export async function syncPhotoToProjectAlbum(
       id: fileId
     });
     
-    console.log(`✅ Foto da peça ${installationCode} sincronizada com o álbum do projeto (ID: ${fileId})`);
+    logger.info('Photo synced to project album', { installationCode, fileId, fileName });
   } catch (error) {
-    console.error(`❌ Erro ao sincronizar foto da peça ${installationCode}:`, error);
+    logger.error('Failed to sync photo to project album', { error, installationCode, storagePath });
     // Erro isolado - não propaga para não quebrar o fluxo principal
   }
 }
@@ -68,7 +65,7 @@ async function getNextSequentialForProject(projectId: string): Promise<number> {
     );
     return imageFiles.length + 1;
   } catch (error) {
-    console.error('Erro ao obter sequencial:', error);
+    logger.error('Error getting sequential number', { error, projectId });
     return 1;
   }
 }
@@ -105,13 +102,11 @@ export async function syncAllInstallationPhotos(
     return photo;
   });
   
-  console.log(`🔄 Iniciando sincronização de ${photoMetadata.length} foto(s) da peça ${installationCode}`);
+  logger.info('Starting installation photos sync', { count: photoMetadata.length, installationCode });
   
   for (let i = 0; i < photoMetadata.length; i++) {
     const photo = photoMetadata[i];
     const sequencial = await getNextSequentialForProject(projectId);
-    
-    console.log(`📸 Sincronizando foto ${i + 1}/${photoMetadata.length}... (${photo.size} bytes, tipo: ${photo.type})`);
     
     // Sync não-bloqueante: falha em uma foto não quebra as outras
     await syncPhotoToProjectAlbum(
@@ -125,5 +120,5 @@ export async function syncAllInstallationPhotos(
     );
   }
   
-  console.log(`✅ Sincronização concluída: ${photoMetadata.length} foto(s) processadas`);
+  logger.info('Installation photos sync completed', { count: photoMetadata.length, installationCode });
 }
