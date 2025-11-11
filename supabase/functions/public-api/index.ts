@@ -380,16 +380,18 @@ serve(async (req) => {
 
       const { name, client, city, code, status } = validation.data
 
+      const projectData: Record<string, unknown> = {
+        name,
+        client,
+        city,
+        code: code || '',
+        status: status || 'planning',
+        user_id: auth.user_id
+      }
+
       const { data, error } = await supabase
         .from('projects')
-        .insert({
-          name,
-          client,
-          city,
-          code: code || '',
-          status: status || 'planning',
-          user_id: auth.user_id
-        } as any)
+        .insert(projectData)
         .select()
         .maybeSingle()
 
