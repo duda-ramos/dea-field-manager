@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       if (data) {
-        setProfile(data);
+        setProfile(data as any); // Type assertion needed - profiles table structure
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

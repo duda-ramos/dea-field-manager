@@ -78,39 +78,52 @@ export function ProjectCollaborators({ projectId, projectOwnerId }: ProjectColla
     try {
       const { data, error } = await supabase
         .from('project_collaborators')
-        .select(`
-          *,
-          profile:user_id (
-            display_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('project_id', projectId)
         .order('invited_at', { ascending: false });
 
-      if (error) throw error;
-
-      // Get emails if admin
-      if (auth.isAdmin) {
-        const collaboratorsWithEmails = await Promise.all(
-          (data || []).map(async (collab) => {
+      // Get profiles and emails
+      if (data && data.length > 0) {
+        const collaboratorsWithProfiles = await Promise.all(
+          data.map(async (collab) => {
             try {
-              const { data: { user } } = await supabase.auth.admin.getUserById(collab.user_id);
+              // Get profile
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('display_name, avatar_url')
+                .eq('id', collab.user_id)
+                .single();
+              
+              // Get email if admin
+              let email = null;
+              if (auth.isAdmin) {
+                const { data: { user } } = await supabase.auth.admin.getUserById(collab.user_id);
+                email = user?.email || null;
+              }
+              
               return {
                 ...collab,
                 profile: {
-                  ...collab.profile,
-                  email: user?.email || null,
+                  display_name: profile?.display_name || 'Unknown',
+                  avatar_url: profile?.avatar_url || null,
+                  email
                 },
               };
             } catch (err) {
-              return collab;
+              return {
+                ...collab,
+                profile: {
+                  display_name: 'Unknown',
+                  avatar_url: null,
+                  email: null,
+                },
+              };
             }
           })
         );
-        setCollaborators(collaboratorsWithEmails as any);
+        setCollaborators(collaboratorsWithProfiles as any);
       } else {
-        setCollaborators(data || []);
+        setCollaborators([]);
       }
     } catch (error) {
       console.error('Error loading collaborators:', error);

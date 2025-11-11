@@ -349,30 +349,17 @@ function UserManagementPage() {
                       </TableCell>
                       <TableCell>{user.email || 'N/A'}</TableCell>
                       <TableCell>
-                        <Badge variant={getRoleBadgeVariant(user.role)}>
-                          {ROLE_LABELS[user.role]}
+                        <Badge variant="secondary">
+                          N/A (Role system not implemented)
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {format(new Date(user.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(v) => handleUpdateRole(user.id, v as UserRole)}
-                          disabled={updatingUserId === user.id || user.id === auth.user?.id}
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <span className="text-sm text-muted-foreground">
+                          Role management not available
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -215,16 +215,18 @@ export const reportSharingService = {
       return null;
     }
 
-    // Increment access count (fire and forget)
-    void supabase
-      .rpc('increment_public_link_access', {
-        link_id: accessRecord.link_id,
-        token_hash: tokenHash,
-      })
-      .catch((err) => {
+    // Increment access count (fire and forget - no await)
+    void (async () => {
+      try {
+        await supabase.rpc('increment_public_link_access', {
+          link_id: accessRecord.link_id,
+          token_hash: tokenHash,
+        });
+      } catch (err) {
         // Access count increment error - non-critical, just log
         logger.error('Failed to increment access count', { error: err, linkId: accessRecord.link_id });
-      });
+      }
+    })();
 
     return mapPublicReportAccess(accessRecord as Tables<'public_report_access'>);
   },
