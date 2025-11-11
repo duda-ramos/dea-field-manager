@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/services/logger';
 import type { Json, Tables } from '@/integrations/supabase/types';
 
 export interface PublicReportLink {
@@ -220,10 +221,10 @@ export const reportSharingService = {
         link_id: accessRecord.link_id,
         token_hash: tokenHash,
       })
-      .then(
-        () => console.log('Access count incremented'),
-        err => console.error('Failed to increment access count:', err)
-      );
+      .catch((err) => {
+        // Access count increment error - non-critical, just log
+        logger.error('Failed to increment access count', { error: err, linkId: accessRecord.link_id });
+      });
 
     return mapPublicReportAccess(accessRecord as Tables<'public_report_access'>);
   },

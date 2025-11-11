@@ -8,6 +8,7 @@ import { storage } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { logger } from '@/services/logger';
 import type { ReportHistoryEntry } from '@/types';
 
 interface SupabaseReportEntry extends ReportHistoryEntry {
@@ -49,7 +50,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
             .order('generated_at', { ascending: false });
 
           if (error) {
-            console.error('Error loading reports from Supabase:', error);
+            logger.error('Error loading reports from Supabase', { error, projectId });
           } else if (data) {
             // Transform Supabase data to ReportHistoryEntry format
             supabaseReports.push(...data.map(report => ({
@@ -72,7 +73,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
             })));
           }
         } catch (error) {
-          console.error('Error fetching Supabase reports:', error);
+          logger.error('Error fetching Supabase reports', { error, projectId });
         }
       }
 
@@ -83,7 +84,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
       const allReports = [...supabaseReports, ...filteredLocalReports];
       setReports(allReports);
     } catch (error) {
-      console.error('Error loading reports:', error);
+      logger.error('Error loading reports', { error, projectId });
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar o histórico de relatórios',
@@ -173,7 +174,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
         });
       }
     } catch (error) {
-      console.error('Error downloading report:', error);
+      logger.error('Error downloading report', { error, reportId: report.id });
       toast({
         title: 'Erro',
         description: 'Não foi possível baixar o relatório',
@@ -199,7 +200,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
 
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      console.error('Error opening report in browser:', error);
+      logger.error('Error opening report in browser', { error, reportId: report.id });
       toast({
         title: 'Erro',
         description: 'Não foi possível abrir o relatório na nuvem',
@@ -224,7 +225,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
           .eq('id', reportId);
 
         if (dbError) {
-          console.error('Error deleting from Supabase database:', dbError);
+          logger.error('Error deleting from Supabase database', { error: dbError, reportId });
         }
 
         // Delete from storage
@@ -234,7 +235,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
             .remove([report.storagePath]);
 
           if (storageError) {
-            console.error('Error deleting from Supabase storage:', storageError);
+            logger.error('Error deleting from Supabase storage', { error: storageError, storagePath: report.storagePath });
           }
         }
       }
@@ -253,7 +254,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
         description: 'O relatório foi removido do histórico'
       });
     } catch (error) {
-      console.error('Error deleting report:', error);
+      logger.error('Error deleting report', { error, reportId });
       toast({
         title: 'Erro',
         description: 'Não foi possível excluir o relatório',
@@ -281,7 +282,7 @@ export function ReportHistory({ projectId }: ReportHistoryProps) {
         locale: ptBR
       });
     } catch (error) {
-      console.error('Error formatting report date:', error);
+      // Date formatting error - return default
       return 'Data desconhecida';
     }
   };

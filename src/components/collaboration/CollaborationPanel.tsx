@@ -136,9 +136,6 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       if (error) throw error;
       setCollaborators((data as any) || []);
     } catch (error) {
-      console.error('[CollaborationPanel] Falha ao carregar colaboradores:', error, {
-        projectId
-      });
       logger.error('Error loading collaborators', {
         error,
         projectId,
@@ -296,11 +293,6 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
       onCollaboratorAdded?.();
 
     } catch (error) {
-      console.error('[CollaborationPanel] Falha ao convidar usuário:', error, {
-        projectId,
-        email: inviteEmail,
-        role: inviteRole
-      });
       logger.error('Error inviting user', {
         error,
         projectId,
@@ -336,10 +328,6 @@ export function CollaborationPanel({ projectId, isOwner, onCollaboratorAdded }: 
 
       loadCollaborators();
     } catch (error) {
-      console.error('[CollaborationPanel] Falha ao remover colaborador:', error, {
-        collaboratorId,
-        projectId
-      });
       logger.error('Error removing collaborator', {
         error,
         collaboratorId,

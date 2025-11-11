@@ -51,7 +51,7 @@ class OnlineMonitor {
   }
 
   private handleOnline = async () => {
-    console.log('🟢 Conexão restaurada');
+    // Connection restored
     
     // Limpar timer anterior se existir
     if (this.reconnectDebounceTimer) {
@@ -68,7 +68,7 @@ class OnlineMonitor {
     try {
       await realtimeManager.reconnect();
     } catch (error) {
-      console.error('Erro ao reconectar canais em tempo real:', error);
+      // Reconnect error handled by realtime manager
     }
 
     // Debounce de 2000ms antes de sincronizar
@@ -76,13 +76,13 @@ class OnlineMonitor {
       this.reconnectDebounceTimer = null;
 
       if (!navigator.onLine) {
-        console.log('⏸️ Reconexão cancelada - conexão perdida novamente');
+        // Reconnection cancelled - connection lost again
         return;
       }
 
       // Verificar se já está processando uma reconexão
       if (this.isHandlingReconnect) {
-        console.log('⏭️ Sync já em andamento, ignorando...');
+        // Sync already in progress, skip
         return;
       }
 
@@ -109,7 +109,7 @@ class OnlineMonitor {
               description: "Todas as alterações foram sincronizadas com sucesso!",
             });
           } catch (error) {
-            console.error('Erro ao sincronizar após reconexão:', error);
+            // Sync error after reconnect - handled by sync state manager
             syncStateManager.setError({
               message: error instanceof Error ? error.message : 'Erro desconhecido',
               timestamp: Date.now(),
@@ -137,7 +137,7 @@ class OnlineMonitor {
   };
 
   private handleOffline = () => {
-    console.log('🔴 Conexão perdida - trabalhando offline');
+    // Connection lost - working offline
 
     if (this.reconnectDebounceTimer) {
       clearTimeout(this.reconnectDebounceTimer);

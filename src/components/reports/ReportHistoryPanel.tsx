@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/use-debounce';
+import { logger } from '@/services/logger';
 import type { ReportHistoryEntry } from '@/types';
 
 interface ReportHistoryPanelProps {
@@ -64,7 +65,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
       const projectReports = await storage.getReports(projectId);
       setReports(projectReports);
     } catch (error) {
-      console.error('Error loading report history:', error);
+      logger.error('Error loading report history', { error, projectId });
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar o histórico de relatórios',
@@ -149,7 +150,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
         description: 'Relatório baixado com sucesso'
       });
     } catch (error) {
-      console.error('Error downloading report:', error);
+      logger.error('Error downloading report', { error, reportId: report.id });
       toast({
         title: 'Erro',
         description: 'Não foi possível baixar o relatório',
@@ -170,7 +171,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
         description: 'O relatório foi removido do histórico'
       });
     } catch (error) {
-      console.error('Error deleting report:', error);
+      logger.error('Error deleting report', { error, reportId });
       toast({
         title: 'Erro',
         description: 'Não foi possível excluir o relatório',
@@ -190,7 +191,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
         locale: ptBR
       });
     } catch (error) {
-      console.error('Error formatting report date:', error);
+      // Date formatting error - return default
       return 'Data desconhecida';
     }
   };
@@ -208,10 +209,7 @@ export function ReportHistoryPanel({ projectId }: ReportHistoryPanelProps) {
         minute: '2-digit'
       });
     } catch (error) {
-      console.error('[ReportHistoryPanel] Falha ao formatar data do relatório:', error, {
-        reportId: report.id,
-        dateValue: dateValue
-      });
+      logger.error('Failed to format report date', { error, reportId: report.id, dateValue });
       return '';
     }
   };

@@ -4,6 +4,7 @@
  */
 
 import imageCompression from 'browser-image-compression';
+import { logger } from '@/services/logger';
 
 // Types
 export interface CompressionOptions {
@@ -193,15 +194,15 @@ export async function compressImage(
     );
 
     if (!needsCompression && !needsDimensionCheck) {
-      console.log('Imagem não precisa de compressão');
+      logger.debug('Image does not need compression', { fileName: file.name, size: file.size });
       return file;
     }
 
     const startTime = Date.now();
     
-    console.log('Comprimindo imagem...', {
-      original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
-      name: file.name
+    logger.debug('Compressing image', {
+      originalSize: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+      fileName: file.name
     });
 
     // Compress the image using browser-image-compression library
@@ -210,11 +211,12 @@ export async function compressImage(
     const compressionTime = Date.now() - startTime;
     const reductionPercent = ((file.size - compressedFile.size) / file.size) * 100;
 
-    console.log('Imagem comprimida com sucesso', {
-      original: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
-      compressed: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
+    logger.info('Image compressed successfully', {
+      originalSize: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+      compressedSize: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
       reduction: `${reductionPercent.toFixed(1)}%`,
-      time: `${compressionTime}ms`
+      compressionTime: `${compressionTime}ms`,
+      fileName: file.name
     });
 
     return compressedFile;

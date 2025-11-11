@@ -91,7 +91,6 @@ export async function withRetry<T>(
     try {
       if (attempt > 1) {
         const opName = operationName || 'Operação';
-        console.log(`🔄 Tentativa ${attempt} de ${opts.maxAttempts}: ${opName}`);
         logger.info(`Retry attempt ${attempt}/${opts.maxAttempts} for: ${opName}`);
       }
       return await operation();
@@ -100,14 +99,12 @@ export async function withRetry<T>(
       
       if (attempt === opts.maxAttempts || !opts.retryCondition(error)) {
         const opName = operationName || 'operação';
-        console.error(`❌ Falha após ${attempt} tentativa(s): ${opName}`, error);
         logger.error(`Operation failed after ${attempt} attempt(s): ${opName}`, error);
         throw error;
       }
       
       const delay = Math.min(opts.baseDelay * Math.pow(2, attempt - 1), opts.maxDelay);
       const opName = operationName || 'operation';
-      console.warn(`⚠️ Tentativa ${attempt} falhou, tentando novamente em ${delay}ms: ${opName}`);
       logger.warn(`Attempt ${attempt} failed, retrying in ${delay}ms: ${opName}`, error);
       
       await new Promise(resolve => setTimeout(resolve, delay));
