@@ -189,6 +189,19 @@ export class FileSyncService {
           );
         });
 
+        // Validação pós-upload (Fase 1: correção emergencial)
+        const uploadValid = await storageService.validateUpload(storagePath);
+        
+        if (!uploadValid) {
+          logger.error('fileSync', {
+            message: 'Upload falhou na validação',
+            fileId: file.id,
+            fileName: file.name,
+            storagePath
+          });
+          throw new Error('Upload validation failed');
+        }
+
         // Update record with storage path and mark as dirty for next push
         await db.files.update(file.id, {
           storage_path: storagePath,
@@ -197,8 +210,11 @@ export class FileSyncService {
           _dirty: 1 // Mark for push to sync metadata
         });
 
-        // Clean up blob URL
-        URL.revokeObjectURL(file.url);
+        // Limpa blob URL (previne memory leak)
+        if (file.url.startsWith('blob:')) {
+          const { blobCleanup } = await import('@/services/storage/blobCleanup');
+          blobCleanup.revoke(file.url);
+        }
         
         uploaded++;
       } catch (error) {

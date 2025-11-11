@@ -237,8 +237,11 @@ async function authenticateApiKey(authHeader: string | null): Promise<{ user_id:
   }
 
   // Find matching key by comparing hashes
-  for (const keyData of apiKeys) {
-    if (!isApiKeyData(keyData)) continue
+  for (const rawKeyData of apiKeys) {
+    if (!isApiKeyData(rawKeyData)) continue
+    
+    // TypeScript narrowing: explicitly type after guard
+    const keyData: ApiKeyData = rawKeyData
 
     const isMatch = await verifyKey(apiKey, keyData.key_hash)
 

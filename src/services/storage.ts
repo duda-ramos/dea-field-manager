@@ -1,5 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { StorageManagerDexie } from '@/services/StorageManager';
+import { urlCache } from '@/services/storage/urlCache';
+import { blobCleanup } from '@/services/storage/blobCleanup';
+import { logger } from '@/services/logger';
 import type { ProjectFile } from '@/types';
 
 export interface StorageUploadResult {
@@ -53,18 +56,17 @@ export class SupabaseStorageService {
   }
 
   /**
-   * Generate signed URL for file access (5-15 min expiry)
+   * Generate signed URL for file access (usa cache automático)
    */
-  async getSignedUrl(storagePath: string, expiresIn: number = 900): Promise<SignedUrlResult> {
-    const { data, error } = await supabase.storage
-      .from(this.bucketName)
-      .createSignedUrl(storagePath, expiresIn);
+  async getSignedUrl(storagePath: string, _expiresIn: number = 900): Promise<SignedUrlResult> {
+    // Usa cache de URLs para evitar regeneração constante
+    const signedUrl = await urlCache.getSignedUrl(storagePath, this.bucketName);
 
-    if (error) {
-      return { signedUrl: '', error: error.message };
+    if (!signedUrl) {
+      return { signedUrl: '', error: 'Failed to generate signed URL' };
     }
 
-    return { signedUrl: data.signedUrl };
+    return { signedUrl };
   }
 
   /**
@@ -78,6 +80,9 @@ export class SupabaseStorageService {
     if (error) {
       throw new Error(`Delete failed: ${error.message}`);
     }
+
+    // Remove do cache de URLs
+    urlCache.invalidate(storagePath);
   }
 
   /**
@@ -118,7 +123,7 @@ export class SupabaseStorageService {
   }
 
   /**
-   * Get file preview URL (generates signed URL on demand)
+   * Get file preview URL (usa cache automático)
    */
   async getFilePreviewUrl(file: ProjectFile): Promise<string> {
     if (!file.storage_path) {
@@ -126,9 +131,10 @@ export class SupabaseStorageService {
       return file.url;
     }
 
-    const { signedUrl, error } = await this.getSignedUrl(file.storage_path);
-    if (error) {
-      throw new Error(`Failed to get preview URL: ${error}`);
+    // Usa cache de URLs
+    const signedUrl = await urlCache.getSignedUrl(file.storage_path, this.bucketName);
+    if (!signedUrl) {
+      throw new Error('Failed to get preview URL');
     }
 
     return signedUrl;
@@ -199,9 +205,9 @@ export class SupabaseStorageService {
 
       await StorageManagerDexie.upsertFile(updatedFile);
       
-      // Clean up blob URL
+      // Limpa blob URL (previne memory leak)
       if (file.url.startsWith('blob:')) {
-        URL.revokeObjectURL(file.url);
+        blobCleanup.revoke(file.url);
       }
 
       return updatedFile;
@@ -223,6 +229,9 @@ export class SupabaseStorageService {
   async queueOfflineUpload(file: File, projectId: string, installationId?: string): Promise<ProjectFile> {
     // Create local blob URL for immediate preview
     const blobUrl = URL.createObjectURL(file);
+    
+    // Rastreia blob URL para limpeza futura
+    blobCleanup.track(blobUrl);
 
     const timestamp = new Date().toISOString();
     const fileRecord: ProjectFile = {
@@ -245,6 +254,46 @@ export class SupabaseStorageService {
 
     await StorageManagerDexie.upsertFile(fileRecord);
     return fileRecord;
+  }
+
+  /**
+   * Valida se arquivo foi enviado corretamente
+   */
+  async validateUpload(storagePath: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.storage
+        .from(this.bucketName)
+        .list(storagePath.substring(0, storagePath.lastIndexOf('/')), {
+          search: storagePath.substring(storagePath.lastIndexOf('/') + 1)
+        });
+
+      if (error) {
+        logger.error('storage', {
+          message: 'Erro ao validar upload',
+          error: error.message,
+          storagePath
+        });
+        return false;
+      }
+
+      const exists = data && data.length > 0;
+      
+      if (!exists) {
+        logger.warn('storage', {
+          message: 'Arquivo não encontrado após upload',
+          storagePath
+        });
+      }
+
+      return exists;
+    } catch (error) {
+      logger.error('storage', {
+        message: 'Exceção ao validar upload',
+        error: error instanceof Error ? error.message : String(error),
+        storagePath
+      });
+      return false;
+    }
   }
 }
 
