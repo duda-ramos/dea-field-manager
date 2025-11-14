@@ -43,6 +43,12 @@ describe('AutoSyncManager', () => {
   let visibilityChangeListener: ((this: Document, ev: Event) => any) | null = null;
   let pageHideListener: ((this: Window, ev: PageTransitionEvent) => any) | null = null;
 
+  const createPageHideEvent = (persisted: boolean) => {
+    const event = new Event('pagehide') as PageTransitionEvent;
+    Object.defineProperty(event, 'persisted', { value: persisted, configurable: true });
+    return event;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -263,8 +269,7 @@ describe('AutoSyncManager', () => {
       });
 
       if (pageHideListener) {
-        const event = new PageTransitionEvent('pagehide', { persisted: false });
-        pageHideListener.call(window, event);
+        pageHideListener.call(window, createPageHideEvent(false));
       }
 
       await vi.runAllTimersAsync();
@@ -281,8 +286,7 @@ describe('AutoSyncManager', () => {
       });
 
       if (pageHideListener) {
-        const event = new PageTransitionEvent('pagehide', { persisted: true });
-        pageHideListener.call(window, event);
+        pageHideListener.call(window, createPageHideEvent(true));
       }
 
       await vi.runAllTimersAsync();
