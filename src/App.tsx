@@ -38,6 +38,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
+import { ConfirmEmailPage } from "./pages/auth/ConfirmEmailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -131,6 +132,11 @@ const App = () => {
                     <Route path="/auth/reset-password" element={
                       <PublicRoute allowAuthenticated>
                         <ResetPasswordPage />
+                      </PublicRoute>
+                    } />
+                    <Route path="/auth/confirm" element={
+                      <PublicRoute allowAuthenticated>
+                        <ConfirmEmailPage />
                       </PublicRoute>
                     } />
                     
