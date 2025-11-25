@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Realtime - DEA Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        
+        .status.pending {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .status.success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status.error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .log {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .log.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 3px solid #17a2b8;
+        }
+        
+        .log.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 3px solid #28a745;
+        }
+        
+        .log.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 3px solid #dc3545;
+        }
+        
+        .log.warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 3px solid #ffc107;
+        }
+        
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .instructions strong {
+            color: #0056b3;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Teste de Sincronização em Tempo Real</h1>
+        <p class="subtitle">DEA Field Manager - Diagnóstico Completo</p>
+        
+        <!-- Test 1: Check Environment -->
+        <div class="test-section">
+            <h2>
+                1️⃣ Verificar Configuração
+                <span class="status pending" id="status-1">Pendente</span>
+            </h2>
+            <div class="instructions">
+                <strong>O que faz:</strong> Verifica se as variáveis de ambiente e preferências estão configuradas corretamente.
+            </div>
+            <button onclick="testEnvironment()">Executar Teste</button>
+            <div class="result" id="result-1" style="display: none;"></div>
+        </div>
+        
+        <!-- Test 2: Check LocalStorage -->
+        <div class="test-section">
+            <h2>
+                2️⃣ Verificar Preferências
+                <span class="status pending" id="status-2">Pendente</span>
+            </h2>
+            <div class="instructions">
+                <strong>O que faz:</strong> Verifica o localStorage para confirmar que realtime está habilitado nas preferências do usuário.
+            </div>
+            <button onclick="testPreferences()">Executar Teste</button>
+            <button onclick="resetPreferences()">Resetar Preferências</button>
+            <div class="result" id="result-2" style="display: none;"></div>
+        </div>
+        
+        <!-- Test 3: Check Realtime Manager -->
+        <div class="test-section">
+            <h2>
+                3️⃣ Verificar Inicialização
+                <span class="status pending" id="status-3">Pendente</span>
+            </h2>
+            <div class="instructions">
+                <strong>O que faz:</strong> Verifica se o RealtimeManager foi inicializado e está ativo na aplicação principal.
+            </div>
+            <button onclick="testInitialization()">Executar Teste</button>
+            <div class="result" id="result-3" style="display: none;"></div>
+        </div>
+        
+        <!-- Test 4: Monitor Events -->
+        <div class="test-section">
+            <h2>
+                4️⃣ Monitorar Eventos
+                <span class="status pending" id="status-4">Pendente</span>
+            </h2>
+            <div class="instructions">
+                <strong>O que faz:</strong> Escuta eventos de realtime por 10 segundos. Faça uma mudança na aplicação durante este teste.
+            </div>
+            <button onclick="monitorEvents()" id="monitor-btn">Iniciar Monitoramento (10s)</button>
+            <div class="result" id="result-4" style="display: none;"></div>
+        </div>
+        
+        <!-- Metrics Dashboard -->
+        <div class="test-section">
+            <h2>📊 Métricas em Tempo Real</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-received">0</div>
+                    <div class="metric-label">Eventos Recebidos</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-applied">0</div>
+                    <div class="metric-label">Eventos Aplicados</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-ignored">0</div>
+                    <div class="metric-label">Eventos Ignorados</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-status">❓</div>
+                    <div class="metric-label">Status</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Helper functions
+        function updateStatus(testNumber, status) {
+            const statusEl = document.getElementById(`status-${testNumber}`);
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'success' ? 'Passou' : 
+                                   status === 'error' ? 'Falhou' : 'Pendente';
+        }
+        
+        function showResult(testNumber, html) {
+            const resultEl = document.getElementById(`result-${testNumber}`);
+            resultEl.innerHTML = html;
+            resultEl.style.display = 'block';
+        }
+        
+        function log(type, message) {
+            return `<div class="log ${type}">${message}</div>`;
+        }
+        
+        // Test 1: Environment
+        function testEnvironment() {
+            let html = '';
+            let passed = true;
+            
+            // Check if we're on localhost
+            const isLocal = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+            
+            html += log('info', `🌐 Hostname: ${window.location.hostname}`);
+            
+            if (isLocal) {
+                html += log('success', '✅ Rodando em ambiente de desenvolvimento');
+                html += log('info', '💡 Variáveis de ambiente são carregadas do arquivo .env');
+                html += log('success', '✅ VITE_REALTIME_ENABLED deve estar definido como "true"');
+            } else {
+                html += log('warning', '⚠️ Rodando em produção - variáveis vêm do build');
+                passed = false;
+            }
+            
+            updateStatus(1, passed ? 'success' : 'error');
+            showResult(1, html);
+        }
+        
+        // Test 2: Preferences
+        function testPreferences() {
+            let html = '';
+            let passed = false;
+            
+            try {
+                const prefs = localStorage.getItem('sync_preferences');
+                html += log('info', '📦 Buscando sync_preferences do localStorage...');
+                
+                if (!prefs) {
+                    html += log('warning', '⚠️ Preferências não encontradas (usando padrão)');
+                    html += log('info', '💡 Preferências padrão agora têm realtimeEnabled: true');
+                    passed = true;
+                } else {
+                    const parsed = JSON.parse(prefs);
+                    html += log('success', `✅ Preferências encontradas`);
+                    html += log('info', `<pre>${JSON.stringify(parsed, null, 2)}</pre>`);
+                    
+                    if (parsed.realtimeEnabled === true) {
+                        html += log('success', '✅ realtimeEnabled: true');
+                        passed = true;
+                    } else {
+                        html += log('error', '❌ realtimeEnabled: false');
+                        html += log('info', '💡 Clique em "Resetar Preferências" para corrigir');
+                    }
+                }
+            } catch (error) {
+                html += log('error', `❌ Erro: ${error.message}`);
+            }
+            
+            updateStatus(2, passed ? 'success' : 'error');
+            showResult(2, html);
+        }
+        
+        function resetPreferences() {
+            localStorage.removeItem('sync_preferences');
+            alert('Preferências resetadas! Recarregue a página da aplicação principal.');
+            testPreferences();
+        }
+        
+        // Test 3: Initialization
+        function testInitialization() {
+            let html = '';
+            
+            html += log('warning', '⚠️ Este teste precisa ser executado na aplicação principal');
+            html += log('info', '💡 Abra a aplicação e verifique o console (F12)');
+            html += log('info', '🔍 Procure por mensagens:');
+            html += log('info', '   - [INFO] Realtime initialized: client_...');
+            html += log('info', '   - [INFO] Realtime: Subscribed to projects');
+            html += log('info', '   - [INFO] Realtime: Subscribed to installations');
+            
+            updateStatus(3, 'pending');
+            showResult(3, html);
+        }
+        
+        // Test 4: Monitor Events
+        let monitoringInterval;
+        let eventCount = 0;
+        
+        function monitorEvents() {
+            const btn = document.getElementById('monitor-btn');
+            btn.disabled = true;
+            
+            let html = '';
+            let timeLeft = 10;
+            eventCount = 0;
+            
+            html += log('info', '👂 Escutando eventos realtime-update...');
+            html += log('warning', '⚠️ Faça uma mudança na aplicação durante este teste');
+            
+            const eventHandler = (event) => {
+                eventCount++;
+                html += log('success', `✅ Evento recebido! Table: ${event.detail?.table}, Timestamp: ${new Date(event.detail?.timestamp).toLocaleTimeString()}`);
+                showResult(4, html);
+            };
+            
+            window.addEventListener('realtime-update', eventHandler);
+            
+            monitoringInterval = setInterval(() => {
+                timeLeft--;
+                html = html.split('⏱️')[0]; // Remove old timer
+                html += log('info', `⏱️ Tempo restante: ${timeLeft}s`);
+                showResult(4, html);
+                
+                if (timeLeft <= 0) {
+                    clearInterval(monitoringInterval);
+                    window.removeEventListener('realtime-update', eventHandler);
+                    
+                    if (eventCount > 0) {
+                        html += log('success', `✅ Teste concluído! ${eventCount} eventos detectados`);
+                        updateStatus(4, 'success');
+                    } else {
+                        html += log('warning', '⚠️ Nenhum evento detectado');
+                        html += log('info', '💡 Verifique se a migration foi aplicada no Supabase');
+                        updateStatus(4, 'error');
+                    }
+                    
+                    btn.disabled = false;
+                    showResult(4, html);
+                }
+            }, 1000);
+            
+            showResult(4, html);
+        }
+        
+        // Update metrics periodically
+        setInterval(() => {
+            // Try to get metrics from the main app
+            if (window.opener && window.opener.syncStateManager) {
+                try {
+                    const state = window.opener.syncStateManager.getState();
+                    const metrics = state.metrics?.realtimeMetrics;
+                    
+                    if (metrics) {
+                        document.getElementById('metric-received').textContent = metrics.eventsReceived || 0;
+                        document.getElementById('metric-applied').textContent = metrics.eventsApplied || 0;
+                        document.getElementById('metric-ignored').textContent = metrics.eventsIgnored || 0;
+                        document.getElementById('metric-status').textContent = metrics.isActive ? '✅' : '❌';
+                    }
+                } catch (e) {
+                    // Silently fail
+                }
+            }
+        }, 1000);
+        
+        // Auto-run first test
+        setTimeout(() => testEnvironment(), 500);
+    </script>
+</body>
+</html>

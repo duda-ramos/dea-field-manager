@@ -12,7 +12,7 @@ const DEFAULT_PREFERENCES: SyncPreferences = {
   autoPushOnExit: true,
   periodicPullEnabled: false,
   periodicPullInterval: 5,
-  realtimeEnabled: false
+  realtimeEnabled: true
 };
 
 const STORAGE_KEY = 'sync_preferences';
