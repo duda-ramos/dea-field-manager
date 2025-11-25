@@ -375,6 +375,8 @@ class RealtimeManager {
     if (event.eventType === 'DELETE') {
       // Delete from IndexedDB
       await (localTable as any).delete(event.id);
+      // Disparar evento customizado para listeners
+      this.notifyRealtimeUpdate(event.table);
       return;
     }
 
@@ -397,6 +399,19 @@ class RealtimeManager {
     // Transform and apply the record
     const localRecord = this.transformRecordForLocal(event.payload, event.table);
     await (localTable as any).put(localRecord);
+    
+    // Disparar evento customizado para listeners
+    this.notifyRealtimeUpdate(event.table);
+  }
+
+  private notifyRealtimeUpdate(table: string): void {
+    // Disparar evento customizado que os hooks podem escutar
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('realtime-update', {
+        detail: { table, timestamp: Date.now() }
+      });
+      window.dispatchEvent(event);
+    }
   }
 
   private getLocalTable(tableName: string): unknown {

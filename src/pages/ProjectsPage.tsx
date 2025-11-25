@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatsCard } from "@/components/ui/stats-card";
@@ -8,13 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, FolderOpen, CheckCircle2, Clock, AlertTriangle, Trash2, Archive, Loader2 } from "lucide-react";
-import { Project } from "@/types";
 import { storage } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useRealtimeProjects } from "@/hooks/useRealtimeProjects";
 
 export default function ProjectsPage() {
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  // Usar hook de realtime para obter projetos automaticamente
+  const { projects: allProjects, isLoading: isLoadingProjects, refresh: loadProjects } = useRealtimeProjects();
+  
   const [activeTab, setActiveTab] = useState<'active' | 'deleted' | 'archived'>('active');
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,22 +33,7 @@ export default function ProjectsPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isCreating, setIsCreating] = useState(false);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  const loadProjects = async () => {
-    setIsLoadingProjects(true);
-    try {
-      const projects = await storage.getProjects();
-      setAllProjects(projects);
-    } finally {
-      setIsLoadingProjects(false);
-    }
-  };
 
   // Filter projects based on active tab
   const getProjectsByTab = () => {
