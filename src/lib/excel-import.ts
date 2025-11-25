@@ -8,7 +8,7 @@ import type { Installation } from '@/types';
 // Zod schema for validating Installation data from Excel
 const InstallationSchema = z.object({
   tipologia: z.string().min(2, 'Tipologia deve ter no mínimo 2 caracteres'),
-  codigo: z.number().positive('Código deve ser um número positivo'),
+  codigo: z.union([z.string(), z.number()]).refine(val => val !== null && val !== undefined && val !== '', 'Código é obrigatório'),
   descricao: z.string().min(1, 'Descrição é obrigatória'),
   quantidade: z.number().positive('Quantidade deve ser maior que 0'),
   diretriz_altura_cm: z.number().optional(),
@@ -249,8 +249,8 @@ export function importExcelFile(file: File, projectId?: string): Promise<ExcelIm
             // Parse all values
             const codigoValue = headerMap['codigo'] ? row[parseInt(headerMap['codigo'])] : null;
             const codigo = codigoValue !== null && codigoValue !== undefined && codigoValue !== '' 
-              ? Number(codigoValue) 
-              : NaN;
+              ? codigoValue.toString().trim()
+              : '';
             
             const quantidadeValue = headerMap['quantidade'] ? row[parseInt(headerMap['quantidade'])] : null;
             const quantidade = quantidadeValue !== null && quantidadeValue !== undefined && quantidadeValue !== ''

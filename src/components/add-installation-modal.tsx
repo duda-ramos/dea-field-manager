@@ -135,12 +135,8 @@ export function AddInstallationModal({
     }
 
     // Validate numeric fields
-    const codigo = parseInt(formData.codigo);
     const quantidade = parseInt(formData.quantidade);
 
-    if (formData.codigo && isNaN(codigo)) {
-      newErrors.codigo = 'Código deve ser um número válido';
-    }
     if (formData.quantidade && isNaN(quantidade)) {
       newErrors.quantidade = 'Quantidade deve ser um número válido';
     }
@@ -164,7 +160,7 @@ export function AddInstallationModal({
   };
 
   const saveInstallation = async () => {
-    const codigo = parseInt(formData.codigo);
+    const codigo = formData.codigo.trim();
     const quantidade = parseInt(formData.quantidade);
     const diretriz_altura_cm = formData.diretriz_altura_cm ? parseInt(formData.diretriz_altura_cm) : undefined;
     const diretriz_dist_batente_cm = formData.diretriz_dist_batente_cm ? parseInt(formData.diretriz_dist_batente_cm) : undefined;
@@ -376,13 +372,13 @@ export function AddInstallationModal({
               <Label htmlFor="codigo">Código *</Label>
               <Input
                 id="codigo"
-                type="number"
+                type="text"
                 value={formData.codigo}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, codigo: e.target.value }));
                   if (errors.codigo) setErrors(prev => ({ ...prev, codigo: '' }));
                 }}
-                placeholder="Ex: 1, 2, 3"
+                placeholder="Ex: 1, 2A, B-101"
                 aria-required="true"
                 aria-invalid={Boolean(errors.codigo)}
                 aria-describedby={errors.codigo ? 'codigo-error' : undefined}
