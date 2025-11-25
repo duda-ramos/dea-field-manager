@@ -141,11 +141,11 @@ export const reportSharingService = {
 
     if (!reportFound) {
       const { data: legacyReport, error: legacyReportError } = await supabase
-        .from('project_report_history')
+        .from('report_history')
         .select('id')
         .eq('id', reportId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (legacyReport && !legacyReportError) {
         reportFound = true;
@@ -204,7 +204,7 @@ export const reportSharingService = {
 
     // Query secured RPC that enforces token hash validation server-side
     const { data, error } = await supabase
-      .rpc('get_public_report_access', { token_hash: tokenHash });
+      .rpc('get_public_report_access', { p_token_hash: tokenHash });
 
     if (error || !data) {
       return null;
@@ -219,8 +219,7 @@ export const reportSharingService = {
     void (async () => {
       try {
         await supabase.rpc('increment_public_link_access', {
-          link_id: accessRecord.link_id,
-          token_hash: tokenHash,
+          p_link_id: accessRecord.link_id,
         });
       } catch (err) {
         // Access count increment error - non-critical, just log
@@ -333,14 +332,15 @@ export const reportSharingService = {
   },
 
   /**
-   * Cleanup expired links (can be called periodically)
+   * Cleanup expired links (disabled - function not implemented)
    */
   async cleanupExpiredLinks(): Promise<void> {
-    const { error } = await supabase.rpc('cleanup_expired_public_links');
-
-    if (error) {
-      console.error('Failed to cleanup expired links:', error);
-    }
+    // TODO: Implement cleanup_expired_public_links function in Supabase
+    console.log('Cleanup expired links - not yet implemented');
+    // const { error } = await supabase.rpc('cleanup_expired_public_links');
+    // if (error) {
+    //   console.error('Failed to cleanup expired links:', error);
+    // }
   },
 
   /**

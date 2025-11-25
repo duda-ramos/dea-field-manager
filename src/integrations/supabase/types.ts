@@ -840,6 +840,113 @@ export type Database = {
         }
         Relationships: []
       }
+      public_report_access: {
+        Row: {
+          access_count: number
+          created_at: string
+          expires_at: string
+          file_name: string | null
+          file_url: string | null
+          format: string | null
+          generated_at: string | null
+          id: string
+          interlocutor: string | null
+          link_id: string
+          project_id: string | null
+          report_id: string | null
+          sections_included: Json | null
+          stats: Json | null
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          expires_at: string
+          file_name?: string | null
+          file_url?: string | null
+          format?: string | null
+          generated_at?: string | null
+          id?: string
+          interlocutor?: string | null
+          link_id: string
+          project_id?: string | null
+          report_id?: string | null
+          sections_included?: Json | null
+          stats?: Json | null
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          expires_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          format?: string | null
+          generated_at?: string | null
+          id?: string
+          interlocutor?: string | null
+          link_id?: string
+          project_id?: string | null
+          report_id?: string | null
+          sections_included?: Json | null
+          stats?: Json | null
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_report_access_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "public_report_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_report_links: {
+        Row: {
+          access_count: number
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          last_accessed_at: string | null
+          metadata: Json | null
+          report_id: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          report_id: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          report_id?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       report_history: {
         Row: {
           created_at: string
@@ -1045,7 +1152,29 @@ export type Database = {
           unique_users: number
         }[]
       }
+      get_public_report_access: {
+        Args: { p_token_hash: string }
+        Returns: {
+          access_count: number
+          expires_at: string
+          file_name: string
+          file_url: string
+          format: string
+          generated_at: string
+          interlocutor: string
+          link_id: string
+          project_id: string
+          report_id: string
+          sections_included: Json
+          stats: Json
+          token_hash: string
+        }[]
+      }
       get_user_by_email: { Args: { user_email: string }; Returns: string }
+      increment_public_link_access: {
+        Args: { p_link_id: string }
+        Returns: undefined
+      }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
         Returns: undefined

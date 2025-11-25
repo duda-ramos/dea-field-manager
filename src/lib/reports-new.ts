@@ -2353,7 +2353,9 @@ async function _addSectionToPDF(
   const sortedItems = [...items].sort((a, b) => {
     if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
     if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-    return a.codigo - b.codigo;
+    const codigoA = typeof a.codigo === 'number' ? a.codigo : parseInt(String(a.codigo)) || 0;
+    const codigoB = typeof b.codigo === 'number' ? b.codigo : parseInt(String(b.codigo)) || 0;
+    return codigoA - codigoB;
   });
 
   if (sectionType === 'pendencias') {
@@ -2595,7 +2597,9 @@ async function _addSectionToXLSX(
   const sortedItems = [...items].sort((a, b) => {
     if (a.pavimento !== b.pavimento) return a.pavimento.localeCompare(b.pavimento, 'pt-BR', { numeric: true });
     if (a.tipologia !== b.tipologia) return a.tipologia.localeCompare(b.tipologia, 'pt-BR');
-    return a.codigo - b.codigo;
+    const codigoA = typeof a.codigo === 'number' ? a.codigo : parseInt(String(a.codigo)) || 0;
+    const codigoB = typeof b.codigo === 'number' ? b.codigo : parseInt(String(b.codigo)) || 0;
+    return codigoA - codigoB;
   });
 
   if (sectionType === 'pendencias') {
