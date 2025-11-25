@@ -388,11 +388,16 @@ function transformProjectForSupabase(project: Record<string, unknown>, userId: s
 }
 
 function transformInstallationForSupabase(installation: Record<string, unknown>, userId: string) {
+  // Ensure codigo is a number for Supabase
+  const codigo = typeof installation.codigo === 'number' 
+    ? installation.codigo 
+    : parseInt(String(installation.codigo)) || 0;
+    
   return {
     id: installation.id as string | undefined,
     project_id: installation.project_id as string,
     tipologia: installation.tipologia as string,
-    codigo: installation.codigo as string | number,
+    codigo: codigo,
     descricao: installation.descricao as string,
     quantidade: installation.quantidade as number,
     pavimento: installation.pavimento as string,

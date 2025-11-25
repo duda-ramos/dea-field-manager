@@ -10,7 +10,7 @@ interface MigrationStats {
   totalPhotos: number;
   photosSynced: number;
   metadataFixed: number;
-  errors: Array<{ installationCode: number; photoPath: string; error: string }>;
+  errors: Array<{ installationCode: string; photoPath: string; error: string }>;
 }
 
 /**
@@ -218,7 +218,7 @@ export async function migrateInstallationPhotosForProject(
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           stats.errors.push({
-            installationCode: installation.codigo,
+            installationCode: String(installation.codigo),
             photoPath,
             error: errorMessage
           });
