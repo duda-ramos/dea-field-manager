@@ -20,7 +20,7 @@ export type Database = {
           api_key_id: string
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           success: boolean | null
           user_id: string
         }
@@ -29,7 +29,7 @@ export type Database = {
           api_key_id: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           success?: boolean | null
           user_id: string
         }
@@ -38,7 +38,7 @@ export type Database = {
           api_key_id?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           success?: boolean | null
           user_id?: string
         }
@@ -215,7 +215,7 @@ export type Database = {
           contact_id: string
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string
         }
@@ -225,7 +225,7 @@ export type Database = {
           contact_id: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id: string
         }
@@ -235,7 +235,7 @@ export type Database = {
           contact_id?: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string
         }
@@ -558,7 +558,7 @@ export type Database = {
           changed_fields: Json | null
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           project_id: string
           user_agent: string | null
           user_id: string
@@ -568,7 +568,7 @@ export type Database = {
           changed_fields?: Json | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           project_id: string
           user_agent?: string | null
           user_id: string
@@ -578,7 +578,7 @@ export type Database = {
           changed_fields?: Json | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           project_id?: string
           user_agent?: string | null
           user_id?: string
@@ -771,121 +771,6 @@ export type Database = {
         }
         Relationships: []
       }
-      project_report_history: {
-        Row: {
-          created_at: string
-          file_name: string
-          file_url: string
-          format: 'pdf' | 'xlsx'
-          generated_at: string
-          generated_by: string | null
-          id: string
-          interlocutor: 'cliente' | 'fornecedor'
-          project_id: string
-          sections_included: Json | null
-          stats: Json | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          file_url: string
-          format: 'pdf' | 'xlsx'
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          interlocutor: 'cliente' | 'fornecedor'
-          project_id: string
-          sections_included?: Json | null
-          stats?: Json | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          file_url?: string
-          format?: 'pdf' | 'xlsx'
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          interlocutor?: 'cliente' | 'fornecedor'
-          project_id?: string
-          sections_included?: Json | null
-          stats?: Json | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_report_history_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      report_history: {
-        Row: {
-          created_at: string
-          config: Json | null
-          file_name: string
-          file_size: number | null
-          file_url: string
-          format: 'pdf' | 'xlsx'
-          generated_at: string
-          generated_by: string | null
-          id: string
-          interlocutor: 'cliente' | 'fornecedor'
-          project_id: string
-          sections_included: Json | null
-          stats: Json | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          config?: Json | null
-          file_name: string
-          file_size?: number | null
-          file_url: string
-          format: 'pdf' | 'xlsx'
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          interlocutor: 'cliente' | 'fornecedor'
-          project_id: string
-          sections_included?: Json | null
-          stats?: Json | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          config?: Json | null
-          file_name?: string
-          file_size?: number | null
-          file_url?: string
-          format?: 'pdf' | 'xlsx'
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          interlocutor?: 'cliente' | 'fornecedor'
-          project_id?: string
-          sections_included?: Json | null
-          stats?: Json | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "report_history_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       projects: {
         Row: {
           access_notes: string | null
@@ -955,56 +840,6 @@ export type Database = {
         }
         Relationships: []
       }
-      public_report_links: {
-        Row: {
-          access_count: number
-          created_at: string
-          created_by: string
-          expires_at: string
-          id: string
-          is_active: boolean
-          last_accessed_at: string | null
-          metadata: Json
-          report_id: string
-          token_hash: string
-          updated_at: string
-        }
-        Insert: {
-          access_count?: number
-          created_at?: string
-          created_by: string
-          expires_at: string
-          id?: string
-          is_active?: boolean
-          last_accessed_at?: string | null
-          metadata?: Json
-          report_id: string
-          token_hash: string
-          updated_at?: string
-        }
-        Update: {
-          access_count?: number
-          created_at?: string
-          created_by?: string
-          expires_at?: string
-          id?: string
-          is_active?: boolean
-          last_accessed_at?: string | null
-          metadata?: Json
-          report_id?: string
-          token_hash?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "public_report_links_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "project_report_history"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       storage_integration_audit: {
         Row: {
           accessed_fields: Json | null
@@ -1012,7 +847,7 @@ export type Database = {
           created_at: string | null
           id: string
           integration_id: string | null
-          ip_address: unknown | null
+          ip_address: unknown
           user_id: string
         }
         Insert: {
@@ -1021,7 +856,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           integration_id?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_id: string
         }
         Update: {
@@ -1030,7 +865,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           integration_id?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_id?: string
         }
         Relationships: [
@@ -1131,46 +966,16 @@ export type Database = {
       }
     }
     Views: {
-      public_report_access: {
-        Row: {
-          access_count: number
-          expires_at: string
-          file_name: string
-          file_url: string
-          format: string
-          generated_at: string
-          interlocutor: string
-          link_id: string
-          project_id: string
-          report_id: string
-          sections_included: Json | null
-          stats: Json | null
-          token_hash: string
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      cleanup_old_audit_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_public_links: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_audit_logs: { Args: never; Returns: undefined }
       create_automatic_project_backup: {
         Args: { p_backup_data: Json; p_project_id: string }
         Returns: string
       }
-      delete_old_archived_projects: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      delete_old_trashed_projects: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      delete_old_archived_projects: { Args: never; Returns: undefined }
+      delete_old_trashed_projects: { Args: never; Returns: undefined }
       get_contact_access_report: {
         Args: { p_days?: number; p_project_id: string }
         Returns: {
@@ -1181,34 +986,9 @@ export type Database = {
           unique_users: number
         }[]
       }
-      get_user_by_email: {
-        Args: { user_email: string }
-        Returns: string
-      }
-      get_public_report_access: {
-        Args: { token_hash: string }
-        Returns: {
-          access_count: number
-          expires_at: string
-          file_name: string
-          file_url: string
-          format: string
-          generated_at: string
-          interlocutor: string
-          link_id: string
-          project_id: string
-          report_id: string
-          sections_included: Json | null
-          stats: Json | null
-          token_hash: string
-        }[]
-      }
+      get_user_by_email: { Args: { user_email: string }; Returns: string }
       log_contact_access: {
         Args: { action_type: string; contact_id: string }
-        Returns: undefined
-      }
-      increment_public_link_access: {
-        Args: { link_id: string; token_hash: string }
         Returns: undefined
       }
       mask_contact_data: {

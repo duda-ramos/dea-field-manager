@@ -6,7 +6,7 @@ export interface InstallationBase {
   projectId?: string;
   // Campos obrigatórios
   tipologia: string;
-  codigo: number;
+  codigo: string | number;
   descricao: string;
   quantidade: number;
   pavimento: string;
