@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Archive, Download, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
+import { Archive, Download, RotateCcw, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndo } from "@/hooks/useUndo";
 import { showUndoToast } from "@/lib/toast";
 import { storage } from "@/lib/storage";
+import { fullSync } from "@/services/sync/sync";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +42,9 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showPermanentDeleteDialog, setShowPermanentDeleteDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { addAction, undo } = useUndo();
+  const { toast } = useToast();
 
   const isDeleted = !!project.deleted_at;
   const isArchived = !!project.archived_at && !project.deleted_at;
@@ -111,6 +115,61 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
     setIsDownloading(true);
     await downloadProjectZip(project.id);
     setIsDownloading(false);
+  };
+
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await fullSync();
+      
+      const pushTotals = Object.values(result.push).reduce((acc, entityResult) => {
+        if (entityResult) {
+          acc.pushed += entityResult.pushed || 0;
+          acc.deleted += entityResult.deleted || 0;
+        }
+        return acc;
+      }, { pushed: 0, deleted: 0 });
+
+      const pullTotals = Object.values(result.pull).reduce((acc, entityResult) => {
+        if (entityResult) {
+          acc.pulled += entityResult.pulled || 0;
+        }
+        return acc;
+      }, { pulled: 0 });
+
+      const totalItems = pushTotals.pushed + pullTotals.pulled;
+      const hasChanges = totalItems > 0 || pushTotals.deleted > 0;
+      
+      if (hasChanges) {
+        const details = [];
+        if (pushTotals.pushed > 0) details.push(`${pushTotals.pushed} enviados`);
+        if (pullTotals.pulled > 0) details.push(`${pullTotals.pulled} recebidos`);
+        if (pushTotals.deleted > 0) details.push(`${pushTotals.deleted} removidos`);
+        
+        toast({
+          title: "Sincronização concluída",
+          description: details.join(' • '),
+          duration: 3000
+        });
+      } else {
+        toast({
+          title: "Tudo sincronizado",
+          description: "Seus dados estão atualizados",
+          duration: 2000
+        });
+      }
+      
+      onUpdate();
+    } catch (error) {
+      toast({
+        title: "Erro na sincronização",
+        description: "Não foi possível sincronizar. Verifique sua conexão",
+        variant: "destructive",
+        duration: 5000
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   if (isDeleted) {
@@ -205,6 +264,11 @@ export function ProjectLifecycleActions({ project, onUpdate }: ProjectLifecycleA
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleForceSync} disabled={isSyncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? "Sincronizando..." : "Sincronizar Agora"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleDownloadZip} disabled={isDownloading}>
             <Download className="h-4 w-4 mr-2" />
             {isDownloading ? "Baixando..." : "Baixar ZIP"}
