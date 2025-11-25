@@ -3,9 +3,7 @@ import type {
   SupabaseClient,
   User,
   Session,
-  AuthError,
-  PostgrestFilterBuilder,
-  PostgrestQueryBuilder
+  AuthError
 } from '@supabase/supabase-js';
 
 /**
@@ -84,7 +82,7 @@ export function createMockFilterBuilder<T = any>() {
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
     maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     select: vi.fn().mockReturnThis(),
-  } as unknown as PostgrestFilterBuilder<any, any, any>;
+  };
 
   return builder;
 }
@@ -101,7 +99,7 @@ export function createMockQueryBuilder<T = any>() {
     update: vi.fn().mockReturnValue(filterBuilder),
     upsert: vi.fn().mockReturnValue(filterBuilder),
     delete: vi.fn().mockReturnValue(filterBuilder),
-  } as unknown as PostgrestQueryBuilder<any, any, any>;
+  };
 
   return builder;
 }

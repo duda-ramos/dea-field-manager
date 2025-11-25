@@ -85,9 +85,8 @@ export function createMockInstallations(projectId: string, count: number): Insta
       id: `installation-${i + 1}`,
       projectId,
       project_id: projectId,
-      identificacao: `INST-${String(i + 1).padStart(3, '0')}`,
+      codigo: `INST-${String(i + 1).padStart(3, '0')}`,
       pavimento: `${Math.floor(i / 10) + 1}° Andar`,
-      local: `Sala ${100 + i + 1}`,
     })
   );
 }

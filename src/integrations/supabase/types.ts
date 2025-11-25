@@ -840,6 +840,65 @@ export type Database = {
         }
         Relationships: []
       }
+      report_history: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          file_url: string | null
+          format: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          interlocutor: string
+          project_id: string
+          sections_included: Json
+          stats: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          file_url?: string | null
+          format: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor: string
+          project_id: string
+          sections_included?: Json
+          stats?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string | null
+          format?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          interlocutor?: string
+          project_id?: string
+          sections_included?: Json
+          stats?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storage_integration_audit: {
         Row: {
           accessed_fields: Json | null
