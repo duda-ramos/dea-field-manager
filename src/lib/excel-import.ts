@@ -10,7 +10,14 @@ const InstallationSchema = z.object({
   tipologia: z.string().min(2, 'Tipologia deve ter no mínimo 2 caracteres'),
   codigo: z.union([z.string(), z.number()]).refine(val => val !== null && val !== undefined && val !== '', 'Código é obrigatório'),
   descricao: z.string().min(1, 'Descrição é obrigatória'),
-  quantidade: z.number().positive('Quantidade deve ser maior que 0'),
+  quantidade: z.number().positive('Quantidade deve ser maior que 0').refine(
+    val => {
+      const str = val.toString();
+      const decimalPart = str.split('.')[1];
+      return !decimalPart || decimalPart.length <= 2;
+    },
+    'Quantidade pode ter no máximo 2 casas decimais'
+  ),
   diretriz_altura_cm: z.number().optional(),
   diretriz_dist_batente_cm: z.number().optional(),
   pavimento: z.string().optional(),
