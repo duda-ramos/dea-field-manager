@@ -135,10 +135,17 @@ export function AddInstallationModal({
     }
 
     // Validate numeric fields
-    const quantidade = parseInt(formData.quantidade);
+    const quantidade = parseFloat(formData.quantidade);
 
     if (formData.quantidade && isNaN(quantidade)) {
       newErrors.quantidade = 'Quantidade deve ser um número válido';
+    }
+
+    if (formData.quantidade && quantidade > 0) {
+      const decimalPlaces = (formData.quantidade.split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        newErrors.quantidade = 'Quantidade pode ter no máximo 2 casas decimais';
+      }
     }
 
     setErrors(newErrors);
@@ -161,7 +168,7 @@ export function AddInstallationModal({
 
   const saveInstallation = async () => {
     const codigo = formData.codigo.trim();
-    const quantidade = parseInt(formData.quantidade);
+    const quantidade = parseFloat(formData.quantidade);
     const diretriz_altura_cm = formData.diretriz_altura_cm ? parseInt(formData.diretriz_altura_cm) : undefined;
     const diretriz_dist_batente_cm = formData.diretriz_dist_batente_cm ? parseInt(formData.diretriz_dist_batente_cm) : undefined;
 
@@ -416,12 +423,13 @@ export function AddInstallationModal({
               <Input
                 id="quantidade"
                 type="number"
+                step="0.01"
                 value={formData.quantidade}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, quantidade: e.target.value }));
                   if (errors.quantidade) setErrors(prev => ({ ...prev, quantidade: '' }));
                 }}
-                placeholder="Ex: 1, 2, 5"
+                placeholder="Ex: 1, 2.5, 3.75"
                 aria-required="true"
                 aria-invalid={Boolean(errors.quantidade)}
                 aria-describedby={errors.quantidade ? 'quantidade-error' : undefined}
