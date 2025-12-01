@@ -63,10 +63,12 @@ const initializeAutoSyncOnce = async () => {
 // Helper function to get the correct redirect URL based on environment
 const getRedirectUrl = (path = '/') => {
   const isProduction = window.location.hostname !== 'localhost';
-  if (isProduction) {
-    return `https://deamanager.lovable.app${path}`;
-  }
-  return `${window.location.origin}${path}`;
+  const url = isProduction 
+    ? `https://deamanager.lovable.app${path}`
+    : `${window.location.origin}${path}`;
+  
+  console.log('🔗 [Auth] Redirect URL:', { isProduction, url, hostname: window.location.hostname });
+  return url;
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -180,15 +182,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return { error };
     }
 
-    const redirectUrl = getRedirectUrl('/');
+    const redirectUrl = getRedirectUrl('/auth/confirm');
+    console.log('📧 [Auth] SignUp - Email:', email, '| Redirect URL:', redirectUrl);
     
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: displayName ? { display_name: displayName } : undefined
       }
+    });
+    
+    console.log('📧 [Auth] SignUp - Result:', { 
+      success: !error, 
+      error: error?.message,
+      userId: data.user?.id,
+      emailConfirmationSent: data.user?.email_confirmed_at === null
     });
     
     // Record rate limit attempt
@@ -200,6 +210,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         action: 'auth_signup',
         component: 'AuthProvider'
       });
+    } else {
+      console.log('✅ [Auth] SignUp - Success! Check email for confirmation.');
     }
     
     return { error };
